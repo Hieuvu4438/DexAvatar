@@ -24,7 +24,7 @@ if [ $PIPELINE_EXIT -eq 0 ]; then
 
     conda activate dexavatar 2>/dev/null || true
 
-    python evaluation_trv2v_wilor.py \
+    python evaluation/evaluation_trv2v_wilor.py \
         --pred_root /home/haipd/DexAvatar/outputs/method_ensemble \
         --gt_root /home/haipd/DexAvatar/data/smplx_gt \
         --signs_txt data/signs.txt \

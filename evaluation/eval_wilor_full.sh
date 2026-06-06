@@ -4,7 +4,7 @@ cd /home/haipd/DexAvatar
 
 conda activate dexavatar 2>/dev/null || true
 
-python evaluation_mpvpe_correct.py \
+python evaluation/evaluation_mpvpe_correct.py \
     --pred_root /home/haipd/DexAvatar/outputs/output_wilor \
     --gt_root /home/haipd/DexAvatar/data/smplx_gt \
     --signs_txt data/signs.txt \

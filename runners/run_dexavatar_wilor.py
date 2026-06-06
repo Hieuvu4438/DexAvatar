@@ -2,6 +2,10 @@
 import os
 import argparse
 
+# Get project root (parent of runners/ directory)
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_DIR = os.path.dirname(SCRIPT_DIR)
+
 parser = argparse.ArgumentParser()
 parser.add_argument('--input_img_folder', type=str, default='')
 parser.add_argument('--output_path',    type=str, default='')
@@ -20,10 +24,11 @@ for sub_folder in sub_folder_list:
     os.makedirs(out_folder, exist_ok=True)
 
     cmd = (
+        f"cd {PROJECT_DIR} && "
         f"ROOT_PATH={input_folder} "
         f"OUTPUT_PATH={out_folder} "
         f"FITTING_EXPERIMENT={args.fitting_experiment} "
-        f"bash -c 'unset LD_LIBRARY_PATH && bash Full_running_command_wilor.sh'"
+        f"bash -c 'unset LD_LIBRARY_PATH && bash pipelines/Full_running_command_wilor.sh'"
     )
     print("Running:", cmd)
     os.system(cmd)

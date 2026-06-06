@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-python M3_mean_shape_smplerx.py --input_path ${ROOT_PATH} --output_path ${OUTPUT_PATH}
+python scripts/M3_mean_shape_smplerx.py --input_path ${ROOT_PATH} --output_path ${OUTPUT_PATH}
 echo "neutral" > ${OUTPUT_PATH}/gender.txt
 
 cd WiLoR

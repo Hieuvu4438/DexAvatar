@@ -1,6 +1,6 @@
 # Evaluation setup (TR-V2V Table-1 style)
 
-This repository includes `evaluation_trv2v_wilor.py` for evaluating DexAvatar outputs on the 57-sign split.
+This repository includes `evaluation/evaluation_trv2v_wilor.py` for evaluating DexAvatar outputs on the 57-sign split.
 
 ## 1) Required assets
 
@@ -18,7 +18,7 @@ You need:
 ## 2) Run WiLor pipeline
 
 ```bash
-python run_dexavatar_wilor.py \
+python runners/run_dexavatar_wilor.py \
   --input_img_folder <DATA_PATH> \
   --output_path <OUTPUT_WILOR> \
   --fitting_experiment ./dexavatar_fitting
@@ -27,7 +27,7 @@ python run_dexavatar_wilor.py \
 ## 3) Run evaluation
 
 ```bash
-python evaluation_trv2v_wilor.py \
+python evaluation/evaluation_trv2v_wilor.py \
   --pred_root <OUTPUT_WILOR> \
   --gt_root <SMPLXGT_ROOT> \
   --signs_txt data/signs.txt \
@@ -49,7 +49,7 @@ Output includes:
 Run original pipeline:
 
 ```bash
-python run_dexavatar.py \
+python methods/run_dexavatar.py \
   --input_img_folder <DATA_PATH> \
   --output_path <OUTPUT_HAMER> \
   --fitting_experiment ./dexavatar_fitting
@@ -58,7 +58,7 @@ python run_dexavatar.py \
 Then evaluate with same GT + index files:
 
 ```bash
-python evaluation_trv2v_wilor.py \
+python evaluation/evaluation_trv2v_wilor.py \
   --pred_root <OUTPUT_HAMER> \
   --gt_root <SMPLXGT_ROOT> \
   --ubody_indices <ubody_minus_face_indices.npy> \

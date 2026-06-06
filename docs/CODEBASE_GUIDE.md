@@ -97,7 +97,7 @@ Pipeline gồm **4 giai đoạn** chạy tuần tự cho mỗi ký hiệu:
 │  Evaluation: TR-V2V metric (mm)                             │
 │  - So sánh mesh output vs ground truth                      │
 │  - Metrics: UBody, LHand, RHand                             │
-│  - Script: evaluation_trv2v_wilor.py                        │
+│  - Script: evaluation/evaluation_trv2v_wilor.py             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -117,11 +117,21 @@ DexAvatar/
 ├── LICENSE                      # MIT License
 ├── .gitignore
 │
-├── run_dexavatar_wilor.py       # ★ ENTRY POINT chính
-├── Full_running_command_wilor.sh # ★ Pipeline orchestrator
-├── evaluation_trv2v_wilor.py    # ★ Evaluation script
-├── eval_wilor_full.sh           # Shell chạy eval 57 signs
-├── M3_mean_shape_smplerx.py     # Tính mean shape
+├── runners/                     # ★ Entry points cho từng method
+│   ├── run_dexavatar_wilor.py   #   Entry point chính
+│   ├── run_direct_full.sh       #   Direct optimization
+│   ├── run_hamer_fitting.sh     #   HaMeR fitting
+│   └── run_hamer_full.sh        #   Full HaMeR pipeline
+│
+├── pipelines/                   # ★ Pipeline orchestrators
+│   └── Full_running_command_wilor.sh
+│
+├── evaluation/                  # ★ Evaluation scripts
+│   ├── evaluation_trv2v_wilor.py
+│   ├── evaluation_mpvpe_correct.py
+│   ├── eval_mpvpe_common_frames.py
+│   ├── eval_mpvpe_regions.py
+│   └── eval_wilor_full.sh
 │
 ├── data/                        # Dữ liệu input
 ├── scripts/                     # Các script pipeline stage
@@ -146,13 +156,23 @@ DexAvatar/
 
 ## 4. Chi tiết từng thư mục và file
 
-### 4.1 Top-level files (các file ở thư mục gốc)
+### 4.1 Top-level directories (các thư mục ở thư mục gốc)
 
-#### `run_dexavatar_wilor.py` — Entry Point chính
+#### `runners/` — Entry Points
+
+```
+runners/
+├── run_dexavatar_wilor.py       # ★ Entry point chính cho WiLoR pipeline
+├── run_direct_full.sh           # Direct optimization (A+D+E)
+├── run_hamer_fitting.sh         # Chỉ chạy SMPLify-X fitting
+└── run_hamer_full.sh            # Full HaMeR pipeline
+```
+
+**`run_dexavatar_wilor.py`** — Entry Point chính
 
 ```python
 # Chức năng: Duyệt qua tất cả subfolder trong data/frames/
-# → Với mỗi ký hiệu, gọi Full_running_command_wilor.sh
+# → Với mỗi ký hiệu, gọi pipelines/Full_running_command_wilor.sh
 #
 # Tham số:
 #   --input_img_folder: thư mục chứa frames (data/frames/)
@@ -160,12 +180,19 @@ DexAvatar/
 #   --fitting_experiment: tên experiment
 #
 # Ví dụ chạy:
-#   python run_dexavatar_wilor.py --input_img_folder data/frames --output_path outputs/output_wilor
+#   python runners/run_dexavatar_wilor.py --input_img_folder data/frames --output_path outputs/output_wilor
 ```
 
 **Cách đọc:** File này rất ngắn (~30 dòng). Chỉ là vòng lặp `for` qua các subfolder, gọi shell script cho mỗi ký hiệu.
 
-#### `Full_running_command_wilor.sh` — Pipeline Orchestrator
+#### `pipelines/` — Pipeline Orchestrators
+
+```
+pipelines/
+└── Full_running_command_wilor.sh  # ★ Pipeline orchestrator cho WiLoR
+```
+
+**`Full_running_command_wilor.sh`** — Pipeline Orchestrator
 
 ```bash
 # Chức năng: Chạy toàn bộ pipeline cho 1 ký hiệu
@@ -179,7 +206,18 @@ DexAvatar/
 
 **Cách đọc:** Đây là file quan trọng để hiểu thứ tự chạy. Đọc từ trên xuống, mỗi block là một stage.
 
-#### `evaluation_trv2v_wilor.py` — Evaluation
+#### `evaluation/` — Evaluation Scripts
+
+```
+evaluation/
+├── evaluation_trv2v_wilor.py      # ★ TR-V2V metric chính
+├── evaluation_mpvpe_correct.py    # MPVPE metric (corrected)
+├── eval_mpvpe_common_frames.py    # MPVPE trên common frames
+├── eval_mpvpe_regions.py          # MPVPE theo vùng body
+└── eval_wilor_full.sh             # Shell chạy eval 57 signs
+```
+
+**`evaluation_trv2v_wilor.py`** — Evaluation
 
 ```python
 # Chức năng: Tính metric TR-V2V (Translation-Removed Vertex-to-Vertex)
@@ -191,7 +229,19 @@ DexAvatar/
 # Output: DataFrame với cột sign, UBody_mm, LHand_mm, RHand_mm
 ```
 
-#### `M3_mean_shape_smplerx.py` — Mean Shape Calculator
+#### `scripts/` — Pipeline Stage Scripts
+
+```
+scripts/
+├── M3_mean_shape_smplerx.py       # Tính mean shape từ betas
+├── M3.5_hamer_extract.sh          # HaMeR extraction
+├── M3.5_wilor_extract.sh          # WiLoR extraction
+├── M4_smplifyx_pose*.sh           # SMPLify-X fitting variants
+├── aggregate_sapiens.py           # Gộp Sapiens outputs
+└── ...
+```
+
+**`M3_mean_shape_smplerx.py`** — Mean Shape Calculator
 
 ```python
 # Chức năng: Trung bình hóa shape parameters (betas) across frames
@@ -686,10 +736,10 @@ outputs/<method>/<sign_name>/
 Bước 1: Đọc README.md
   → Hiểu cài đặt, cấu trúc, cách chạy
 
-Bước 2: Đọc run_dexavatar_wilor.py
+Bước 2: Đọc runners/run_dexavatar_wilor.py
   → Hiểu entry point, cách duyệt qua signs
 
-Bước 3: Đọc Full_running_command_wilor.sh
+Bước 3: Đọc pipelines/Full_running_command_wilor.sh
   → Hiểu thứ tự 4 stages trong pipeline
 
 Bước 4: Đọc docs/CODEBASE_GUIDE.md (file này)
@@ -702,7 +752,7 @@ Bước 4: Đọc docs/CODEBASE_GUIDE.md (file này)
 Bước 5: Đọc scripts/aggregate_sapiens.py
   → Hiểu cách gộp Sapiens outputs
 
-Bước 6: Đọc M3_mean_shape_smplerx.py
+Bước 6: Đọc scripts/M3_mean_shape_smplerx.py
   → Hiểu cách tính mean shape
 
 Bước 7: Đọc dexavatar_fitting/smplifyx/data_parser.py
@@ -771,7 +821,7 @@ Bước 22: sapiens/lite/ (nếu muốn hiểu Sapiens)
 
 ```
 Ưu tiên cao (PHẢI đọc):
-  1. run_dexavatar_wilor.py + Full_running_command_wilor.sh  [5 phút]
+  1. runners/run_dexavatar_wilor.py + pipelines/Full_running_command_wilor.sh  [5 phút]
   2. dexavatar_fitting/smplifyx/data_parser.py                [30 phút]
   3. dexavatar_fitting/smplifyx/main.py                       [30 phút]
   4. dexavatar_fitting/smplifyx/fit_single_frame.py           [1 giờ]
@@ -786,7 +836,7 @@ Bước 22: sapiens/lite/ (nếu muốn hiểu Sapiens)
 Ưu tiên thấp (TÙY chọn):
   10. SMPLer-X/main/script_smplerx.py                         [1 giờ]
   11. WiLoR/export_hamer_pkl.py                               [30 phút]
-  12. evaluation_trv2v_wilor.py                               [30 phút]
+  12. evaluation/evaluation_trv2v_wilor.py                    [30 phút]
 ```
 
 ---
@@ -795,7 +845,7 @@ Bước 22: sapiens/lite/ (nếu muốn hiểu Sapiens)
 
 | Method | Config File | Entry Point | Feature đặc biệt |
 |--------|-------------|-------------|------------------|
-| **Baseline** | `fit_smplx_vposer_x.yaml` | `run_dexavatar_wilor.py` | SignBPoser + SignHPoser, 3-stage optimization |
+| **Baseline** | `fit_smplx_vposer_x.yaml` | `runners/run_dexavatar_wilor.py` | SignBPoser + SignHPoser, 3-stage optimization |
 | **M1 Temporal** | `fit_smplx_vposer_x_temporal.yaml` | `methods/run_dexavatar_wilor_temporal.py` | Sliding window (size=15), velocity/acceleration/jerk penalties |
 | **M2 Hand2D** | `fit_smplx_vposer_x_hand2d.yaml` | `methods/run_dexavatar_wilor_hand2d.py` | 2D hand keypoint supervision từ WiLoR |
 | **M4 Ensemble** | `fit_smplx_vposer_x_ensemble.yaml` | `methods/run_dexavatar_wilor_ensemble.py` | Multi-model ensemble SMPL-X initialization |

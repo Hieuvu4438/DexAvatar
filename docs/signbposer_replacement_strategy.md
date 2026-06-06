@@ -1682,8 +1682,8 @@ python scripts/M4_smplifyx_pose_motionbert.sh
 python scripts/M4_smplifyx_pose_phd.sh
 
 # Evaluation
-python eval_mpvpe_regions.py --method motionbert
-python eval_mpvpe_regions.py --method phd
+python evaluation/eval_mpvpe_regions.py --method motionbert
+python evaluation/eval_mpvpe_regions.py --method phd
 ```
 
 ---

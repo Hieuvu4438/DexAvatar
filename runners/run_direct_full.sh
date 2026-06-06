@@ -1,14 +1,16 @@
 #!/bin/bash
-# Phase 3 only: SMPLify-X fitting for all signs with hamer.pkl
-# Run in tmux: tmux new -s hamer-fit 'bash run_hamer_fitting.sh'
+# Run DexAvatar with Approach A+D+E: Direct optimization + Absolute depth + Uncertainty fusion
+# Reuses shared extraction data from method_biomech.
+# Only runs SMPLify-X fitting (Phase 4).
 set -euo pipefail
 
 PROJECT_DIR="/home/haipd/DexAvatar"
 INPUT_DIR="${PROJECT_DIR}/data/frames"
-OUTPUT_BASE="${PROJECT_DIR}/outputs/method_hamer"
+OUTPUT_BASE="${PROJECT_DIR}/outputs/method_direct"
+SHARED_SRC="${PROJECT_DIR}/outputs/method_biomech"
 FITTING_EXPERIMENT="${PROJECT_DIR}/dexavatar_fitting"
 LOG_DIR="${OUTPUT_BASE}/logs"
-mkdir -p "${LOG_DIR}"
+mkdir -p "${OUTPUT_BASE}" "${LOG_DIR}"
 
 SIGNS=()
 while IFS= read -r line; do
@@ -16,8 +18,35 @@ while IFS= read -r line; do
     [ -n "$sign" ] && SIGNS+=("$sign")
 done < "${PROJECT_DIR}/data/signs.txt"
 
-echo "=== SMPLify-X Fitting: ${#SIGNS[@]} signs ==="
+echo "=== DexAvatar Direct (A+D+E) Fitting: ${#SIGNS[@]} signs ==="
 
+# ── Phase 1: Symlink shared data ──────────────────────────────────────────
+echo ""
+echo "Phase 1: Linking shared data from ${SHARED_SRC} ..."
+for sign in "${SIGNS[@]}"; do
+    dest="${OUTPUT_BASE}/${sign}"
+    src="${SHARED_SRC}/${sign}"
+    mkdir -p "${dest}"
+
+    if [ ! -d "${src}" ]; then
+        echo "  [WARN] No shared data for ${sign} in ${SHARED_SRC}, skipping"
+        continue
+    fi
+
+    for item in sapiens_1b sapiens.pkl smplerx hamer mean_shape_smplx.npy gender.txt; do
+        if [ -e "${dest}/${item}" ]; then
+            continue
+        fi
+        if [ -e "${src}/${item}" ]; then
+            ln -sf "${src}/${item}" "${dest}/${item}"
+        fi
+    done
+done
+echo "Phase 1 done."
+
+# ── Phase 2: SMPLify-X fitting with A+D+E ─────────────────────────────────
+echo ""
+echo "Phase 2: SMPLify-X fitting with Direct optimization + Absolute depth + Uncertainty fusion ..."
 FAILED_FIT=()
 for sign in "${SIGNS[@]}"; do
     ROOT_PATH="${INPUT_DIR}/${sign}"
@@ -30,7 +59,7 @@ for sign in "${SIGNS[@]}"; do
         continue
     fi
 
-    # Skip if no hamer.pkl
+    # Check hamer.pkl exists
     if [ ! -f "${OUTPUT_PATH}/hamer/hamer.pkl" ]; then
         echo "  [SKIP] ${sign} — no hamer.pkl"
         FAILED_FIT+=("${sign}")
@@ -40,7 +69,7 @@ for sign in "${SIGNS[@]}"; do
     echo -n "  [RUN]  ${sign} ... "
     cd "${PROJECT_DIR}"
     if ROOT_PATH="${ROOT_PATH}" OUTPUT_PATH="${OUTPUT_PATH}" FITTING_EXPERIMENT="${FITTING_EXPERIMENT}" \
-       bash -c "source scripts/config.sh && bash scripts/M4_smplifyx_pose.sh" > "${LOG_FILE}" 2>&1; then
+       bash -c "source scripts/config.sh && bash scripts/M4_smplifyx_pose_direct.sh" > "${LOG_FILE}" 2>&1; then
         MESH_COUNT=$(ls -1 "${OUTPUT_PATH}/smplifyx/meshes/" 2>/dev/null | wc -l)
         echo "OK (${MESH_COUNT} meshes)"
     else
@@ -70,4 +99,4 @@ if [ ${#FAILED_FIT[@]} -gt 0 ]; then
 fi
 echo ""
 echo "To evaluate:"
-echo "  python eval_mpvpe_regions.py --methods method_hamer --method_names 'DexAvatar-HaMeR' --output_csv outputs/mpvpe_hamer.csv"
+echo "  python evaluation/eval_mpvpe_common_frames.py --methods method_biomech method_hand2d method_hamer output_wilor method_direct --method_names 'Biomech' 'Hand2D' 'HaMeR' 'WiLoR' 'Direct(ADE)' --output_csv outputs/mpvpe_all_methods.csv"
