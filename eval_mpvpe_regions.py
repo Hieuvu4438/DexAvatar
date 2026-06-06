@@ -1,0 +1,296 @@
+#!/usr/bin/env python3
+"""Evaluate MPVPE on UBody(-F), LHand, RHand regions for multiple methods.
+
+MPVPE alignment (matching OSX):
+  - UBody(-F): pelvis-aligned (subtract pelvis joint from both pred & GT)
+  - LHand:     left-wrist-aligned
+  - RHand:     right-wrist-aligned
+
+Usage:
+    python eval_mpvpe_regions.py
+    python eval_mpvpe_regions.py --methods biomech hand2d --output_csv results/mpvpe_comparison.csv
+"""
+import argparse
+import json
+import re
+import sys
+from pathlib import Path
+
+import numpy as np
+
+# ── paths ────────────────────────────────────────────────────────────────────
+PROJECT = Path(__file__).resolve().parent
+SMPLX_MODEL = PROJECT / "SMPLer-X/common/utils/human_model_files/smplx/SMPLX_NEUTRAL.pkl"
+SIGNS_TXT = PROJECT / "data/signs.txt"
+GT_ROOT = PROJECT / "data/smplx_gt"
+OUTPUT_BASE = PROJECT / "outputs"
+
+# Region index files (same as TR-V2V evaluator)
+UBODY_IDX = PROJECT / "dexavatar_fitting/assets/smplx_upper_body_minus_face_vidx.npy"
+LHAND_IDX = PROJECT / "dexavatar_fitting/assets/smplx_left_hand_vidx.npy"
+RHAND_IDX = PROJECT / "dexavatar_fitting/assets/smplx_right_hand_vidx.npy"
+
+
+# ── helpers ──────────────────────────────────────────────────────────────────
+def load_obj_vertices(path: Path) -> np.ndarray:
+    """Load vertex positions from .obj file → (V, 3)."""
+    verts = []
+    with open(path, "r") as f:
+        for line in f:
+            if line.startswith("v "):
+                parts = line.strip().split()
+                verts.append([float(parts[1]), float(parts[2]), float(parts[3])])
+    return np.array(verts, dtype=np.float32)
+
+
+def load_smplx_joints(model_path: Path) -> dict:
+    """Load SMPL-X model and return J_regressor + joint names.
+
+    Returns dict with:
+      - 'J_regressor': np.ndarray (J, V)  – sparse matrix, row per joint
+      - 'joint_names': list[str]          – joint name per row
+    """
+    import pickle
+
+    with open(model_path, "rb") as f:
+        model = pickle.load(f, encoding="latin1")
+
+    J_raw = model["J_regressor"]
+    if hasattr(J_raw, "todense"):
+        J_raw = J_raw.todense()
+    J_regressor = np.array(J_raw, dtype=np.float32)  # (55, 10475)
+    # Joint names from SMPL-X specification (first 55 joints)
+    joint_names = [
+        "pelvis", "left_hip", "right_hip", "spine1", "left_knee", "right_knee",
+        "spine2", "left_ankle", "right_ankle", "spine3", "left_foot", "right_foot",
+        "neck", "left_collar", "right_collar", "head", "left_shoulder", "right_shoulder",
+        "left_elbow", "right_elbow", "left_wrist", "right_wrist",
+        # hand joints follow (20 per hand)
+    ]
+    # Build name → index map
+    name2idx = {name: i for i, name in enumerate(joint_names)}
+    return {"J_regressor": J_regressor, "name2idx": name2idx}
+
+
+def get_joint_positions(verts: np.ndarray, J_regressor: np.ndarray, joint_idx: int) -> np.ndarray:
+    """Get joint position via linear blend of vertices → (3,)."""
+    return J_regressor[joint_idx] @ verts  # (V,) @ (V,3) → (3,)
+
+
+def mpvpe(pred_v: np.ndarray, gt_v: np.ndarray, idxs: np.ndarray,
+          align_pred: np.ndarray, align_gt: np.ndarray) -> float:
+    """Mean Per-Vertex Position Error (mm) with per-region alignment.
+
+    align_pred / align_gt: (3,) vectors to subtract from pred / gt respectively.
+    """
+    p = pred_v[idxs] - align_pred
+    g = gt_v[idxs] - align_gt
+    err = np.linalg.norm(p - g, axis=-1)
+    return float(err.mean() * 1000.0)
+
+
+def tr_v2v(pred_v: np.ndarray, gt_v: np.ndarray, idxs: np.ndarray) -> float:
+    """TR-V2V (mm) — translation-removed, per-region centroid alignment."""
+    p = pred_v[idxs]
+    g = gt_v[idxs]
+    p = p - p.mean(axis=0, keepdims=True)
+    g = g - g.mean(axis=0, keepdims=True)
+    err = np.linalg.norm(p - g, axis=-1)
+    return float(err.mean() * 1000.0)
+
+
+def collect_pairs(pred_sign_dir: Path, gt_sign_dir: Path) -> list:
+    """Match prediction meshes to GT meshes by frame index (2× mapping)."""
+    if not pred_sign_dir.exists() or not gt_sign_dir.exists():
+        return []
+
+    pred_files = sorted(
+        list(pred_sign_dir.glob("**/meshes/low_*.obj")) +
+        list(pred_sign_dir.glob("**/meshes/low_*.npy")) +
+        list(pred_sign_dir.glob("**/meshes/low_*.npz")) +
+        list(pred_sign_dir.glob("**/meshes/low_*.pkl"))
+    )
+    pairs = []
+    for pf in pred_files:
+        m = re.search(r"low_(\d+)", pf.stem)
+        if not m:
+            continue
+        pred_idx = int(m.group(1))
+        gt_idx = pred_idx * 2
+        gf = gt_sign_dir / f"{gt_idx:05d}.obj"
+        if gf.exists():
+            pairs.append((pf, gf))
+    return pairs
+
+
+# ── main ─────────────────────────────────────────────────────────────────────
+def evaluate_method(method_name: str, pred_root: Path, joints: dict,
+                    ubody_idx, lhand_idx, rhand_idx, signs: list) -> dict:
+    """Evaluate one method, return per-frame and summary results."""
+    J_reg = joints["J_regressor"]
+    pelvis_i = joints["name2idx"]["pelvis"]
+    lwrist_i = joints["name2idx"]["left_wrist"]
+    rwrist_i = joints["name2idx"]["right_wrist"]
+
+    frame_rows = []   # (sign, frame, mpvpe_ubody, mpvpe_lhand, mpvpe_rhand, trv2v_ubody, trv2v_lhand, trv2v_rhand)
+    sign_stats = {}   # sign → list of metric arrays
+    missing = []
+
+    for sign in signs:
+        pairs = collect_pairs(pred_root / sign, GT_ROOT / sign)
+        if not pairs:
+            missing.append(sign)
+            continue
+        rows = []
+        for pf, gf in pairs:
+            pv = load_obj_vertices(pf)
+            gv = load_obj_vertices(gf)
+
+            # Joint positions for alignment
+            pelvis_pred = get_joint_positions(pv, J_reg, pelvis_i)
+            pelvis_gt   = get_joint_positions(gv, J_reg, pelvis_i)
+            lwrist_pred = get_joint_positions(pv, J_reg, lwrist_i)
+            lwrist_gt   = get_joint_positions(gv, J_reg, lwrist_i)
+            rwrist_pred = get_joint_positions(pv, J_reg, rwrist_i)
+            rwrist_gt   = get_joint_positions(gv, J_reg, rwrist_i)
+
+            # MPVPE (OSX-style alignment)
+            m_ubody = mpvpe(pv, gv, ubody_idx, pelvis_pred, pelvis_gt)
+            m_lhand = mpvpe(pv, gv, lhand_idx, lwrist_pred, lwrist_gt)
+            m_rhand = mpvpe(pv, gv, rhand_idx, rwrist_pred, rwrist_gt)
+
+            # TR-V2V (region-centroid alignment, for reference)
+            t_ubody = tr_v2v(pv, gv, ubody_idx)
+            t_lhand = tr_v2v(pv, gv, lhand_idx)
+            t_rhand = tr_v2v(pv, gv, rhand_idx)
+
+            metrics = [m_ubody, m_lhand, m_rhand, t_ubody, t_lhand, t_rhand]
+            rows.append(metrics)
+            frame_rows.append((sign, pf.stem, *metrics))
+
+        arr = np.array(rows, dtype=np.float32)
+        sign_stats[sign] = arr
+
+    if not frame_rows:
+        print(f"[WARN] {method_name}: no matched pairs found!", file=sys.stderr)
+        return {}
+
+    all_arr = np.vstack([sign_stats[s] for s in sign_stats])
+    mean = all_arr.mean(axis=0)
+
+    return {
+        "method": method_name,
+        "mpvpe_ubody": mean[0], "mpvpe_lhand": mean[1], "mpvpe_rhand": mean[2],
+        "trv2v_ubody": mean[3], "trv2v_lhand": mean[4], "trv2v_rhand": mean[5],
+        "frames": len(frame_rows),
+        "signs": len(sign_stats),
+        "total_signs": len(signs),
+        "missing": missing,
+        "frame_rows": frame_rows,
+        "sign_stats": sign_stats,
+    }
+
+
+def print_table(title: str, metric: str, results: list):
+    """Print a formatted comparison table."""
+    print(f"\n{'=' * 60}")
+    print(f"  {title}")
+    print(f"{'=' * 60}")
+    header = f"{'Method':<25} {'UBody(-F)':>10} {'LHand':>10} {'RHand':>10}"
+    print(header)
+    print("-" * 60)
+    for r in results:
+        print(f"{r['method']:<25} {r[f'{metric}_ubody']:>10.2f} {r[f'{metric}_lhand']:>10.2f} {r[f'{metric}_rhand']:>10.2f}")
+    print("-" * 60)
+    best_u = min(r[f'{metric}_ubody'] for r in results)
+    best_l = min(r[f'{metric}_lhand'] for r in results)
+    best_r = min(r[f'{metric}_rhand'] for r in results)
+    print(f"{'Best':<25} {best_u:>10.2f} {best_l:>10.2f} {best_r:>10.2f}")
+
+
+def main():
+    ap = argparse.ArgumentParser(description="MPVPE evaluation with UBody/LHand/RHand regions.")
+    ap.add_argument("--methods", nargs="+", default=["method_biomech", "method_hand2d"],
+                    help="Method names (subdirs under outputs/)")
+    ap.add_argument("--method_names", nargs="+", default=None,
+                    help="Display names for methods (same order as --methods)")
+    ap.add_argument("--output_csv", default="", help="Optional CSV output path")
+    args = ap.parse_args()
+
+    if args.method_names is None:
+        args.method_names = [f"DexAvatar-{m.replace('method_', '').capitalize()}" for m in args.methods]
+    assert len(args.methods) == len(args.method_names), "--methods and --method_names must have same length"
+
+    # Load shared resources
+    print("Loading SMPL-X joint regressor...")
+    joints = load_smplx_joints(SMPLX_MODEL)
+    ubody_idx = np.load(UBODY_IDX)
+    lhand_idx = np.load(LHAND_IDX)
+    rhand_idx = np.load(RHAND_IDX)
+    signs = []
+    with open(SIGNS_TXT, "r") as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                signs.append(line.split()[0])
+    print(f"Loaded {len(signs)} signs, {len(ubody_idx)} UBody verts, {len(lhand_idx)} LHand verts, {len(rhand_idx)} RHand verts\n")
+
+    # Evaluate each method
+    results = []
+    for method_dir, method_name in zip(args.methods, args.method_names):
+        pred_root = OUTPUT_BASE / method_dir
+        if not pred_root.exists():
+            print(f"[SKIP] {pred_root} does not exist")
+            continue
+        print(f"Evaluating {method_name} from {pred_root} ...")
+        r = evaluate_method(method_name, pred_root, joints, ubody_idx, lhand_idx, rhand_idx, signs)
+        if r:
+            results.append(r)
+            print(f"  → {r['frames']} frames, {r['signs']}/{r['total_signs']} signs")
+
+    if not results:
+        print("No results to show.")
+        return
+
+    # Print tables
+    print_table("MPVPE (mm) — Pelvis/Wrist Aligned", "mpvpe", results)
+    print_table("TR-V2V (mm) — Region-Centroid Aligned", "trv2v", results)
+
+    # Per-sign detail for each method
+    for r in results:
+        print(f"\n{'─' * 60}")
+        print(f"  Per-sign detail: {r['method']}")
+        print(f"{'─' * 60}")
+        print(f"{'Sign':<30} {'Frames':>6} {'UBody':>8} {'LHand':>8} {'RHand':>8}")
+        print("-" * 60)
+        for sign, arr in sorted(r["sign_stats"].items()):
+            m = arr.mean(axis=0)
+            print(f"{sign:<30} {len(arr):>6} {m[0]:>8.2f} {m[1]:>8.2f} {m[2]:>8.2f}")
+        if r["missing"]:
+            print(f"\n  Missing signs ({len(r['missing'])}): {' '.join(r['missing'])}")
+
+    # Write CSV
+    if args.output_csv:
+        out = Path(args.output_csv)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        with open(out, "w") as f:
+            f.write("method,sign,frame,mpvpe_ubody,mpvpe_lhand,mpvpe_rhand,trv2v_ubody,trv2v_lhand,trv2v_rhand\n")
+            for r in results:
+                for row in r["frame_rows"]:
+                    f.write(f"{r['method']},{row[0]},{row[1]},{row[2]:.6f},{row[3]:.6f},{row[4]:.6f},{row[5]:.6f},{row[6]:.6f},{row[7]:.6f}\n")
+        print(f"\nCSV written to {out}")
+
+    # Also write summary CSV alongside
+    summary_path = Path(args.output_csv).with_name("mpvpe_summary.csv") if args.output_csv else None
+    if summary_path:
+        with open(summary_path, "w") as f:
+            f.write("method,mpvpe_ubody,mpvpe_lhand,mpvpe_rhand,trv2v_ubody,trv2v_lhand,trv2v_rhand,frames,signs\n")
+            for r in results:
+                f.write(f"{r['method']},{r['mpvpe_ubody']:.6f},{r['mpvpe_lhand']:.6f},{r['mpvpe_rhand']:.6f},"
+                        f"{r['trv2v_ubody']:.6f},{r['trv2v_lhand']:.6f},{r['trv2v_rhand']:.6f},"
+                        f"{r['frames']},{r['signs']}\n")
+        print(f"Summary written to {summary_path}")
+
+
+if __name__ == "__main__":
+    main()

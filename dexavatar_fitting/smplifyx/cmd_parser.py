@@ -271,6 +271,110 @@ def parse_config(argv=None):
                         default=[0.0, 0.0, 0.0, 2.0], type=float,
                         nargs='*',
                         help='The weight for the collision term')
+    # Method 1: Temporal Sliding Window
+    parser.add_argument('--use_temporal_window',
+                        default=False,
+                        type=lambda arg: arg.lower() in ['true', '1'],
+                        help='Use temporal sliding window (Method 1)')
+    parser.add_argument('--temporal_window_size',
+                        default=15,
+                        type=int,
+                        help='Temporal window size')
+    parser.add_argument('--temporal_velocity_weight',
+                        default=100.0,
+                        type=float,
+                        help='Temporal velocity weight')
+    parser.add_argument('--temporal_acceleration_weight',
+                        default=50.0,
+                        type=float,
+                        help='Temporal acceleration weight')
+    parser.add_argument('--temporal_jerk_weight',
+                        default=10.0,
+                        type=float,
+                        help='Temporal jerk weight')
+
+    # Method 2: 2D Hand Keypoint Supervision
+    parser.add_argument('--use_hand2d_supervision',
+                        default=False,
+                        type=lambda arg: arg.lower() in ['true', '1'],
+                        help='Use 2D hand keypoint reprojection loss (Method 2)')
+    parser.add_argument('--hand_2d_loss_weights',
+                        default=[0.0, 0.0, 0.0, 1.0],
+                        type=float, nargs='*',
+                        help='The weights for the 2D hand keypoint loss per stage')
+    parser.add_argument('--hand2d_rho',
+                        default=50,
+                        type=float,
+                        help='GMoF rho for 2D hand keypoint loss')
+    # Method 4: Ensemble Init
+    parser.add_argument('--smplx_init_dir',
+                        default='smplerx/smplx',
+                        type=str,
+                        help='Directory for SMPL-X init params (e.g. ensemble_smplx for Method 4)')
+
+    # Method 5: Sign-Specific Biomechanics
+    parser.add_argument('--use_sign_biomechanics',
+                        default=False,
+                        type=lambda arg: arg.lower() in ['true', '1'],
+                        help='Use sign-specific biomechanical constraints (Method 5)')
+    parser.add_argument('--hand_contact_weight',
+                        default=0.0,
+                        type=float,
+                        help='Weight for hand-hand contact loss (two-handed signs)')
+    parser.add_argument('--hand_body_contact_weight',
+                        default=0.0,
+                        type=float,
+                        help='Weight for hand-body contact loss')
+    parser.add_argument('--finger_prior_weight',
+                        default=0.0,
+                        type=float,
+                        help='Weight for finger articulation prior')
+
+    # Approach A: Direct SMPL-X Parameter Optimization
+    parser.add_argument('--use_direct_optimization',
+                        default=False,
+                        type=lambda arg: arg.lower() in ['true', '1'],
+                        help='Directly optimize SMPL-X params instead of VAE latent only')
+    parser.add_argument('--direct_body_weight',
+                        default=500.0,
+                        type=float,
+                        help='L2 regularization weight for direct body pose vs SMPLer-X init')
+    parser.add_argument('--direct_lhand_weight',
+                        default=500.0,
+                        type=float,
+                        help='L2 regularization weight for direct left hand pose vs HaMeR init')
+    parser.add_argument('--direct_rhand_weight',
+                        default=500.0,
+                        type=float,
+                        help='L2 regularization weight for direct right hand pose vs HaMeR init')
+
+    # Approach D: Absolute Depth + Wrist Alignment
+    parser.add_argument('--use_absolute_depth_loss',
+                        default=False,
+                        type=lambda arg: arg.lower() in ['true', '1'],
+                        help='Use absolute depth loss from WiLoR cam_t')
+    parser.add_argument('--absolute_depth_weight',
+                        default=100.0,
+                        type=float,
+                        help='Weight for absolute depth loss')
+    parser.add_argument('--use_wrist_alignment_loss',
+                        default=False,
+                        type=lambda arg: arg.lower() in ['true', '1'],
+                        help='Use kinematic chain wrist alignment loss')
+    parser.add_argument('--wrist_alignment_weight',
+                        default=50.0,
+                        type=float,
+                        help='Weight for wrist alignment loss')
+
+    # Approach E: Uncertainty-Aware Hand Fusion
+    parser.add_argument('--use_uncertainty_hand',
+                        default=False,
+                        type=lambda arg: arg.lower() in ['true', '1'],
+                        help='Weight hand losses by Sapiens wrist confidence')
+    parser.add_argument('--uncertainty_min_weight',
+                        default=0.1,
+                        type=float,
+                        help='Minimum hand loss weight when confidence is low')
 
     parser.add_argument('--depth_loss_weight', default=1e2, type=float,
                         help='The weight for the regularizer for the' +

@@ -64,6 +64,7 @@ def fit_single_frame(img,
                      expr_prior,
                      angle_prior,
                      joints_temp=None,
+                     hand_2d_keypoints=None,
                      result_fn='out.pkl',
                      mesh_fn='out.obj',
                      out_img_fn='overlay.png',
@@ -253,6 +254,11 @@ def fit_single_frame(img,
         joints_conf = joints_conf.to(device=device, dtype=dtype)
     
     p3DGT_hand = p3DGT_hand.to(device=device, dtype=dtype)
+    # Method 2: Convert 2D hand keypoints to tensor
+    if hand_2d_keypoints is not None:
+        if isinstance(hand_2d_keypoints, np.ndarray):
+            hand_2d_keypoints = torch.from_numpy(hand_2d_keypoints).float()
+        hand_2d_keypoints = hand_2d_keypoints.to(device=device, dtype=dtype)
     psmplx_bodyGT = torch.from_numpy(init_smplx_param['body_pose'][None]).to(device=device, dtype=dtype)
     psmplx_lhandGT = torch.from_numpy(init_smplx_param['left_hand_pose'][None]).to(device=device, dtype=dtype)
     psmplx_rhandGT = torch.from_numpy(init_smplx_param['right_hand_pose'][None]).to(device=device, dtype=dtype)
@@ -311,6 +317,10 @@ def fit_single_frame(img,
     if use_hands:
         opt_weights_dict['hand_weight'] = hand_joints_weights
         opt_weights_dict['hand_prior_weight'] = hand_pose_prior_weights
+    # Method 2: 2D hand keypoint supervision weights
+    hand_2d_loss_weights = kwargs.get('hand_2d_loss_weights', [0.0] * 5)
+    if hand_2d_loss_weights and any(w > 0 for w in hand_2d_loss_weights):
+        opt_weights_dict['hand_2d_loss_weights'] = hand_2d_loss_weights
     if interpenetration:
         opt_weights_dict['coll_loss_weight'] = coll_loss_weights
     if body_biomechanics_loss_weights:
@@ -555,6 +565,12 @@ def fit_single_frame(img,
                     joint_weights=joint_weights,
                     loss=loss, create_graph=body_create_graph,
                     use_signbposer=use_signbposer, signbposer=signbposer,
+                    hand_2d_keypoints=hand_2d_keypoints,
+                    use_hand2d_supervision=kwargs.get('use_hand2d_supervision', False),
+                    use_sign_biomechanics=kwargs.get('use_sign_biomechanics', False),
+                    hand_contact_weight=kwargs.get('hand_contact_weight', 0.0),
+                    hand_body_contact_weight=kwargs.get('hand_body_contact_weight', 0.0),
+                    finger_prior_weight=kwargs.get('finger_prior_weight', 0.0),
                     pose_embedding=pose_embedding,
                     return_verts=True, return_full_pose=True)
 
@@ -596,6 +612,119 @@ def fit_single_frame(img,
             if use_signbposer:
                 result['body_pose'] = signbposer.decode(pose_embedding, output_type='aa').view(1, -1).detach().cpu().numpy()
             result['K'] = camera.cpu().numpy()
+
+            # ===== APPROACH A: Direct SMPL-X Parameter Refinement =====
+            use_direct = kwargs.get('use_direct_optimization', False)
+            if use_direct:
+                direct_body_w = kwargs.get('direct_body_weight', 500.0)
+                direct_lhand_w = kwargs.get('direct_lhand_weight', 500.0)
+                direct_rhand_w = kwargs.get('direct_rhand_weight', 500.0)
+
+                # Get current decoded poses as starting point
+                if use_signbposer:
+                    cur_body_pose = signbposer.decode(pose_embedding, output_type='aa').view(1, -1).detach().clone()
+                else:
+                    cur_body_pose = torch.from_numpy(init_smplx_param['body_pose'][None]).to(device=device, dtype=dtype)
+
+                if use_hposer3d:
+                    if lhand_embedding3d is not None:
+                        cur_lhand = hposer3d.decode(lhand_embedding3d, output_type='aa').view(1, -1).detach().clone()
+                    else:
+                        cur_lhand = None
+                    if rhand_embedding3d is not None:
+                        cur_rhand = hposer3d.decode(rhand_embedding3d, output_type='aa').view(1, -1).detach().clone()
+                    else:
+                        cur_rhand = None
+                else:
+                    cur_lhand = torch.from_numpy(init_smplx_param['left_hand_pose'][None]).to(device=device, dtype=dtype) if init_smplx_param.get('left_hand_pose') is not None else None
+                    cur_rhand = torch.from_numpy(init_smplx_param['right_hand_pose'][None]).to(device=device, dtype=dtype) if init_smplx_param.get('right_hand_pose') is not None else None
+
+                # Create direct param tensors
+                body_pose_direct = cur_body_pose.clone().requires_grad_(True)
+                direct_params = [body_pose_direct]
+
+                lhand_direct = None
+                rhand_direct = None
+                if cur_lhand is not None:
+                    lhand_direct = cur_lhand.clone().requires_grad_(True)
+                    direct_params.append(lhand_direct)
+                if cur_rhand is not None:
+                    rhand_direct = cur_rhand.clone().requires_grad_(True)
+                    direct_params.append(rhand_direct)
+
+                # Init tensors for L2 regularization
+                body_init = psmplx_bodyGT.detach().clone()
+                lhand_init = psmplx_lhandGT.detach().clone() if psmplx_lhandGT is not None else None
+                rhand_init = psmplx_rhandGT.detach().clone() if psmplx_rhandGT is not None else None
+
+                # Create optimizer for direct params
+                direct_optimizer = torch.optim.LBFGS(
+                    direct_params, lr=0.5, max_iter=10,
+                    line_search_fn='strong_wolfe',
+                    tolerance_grad=1e-9, tolerance_change=1e-9)
+
+                # Direct refinement closure
+                def direct_closure():
+                    direct_optimizer.zero_grad()
+                    body_model_output = body_model(
+                        return_verts=True,
+                        body_pose=body_pose_direct,
+                        left_hand_pose=lhand_direct,
+                        right_hand_pose=rhand_direct,
+                        return_full_pose=True)
+
+                    # Reuse existing loss with same weights
+                    direct_loss = loss(
+                        body_model_output, camera=camera,
+                        gt_joints=gt_joints, p3DGT_hand=p3DGT_hand,
+                        psmplx_bodyGT=psmplx_bodyGT,
+                        psmplx_lhandGT=psmplx_lhandGT, psmplx_rhandGT=psmplx_rhandGT,
+                        body_model_faces=body_model.faces_tensor.view(-1),
+                        joints_conf=joints_conf,
+                        indp_sign_class=indp_sign_class, hand_label=hand_label,
+                        joints_temp=joints_temp,
+                        joint_weights=joint_weights,
+                        pose_embedding=pose_embedding,
+                        use_hposer3d=False, hposer3d=None,
+                        lhand_embedding3d=None, rhand_embedding3d=None,
+                        use_signbposer=False, signbposer=None,
+                        hand_2d_keypoints=hand_2d_keypoints,
+                        use_hand2d_supervision=kwargs.get('use_hand2d_supervision', False),
+                        use_sign_biomechanics=kwargs.get('use_sign_biomechanics', False),
+                        hand_contact_weight=kwargs.get('hand_contact_weight', 0.0),
+                        hand_body_contact_weight=kwargs.get('hand_body_contact_weight', 0.0),
+                        finger_prior_weight=kwargs.get('finger_prior_weight', 0.0),
+                        use_uncertainty_hand=kwargs.get('use_uncertainty_hand', False),
+                        **{k: v for k, v in kwargs.items() if k not in [
+                            'use_hand2d_supervision', 'use_sign_biomechanics',
+                            'hand_contact_weight', 'hand_body_contact_weight',
+                            'finger_prior_weight', 'use_uncertainty_hand',
+                            'use_hposer3d', 'hposer3d', 'lhand_embedding3d',
+                            'rhand_embedding3d', 'use_signbposer', 'signbposer']})
+
+                    # L2 regularization vs SMPLer-X init
+                    l2_reg = direct_body_w * torch.sum((body_pose_direct - body_init) ** 2)
+                    if lhand_direct is not None and lhand_init is not None:
+                        l2_reg = l2_reg + direct_lhand_w * torch.sum((lhand_direct - lhand_init) ** 2)
+                    if rhand_direct is not None and rhand_init is not None:
+                        l2_reg = l2_reg + direct_rhand_w * torch.sum((rhand_direct - rhand_init) ** 2)
+
+                    total = direct_loss + l2_reg
+                    total.backward()
+                    return total
+
+                # Run direct refinement
+                tqdm.write('  Direct refinement (Approach A) ...')
+                for direct_iter in range(3):
+                    direct_optimizer.step(direct_closure)
+
+                # Update result with direct-optimized poses
+                result['body_pose'] = body_pose_direct.detach().cpu().numpy()
+                if lhand_direct is not None:
+                    result['left_hand_pose'] = lhand_direct.detach().cpu().numpy()
+                if rhand_direct is not None:
+                    result['right_hand_pose'] = rhand_direct.detach().cpu().numpy()
+                tqdm.write('  Direct refinement done.')
 
             results.append({'loss': final_loss_val,
                             'result': result})

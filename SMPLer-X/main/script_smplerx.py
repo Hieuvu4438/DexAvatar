@@ -16,7 +16,7 @@ processes = []
 for j in range(1):
     command = 'CUDA_VISIBLE_DEVICES={} python inference.py --num_gpus 1 ' \
               '--exp_name output --pretrained_model smpler_x_h32 --agora_benchmark agora_model ' \
-              '--img_path {}/images ' \
+              '--img_path {} ' \
               '--output_folder {}/smplerx --show_verts --show_bbox --save_mesh --split_num {} --cur_num {} ' \
         .format(str(gpu_idx[0]), args.path, args.output_path, split_num, j+0)
     print(command)

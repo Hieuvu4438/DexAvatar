@@ -106,7 +106,7 @@ class OpenPose(Dataset):
     NUM_BODY_JOINTS = 25
     NUM_HAND_JOINTS = 20
 
-    def __init__(self, data_folder, indp_sign_segment=None, indp_sign_class=None, img_path='images', 
+    def __init__(self, data_folder, indp_sign_segment=None, indp_sign_class=None, img_path='images',
                  keyp_folder='keypoints',
                  use_hands=False,
                  use_face=False,
@@ -115,6 +115,7 @@ class OpenPose(Dataset):
                  joints_to_ign=None,
                  use_face_contour=False,
                  openpose_format='coco25',
+                 smplx_init_dir='smplerx/smplx',
                  **kwargs):
         super(OpenPose, self).__init__()
 
@@ -125,9 +126,13 @@ class OpenPose(Dataset):
         self.joints_to_ign = joints_to_ign
         self.use_face_contour = use_face_contour
         self.indp_sign_class = indp_sign_class
+        self.smplx_init_dir = smplx_init_dir
         self.prev_2D_keypoints = None
         self.prev_3D_keypoints = None
         self.prev_hand_rotations = None
+        self.prev_2D_keypoints_by_side = {'left': None, 'right': None}
+        self.prev_3D_keypoints_by_side = {'left': None, 'right': None}
+        self.prev_hand_rotations_by_side = {'left': None, 'right': None}
 
         self.openpose_format = openpose_format
 
@@ -189,7 +194,7 @@ class OpenPose(Dataset):
             if self.hamer[x.split('/')[-1]][0]['pred_keypoints_2d'].shape[0] < 1:
                 continue
             
-            smplx_param_path = os.path.join(data_folder, 'smplerx/smplx', f'{base}.pkl')
+            smplx_param_path = os.path.join(data_folder, self.smplx_init_dir, f'{base}.pkl')
             
             if not os.path.exists(smplx_param_path):
                 continue
@@ -200,7 +205,36 @@ class OpenPose(Dataset):
 
         if self.indp_sign_class == "0":
             self.active_side, self.w_left, self.w_right = self._compute_motion_scores_for_clip()
+            if self.active_side == 'ambiguous':
+                left_frames = sum(self._hand_indices_by_side(os.path.basename(p))['left'] is not None for p in self.img_paths)
+                right_frames = sum(self._hand_indices_by_side(os.path.basename(p))['right'] is not None for p in self.img_paths)
+                self.active_side = 'right' if right_frames >= left_frames else 'left'
             self.one_hand_is_right = (self.active_side == 'right')
+            active_side = 'right' if self.one_hand_is_right else 'left'
+            filtered_paths = [p for p in self.img_paths if self._hand_indices_by_side(os.path.basename(p))[active_side] is not None]
+            # Fallback: if active side has no frames, try the other side
+            if len(filtered_paths) == 0:
+                fallback_side = 'left' if active_side == 'right' else 'right'
+                filtered_paths = [p for p in self.img_paths if self._hand_indices_by_side(os.path.basename(p))[fallback_side] is not None]
+                if len(filtered_paths) > 0:
+                    self.active_side = fallback_side
+                    self.one_hand_is_right = (fallback_side == 'right')
+                    # Recompute weights for fallback side
+                    T = len(self.img_paths)
+                    if fallback_side == 'left':
+                        self.w_left = np.full(T, 1.0, np.float32)
+                        self.w_right = np.full(T, 0.05, np.float32)
+                    else:
+                        self.w_left = np.full(T, 0.05, np.float32)
+                        self.w_right = np.full(T, 1.0, np.float32)
+            self.img_paths = filtered_paths
+        else:
+            self.img_paths = [p for p in self.img_paths
+                              if self._hand_indices_by_side(os.path.basename(p))['left'] is not None
+                              and self._hand_indices_by_side(os.path.basename(p))['right'] is not None]
+
+        if len(self.img_paths) == 0:
+            raise ValueError(f"No usable frames after hand-side filtering in {data_folder}")
 
         self.avg_shape = np.load(os.path.join(data_folder, 'mean_shape_smplx.npy'))
         self.data_folder = data_folder
@@ -345,12 +379,77 @@ class OpenPose(Dataset):
 
         return active, wL, wR
 
+    def _hand_indices_by_side(self, img_name):
+        entry = self.hamer[img_name]
+        is_rights = self._to_numpy(entry[3]).reshape(-1)
+        out = {'left': None, 'right': None}
+        for i, flag in enumerate(is_rights):
+            side = 'right' if int(self._ensure_float(flag)) == 1 else 'left'
+            if out[side] is None:
+                out[side] = i
+        return out
+
+    def _hand_pose_axis_angle(self, cur_hand, idx, side):
+        pose = self._to_numpy(cur_hand['pred_mano_params']['hand_pose'][idx]).astype(np.float32)
+        if pose.shape == (15, 3):
+            aa = pose.copy()
+        elif pose.shape == (15, 3, 3):
+            aa = np.concatenate([cv2.Rodrigues(pose[i])[0] for i in range(15)]).squeeze().reshape(15, 3)
+        else:
+            raise ValueError(f"Unsupported hand_pose shape {pose.shape}")
+        if side == 'left':
+            aa[:, 1::3] *= -1
+            aa[:, 2::3] *= -1
+        return aa.reshape(-1)
+
+    def _hand_2d_full(self, entry, idx):
+        return self._unnorm_hand_kp2d(
+            entry[0]['pred_keypoints_2d'][idx],
+            entry[1][idx][0], entry[1][idx][1],
+            entry[2][idx], entry[3][idx]
+        )
+
+    def _apply_hand_2d(self, keypoints, kp2d, side):
+        if side == 'left':
+            keypoints[:, 91:112, :2] = kp2d
+            keypoints[:, 91:112, 2] = 1
+        else:
+            keypoints[:, 112:, :2] = kp2d
+            keypoints[:, 112:, 2] = 1
+
+    def _hand_3d(self, entry, idx, side):
+        hand_3d = self._to_numpy(entry[0]['pred_keypoints_3d'][idx]).astype(np.float32).copy()
+        cam_t = self._to_numpy(entry[4][idx]).astype(np.float32).reshape(3)
+        if side == 'left':
+            hand_3d[:, 0] *= -1.0
+        hand_3d = hand_3d + cam_t
+        return torch.from_numpy(hand_3d.reshape(-1, 3))
+
+    def _load_smplx_param(self, img_path):
+        base = img_path.split('/')[-1][:-4]
+        smplx_param_path = os.path.join(self.data_folder, self.smplx_init_dir, f'{base}.pkl')
+        with open(smplx_param_path, 'rb') as f:
+            return pickle.load(f)
+
+    def _set_prev_hand(self, side, kp2d, hand_3d, hand_pose):
+        self.prev_2D_keypoints_by_side[side] = kp2d
+        self.prev_3D_keypoints_by_side[side] = hand_3d
+        self.prev_hand_rotations_by_side[side] = hand_pose
+        self.prev_2D_keypoints = kp2d
+        self.prev_3D_keypoints = hand_3d
+        self.prev_hand_rotations = hand_pose
+
+    def _get_prev_hand(self, side):
+        return (self.prev_2D_keypoints_by_side[side],
+                self.prev_3D_keypoints_by_side[side],
+                self.prev_hand_rotations_by_side[side])
+
+
     def get_model2data(self):
         return smpl_to_openpose(self.model_type, use_hands=self.use_hands,
                                 use_face=self.use_face,
                                 use_face_contour=self.use_face_contour,
                                 openpose_format=self.openpose_format)
-
     def get_left_shoulder(self):
         return 2
 
@@ -389,274 +488,61 @@ class OpenPose(Dataset):
         kps = np.array(keypoints_dict[0]).astype(np.float32)
         confidence = np.array(keypoints_dict[1]).astype(np.float32)
         keypoints = np.concatenate((kps, confidence[:, :, None]), axis=-1)
-        kp2d_all = self.hamer[img_path.split('/')[-1]][0]['pred_keypoints_2d']
-        box_center_all = self.hamer[img_path.split('/')[-1]][1]
-        box_size_all = self.hamer[img_path.split('/')[-1]][2]
-        is_right_all = self.hamer[img_path.split('/')[-1]][3]
+        img_name = img_path.split('/')[-1]
+        entry = self.hamer[img_name]
+        side_idx = self._hand_indices_by_side(img_name)
+        cur_hand = entry[0]
+        smplx_param = self._load_smplx_param(img_path)
 
         if self.indp_sign_class != "0":
-            for i in range(2):
-                kp2d = kp2d_all[i]
-                cx, cy = box_center_all[i]
-                box_size = box_size_all[i]
-                is_right = is_right_all[i]
-                # unnormalize to crop coords
-                kp2d[:, 0] = kp2d[:, 0] * (2 * is_right - 1)
-                kp2d = box_size * (kp2d)
-                kp2d[:, 0] += cx
-                kp2d[:, 1] += cy
-                if is_right == 0:
-                    keypoints[:, 91:112, :2] = kp2d.cpu().numpy()
-                    keypoints[:, 91:112, 2] = 1
-                else:
-                    keypoints[:, 112:, :2] = kp2d.cpu().numpy()
-                    keypoints[:, 112:, 2] = 1
-            
-            cur_hand = self.hamer[img_path.split('/')[-1]][0]
-            cur_left_hand = np.concatenate(
-                [cv2.Rodrigues(cur_hand['pred_mano_params']['hand_pose'][0].cpu().numpy()[i])[0] for i in
-                range(15)]).squeeze()
-            cur_right_hand = np.concatenate(
-                [cv2.Rodrigues(cur_hand['pred_mano_params']['hand_pose'][1].cpu().numpy()[i])[0] for i in
-                range(15)]).squeeze()
-            cur_left_hand = cur_left_hand.reshape(15, 3)[:]
-            cur_left_hand[:, 1::3] *= -1
-            cur_left_hand[:, 2::3] *= -1
-            cur_left_hand = cur_left_hand.reshape(-1)
+            left_idx = side_idx['left']
+            right_idx = side_idx['right']
+            if left_idx is None or right_idx is None:
+                raise ValueError(f"Both-hand sign frame {img_name} is missing a hand detection")
 
-            cur_hand_3d = cur_hand['pred_keypoints_3d']
-            cur_hand_3d = cur_hand_3d.cpu().numpy()
-            cam_t = self.hamer[img_path.split('/')[-1]][4]
-            cur_hand_3d[0:1, :, 0] = cur_hand_3d[0:1, :, 0] * (-1.)
-            cur_hand_3d[0:1] = cur_hand_3d[0:1] + cam_t[0:1, None]
-            cur_hand_3d[1:2] = cur_hand_3d[1:2] + cam_t[1:2, None]
-            cur_hand_3d = torch.from_numpy(cur_hand_3d.reshape(-1, 3))
-            base = img_path.split('/')[-1][:-4]
-            smplx_param_path = os.path.join(self.data_folder, 'smplerx/smplx', f'{base}.pkl')
-            with open(smplx_param_path, 'rb') as f:
-                smplx_param = pickle.load(f)
+            left_kp2d = self._hand_2d_full(entry, left_idx)
+            right_kp2d = self._hand_2d_full(entry, right_idx)
+            self._apply_hand_2d(keypoints, left_kp2d, 'left')
+            self._apply_hand_2d(keypoints, right_kp2d, 'right')
 
+            cur_left_hand = self._hand_pose_axis_angle(cur_hand, left_idx, 'left')
+            cur_right_hand = self._hand_pose_axis_angle(cur_hand, right_idx, 'right')
             smplx_param['left_hand_pose'] = cur_left_hand
             smplx_param['right_hand_pose'] = cur_right_hand
+
+            left_3d = self._hand_3d(entry, left_idx, 'left')
+            right_3d = self._hand_3d(entry, right_idx, 'right')
+            cur_hand_3d = torch.cat([left_3d, right_3d], dim=0)
+            self._set_prev_hand('left', left_kp2d, left_3d, cur_left_hand)
+            self._set_prev_hand('right', right_kp2d, right_3d, cur_right_hand)
             label = 'both_hands'
 
         else:
-
-            if self.one_hand_is_right:
-
-                if len(is_right_all)==1 and is_right_all[0] != 0:
-
-                    kp2d = kp2d_all[0]
-                    cx, cy = box_center_all[0]
-                    box_size = box_size_all[0]
-                    is_right = is_right_all[0]
-                    kp2d[:, 0] = kp2d[:, 0] * (2 * is_right - 1)
-                    kp2d = box_size * (kp2d)
-                    kp2d[:, 0] += cx
-                    kp2d[:, 1] += cy
-                    keypoints[:, 112:, :2] = kp2d.cpu().numpy()
-                    keypoints[:, 112:, 2] = 1
-                    keypoints[:, 91:112, 2] = 0
-
-                    cur_hand = self.hamer[img_path.split('/')[-1]][0]
-                    cur_right_hand = np.concatenate([cv2.Rodrigues(cur_hand['pred_mano_params']['hand_pose'][0].cpu().numpy()[i])[0] for i in range(15)]).squeeze()
-                    base = img_path.split('/')[-1][:-4]
-                    
-                    smplx_param_path = os.path.join(self.data_folder, 'smplerx/smplx', f'{base}.pkl')
-                    with open(smplx_param_path, 'rb') as f:
-                        smplx_param = pickle.load(f)
-
-                    smplx_param['right_hand_pose'] = cur_right_hand
-                    
-                    cur_hand_3d_hamer = cur_hand['pred_keypoints_3d'].cpu().numpy() 
-                    cur_hand_3d = np.zeros((1, 21, 3), dtype=cur_hand_3d_hamer.dtype)
-
-                    cam_t = self.hamer[img_path.split('/')[-1]][4]                          
-                    cur_hand_3d[0] = cur_hand_3d_hamer[0] + cam_t[0]  
-                    
-                    cur_hand_3d = torch.from_numpy(cur_hand_3d.reshape(-1, 3))
-                    label = 'right_hand'     
-
-                    self.prev_2D_keypoints = kp2d
-                    self.prev_3D_keypoints = cur_hand_3d
-                    self.prev_hand_rotations = cur_right_hand 
-
-                elif len(is_right_all) > 1:
-                    ir = self.hamer[img_path.split('/')[-1]][3]
-                    ir = ir.detach().cpu().numpy() if torch.is_tensor(ir) else np.asarray(ir)
-                    idx_r = int(np.where(ir == 1)[0][0]) if np.any(ir == 1) else 0  # fallback 0
-
-                    kp2d = kp2d_all[idx_r]
-                    cx, cy = box_center_all[idx_r]
-                    box_size = box_size_all[idx_r]
-                    is_right = ir[idx_r]
-
-                    kp2d[:, 0] = kp2d[:, 0] * (2 * is_right - 1)
-                    kp2d = box_size * (kp2d)
-                    kp2d[:, 0] += cx
-                    kp2d[:, 1] += cy
-                    keypoints[:, 112:, :2] = kp2d.cpu().numpy()
-                    keypoints[:, 112:, 2]  = 1
-                    keypoints[:, 91:112, 2] = 0
-
-                    cur_hand = self.hamer[img_path.split('/')[-1]][0]
-
-                    cur_hand = self.hamer[img_path.split('/')[-1]][0]
-                    cur_right_hand = np.concatenate([cv2.Rodrigues(cur_hand['pred_mano_params']['hand_pose'][1].cpu().numpy()[i])[0] for i in range(15)]).squeeze()
-                    base = img_path.split('/')[-1][:-4]
-
-                    smplx_param_path = os.path.join(self.data_folder, 'smplerx/smplx', f'{base}.pkl')
-                    with open(smplx_param_path, 'rb') as f:
-                        smplx_param = pickle.load(f)
-
-                    smplx_param['right_hand_pose'] = cur_right_hand
-
-                    cur_hand_3d_hamer = cur_hand['pred_keypoints_3d'].cpu().numpy() 
-                    cur_hand_3d = np.zeros((1, 21, 3), dtype=cur_hand_3d_hamer.dtype)
-
-                    cam_t = self.hamer[img_path.split('/')[-1]][4]                          
-                    cur_hand_3d[0] = cur_hand_3d_hamer[1] + cam_t[1]  
-
-                    cur_hand_3d = torch.from_numpy(cur_hand_3d.reshape(-1, 3))
-                    label = 'right_hand'     
-
-                    self.prev_2D_keypoints = kp2d
-                    self.prev_3D_keypoints = cur_hand_3d
-                    self.prev_hand_rotations = cur_right_hand 
-
-
-                else:
-
-                    base = img_path.split('/')[-1][:-4]
-                    
-                    smplx_param_path = os.path.join(self.data_folder, 'smplerx/smplx', f'{base}.pkl')
-                    with open(smplx_param_path, 'rb') as f:
-                        smplx_param = pickle.load(f)
-
-                    smplx_param['right_hand_pose'] = self.prev_hand_rotations
-                    cur_hand_3d = self.prev_3D_keypoints
-                    keypoints[:, 112:, :2] = self.prev_2D_keypoints.cpu().numpy()
-                    keypoints[:, 112:, 2] = 1
-                    keypoints[:, 91:112, 2] = 0
-
-                    cur_right_hand = self.prev_hand_rotations
-
-                    label = 'right_hand'
-
+            side = 'right' if self.one_hand_is_right else 'left'
+            idx = side_idx[side]
+            if idx is None:
+                prev_kp2d, prev_3d, prev_pose = self._get_prev_hand(side)
+                if prev_kp2d is None or prev_3d is None or prev_pose is None:
+                    raise ValueError(f"Frame {img_name} is missing first usable {side} hand detection")
+                hand_kp2d, cur_hand_3d, hand_pose = prev_kp2d, prev_3d, prev_pose
             else:
-                if len(is_right_all)==1 and is_right_all[0] == 0:
-                    kp2d = kp2d_all[0]
-                    cx, cy = box_center_all[0]
-                    box_size = box_size_all[0]
-                    is_right = int(self.one_hand_is_right)
-                    kp2d[:, 0] = kp2d[:, 0] * (2 * is_right - 1)
-                    kp2d = box_size * (kp2d)
-                    kp2d[:, 0] += cx
-                    kp2d[:, 1] += cy
-                    keypoints[:, 91:112, :2] = kp2d.cpu().numpy()
-                    keypoints[:, 91:112, 2] = 1
-                    keypoints[:, 112:, 2] = 0
+                hand_kp2d = self._hand_2d_full(entry, idx)
+                hand_pose = self._hand_pose_axis_angle(cur_hand, idx, side)
+                cur_hand_3d = self._hand_3d(entry, idx, side)
+                self._set_prev_hand(side, hand_kp2d, cur_hand_3d, hand_pose)
 
-                    cur_hand = self.hamer[img_path.split('/')[-1]][0]
-                    cur_left_hand = np.concatenate([cv2.Rodrigues(cur_hand['pred_mano_params']['hand_pose'][0].cpu().numpy()[i])[0] for i in range(15)]).squeeze()
-                    cur_left_hand = cur_left_hand.reshape(15, 3)[:]
-                    cur_left_hand[:, 1::3] *= -1
-                    cur_left_hand[:, 2::3] *= -1
-                    cur_left_hand = cur_left_hand.reshape(-1)
+            self._apply_hand_2d(keypoints, hand_kp2d, side)
+            if side == 'left':
+                keypoints[:, 112:, 2] = 0
+                smplx_param['left_hand_pose'] = hand_pose
+                cur_left_hand = hand_pose
+                label = 'left_hand'
+            else:
+                keypoints[:, 91:112, 2] = 0
+                smplx_param['right_hand_pose'] = hand_pose
+                cur_right_hand = hand_pose
+                label = 'right_hand'
 
-                    base = img_path.split('/')[-1][:-4]
-                    smplx_param_path = os.path.join(self.data_folder, 'smplerx/smplx', f'{base}.pkl')
-                    with open(smplx_param_path, 'rb') as f:
-                        smplx_param = pickle.load(f)
-
-                    smplx_param['left_hand_pose'] = cur_left_hand
-
-                    cur_hand_3d_hamer = cur_hand['pred_keypoints_3d'].cpu().numpy()  # → (1, 21, 3)
-                    cur_hand_3d = np.zeros((1, 21, 3), dtype=cur_hand_3d_hamer.dtype)
-
-                    cur_hand_3d[0] = cur_hand_3d_hamer[0]
-
-                    cam_t = self.hamer[img_path.split('/')[-1]][4]
-                    cur_hand_3d[0, :, 0] *= -1.0            # flip X
-                    cur_hand_3d[0] += cam_t[0]             # add translation to left‐hand slice
-
-                    cur_hand_3d = torch.from_numpy(cur_hand_3d.reshape(-1, 3))
-
-                    self.prev_2D_keypoints = kp2d
-                    self.prev_3D_keypoints = cur_hand_3d
-                    self.prev_hand_rotations = cur_left_hand 
-
-                    label = 'left_hand'
-
-                elif len(is_right_all) > 1:
-                    kp2d = kp2d_all[0]
-                    cx, cy = box_center_all[0]
-                    box_size = box_size_all[0]
-                    is_right = int(self.one_hand_is_right)
-                    kp2d[:, 0] = kp2d[:, 0] * (2 * is_right - 1)
-                    kp2d = box_size * (kp2d)
-                    kp2d[:, 0] += cx
-                    kp2d[:, 1] += cy
-                    keypoints[:, 91:112, :2] = kp2d.cpu().numpy()
-                    keypoints[:, 91:112, 2] = 1
-                    keypoints[:, 112:, 2] = 0
-
-                    cur_hand = self.hamer[img_path.split('/')[-1]][0]
-                    cur_left_hand = np.concatenate([cv2.Rodrigues(cur_hand['pred_mano_params']['hand_pose'][0].cpu().numpy()[i])[0] for i in range(15)]).squeeze()
-                    cur_left_hand = cur_left_hand.reshape(15, 3)[:]
-                    cur_left_hand[:, 1::3] *= -1
-                    cur_left_hand[:, 2::3] *= -1
-                    cur_left_hand = cur_left_hand.reshape(-1)
-
-                    base = img_path.split('/')[-1][:-4]
-                    smplx_param_path = os.path.join(self.data_folder, 'smplerx/smplx', f'{base}.pkl')
-                    with open(smplx_param_path, 'rb') as f:
-                        smplx_param = pickle.load(f)
-
-                    smplx_param['left_hand_pose'] = cur_left_hand
-
-                    cur_hand_3d_hamer = cur_hand['pred_keypoints_3d'].cpu().numpy()  # → (1, 21, 3)
-                    cur_hand_3d = np.zeros((1, 21, 3), dtype=cur_hand_3d_hamer.dtype)
-
-                    cur_hand_3d[0] = cur_hand_3d_hamer[0]
-
-                    cam_t = self.hamer[img_path.split('/')[-1]][4]
-                    cur_hand_3d[0, :, 0] *= -1.0            # flip X
-                    cur_hand_3d[0] += cam_t[0]             # add translation to left‐hand slice
-
-                    cur_hand_3d = torch.from_numpy(cur_hand_3d.reshape(-1, 3))
-
-                    self.prev_2D_keypoints = kp2d
-                    self.prev_3D_keypoints = cur_hand_3d
-                    self.prev_hand_rotations = cur_left_hand 
-
-                    label = 'left_hand'
-        
-                else:
-
-                    base = img_path.split('/')[-1][:-4]
-                    
-                    smplx_param_path = os.path.join(self.data_folder, 'smplerx/smplx', f'{base}.pkl')
-                    with open(smplx_param_path, 'rb') as f:
-                        smplx_param = pickle.load(f)
-                    
-                    smplx_param['left_hand_pose'] = self.prev_hand_rotations
-                    cur_hand_3d = self.prev_3D_keypoints
-
-                    keypoints[:, 91:112, :2] = self.prev_2D_keypoints.cpu().numpy()
-                    keypoints[:, 91:112, 2] = 1
-                    keypoints[:, 112:, 2] = 0
-
-                    cur_left_hand = self.prev_hand_rotations
-
-                    label = 'left_hand'
-
-
-
-    
-                
-        
-        
         smplx_param['betas'] = self.avg_shape
 
         cur_cam_param = np.zeros((3,3))
@@ -666,7 +552,19 @@ class OpenPose(Dataset):
         cur_cam_param[1][2] = smplx_param['princpt'][1]
         cur_cam_param[2][2] = 1.0
 
-
+        # Extract 2D hand keypoints for Method 2 (2D hand supervision)
+        # Format: (42, 2) = [left_hand_21x2, right_hand_21x2]
+        zeros_21x2 = np.zeros((21, 2), dtype=np.float32)
+        if self.indp_sign_class != "0":
+            # Both hands: left_kp2d and right_kp2d already computed above
+            hand_2d_keypoints = np.concatenate([left_kp2d, right_kp2d], axis=0)
+        else:
+            if label == 'left_hand':
+                hand_2d_keypoints = np.concatenate([hand_kp2d, zeros_21x2], axis=0)
+            elif label == 'right_hand':
+                hand_2d_keypoints = np.concatenate([zeros_21x2, hand_kp2d], axis=0)
+            else:
+                hand_2d_keypoints = np.concatenate([zeros_21x2, zeros_21x2], axis=0)
 
         if self.indp_sign_class != "0":
             output_dict = {'fn': img_fn,
@@ -676,6 +574,7 @@ class OpenPose(Dataset):
                         'pGT_lhand': cur_left_hand,
                         'pGT_rhand': cur_right_hand,
                         'p3DGT_hand': cur_hand_3d,
+                        'hand_2d_keypoints': hand_2d_keypoints,
                         'label': label,
                         'keypoints': keypoints, 'img': img}
         else:
@@ -686,6 +585,7 @@ class OpenPose(Dataset):
                         'smplx_param': smplx_param,
                         'pGT_lhand': cur_left_hand,
                         'p3DGT_hand': cur_hand_3d,
+                        'hand_2d_keypoints': hand_2d_keypoints,
                         'label': label,
                         'keypoints': keypoints, 'img': img}
             elif label == 'right_hand':
@@ -695,6 +595,7 @@ class OpenPose(Dataset):
                         'smplx_param': smplx_param,
                         'pGT_rhand': cur_right_hand,
                         'p3DGT_hand': cur_hand_3d,
+                        'hand_2d_keypoints': hand_2d_keypoints,
                         'label': label,
                         'keypoints': keypoints, 'img': img}
 

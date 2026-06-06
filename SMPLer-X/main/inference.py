@@ -73,11 +73,11 @@ def main():
     config_file= '../../checkpoints/mmdet/mmdet_faster_rcnn_r50_fpn_coco.py'
     model = init_detector(config_file, checkpoint_file, device='cuda:0')  # or device='cuda:0'
 
-    num_images = len(os.listdir(args.img_path))
-
     image_names = sorted([fn for fn in os.listdir(args.img_path)
      if (fn.endswith('.png') or fn.endswith('.jpg')) and not fn.startswith('.')],
     key=lambda fn: int(osp.splitext(fn)[0].split('_')[-1]))
+
+    num_images = len(image_names)
 
     import math
     total_number = num_images

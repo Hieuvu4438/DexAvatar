@@ -98,8 +98,6 @@ def main(**args):
 
     img_path = args.get('img_folder')
 
-    img_path = os.path.join(img_path, 'images')
-
     indp_sign_class = class_sign[folder_name]
 
     #img_folder = args.pop('img_folder', 'images')
@@ -251,6 +249,7 @@ def main(**args):
         cam_param = torch.from_numpy(cam_param).to(device=device)
         init_smplx_param = data['smplx_param'] # SMPLer-X parameters (body, hand, face .. )
         p3DGT_hand = data['p3DGT_hand'] # Hamer 3D pose parameters
+        hand_2d_keypoints = data.get('hand_2d_keypoints', None)  # Method 2: 2D hand keypoints
 
         keypoints = data['keypoints']
         print('Processing: {}'.format(data['img_path']))
@@ -308,6 +307,7 @@ def main(**args):
                              camera=cam_param,
                              init_smplx_param=init_smplx_param,
                              p3DGT_hand=p3DGT_hand,
+                             hand_2d_keypoints=hand_2d_keypoints,
                              joint_weights=joint_weights,
                              dtype=dtype,
                              output_folder=output_folder,
