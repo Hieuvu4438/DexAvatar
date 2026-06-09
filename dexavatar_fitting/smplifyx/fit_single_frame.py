@@ -217,9 +217,9 @@ def fit_single_frame(img,
                 len(body_biomechanics_loss_weights))
 
     use_signbposer = kwargs.get('use_signbposer', True)
-    
+
     signbposer, pose_embedding = [None, ] * 2
-    
+
     if use_signbposer:
         pose_embedding = torch.zeros([batch_size, 33],
                                      dtype=dtype, device=device,
@@ -228,6 +228,54 @@ def fit_single_frame(img,
         signbposer, _ = load_signbposer(kwargs.get('signbposer_dir')) # loading the vposer
         signbposer = signbposer.to(device=device)
         signbposer.eval()
+
+    # ---- MotionBERT Prior (NEW) ----
+    use_motionbert_prior = kwargs.get('use_motionbert_prior', False)
+    motionbert_prior = None
+    if use_motionbert_prior and not use_signbposer:
+        from signbposer.motionbert_wrapper import MotionBERTDirectWrapper
+        motionbert_prior = MotionBERTDirectWrapper(num_joints=21).to(device=device)
+        motionbert_prior.eval()
+        # Direct body pose optimization (63-dim)
+        pose_embedding = torch.zeros([batch_size, 63],
+                                     dtype=dtype, device=device,
+                                     requires_grad=True)
+        # Initialize from SMPLer-X init
+        if init_smplx_param is not None and 'body_pose' in init_smplx_param:
+            init_bp = init_smplx_param['body_pose']
+            if isinstance(init_bp, np.ndarray):
+                init_bp = torch.from_numpy(init_bp).float()
+            pose_embedding.data.copy_(init_bp.reshape(batch_size, -1).to(device))
+
+    # ---- PHD Diffusion Prior (NEW) ----
+    use_phd_prior = kwargs.get('use_phd_prior', False)
+    phd_prior = None
+    if use_phd_prior and not use_signbposer and not use_motionbert_prior:
+        from signbposer.phd_prior import PHDBodyPrior
+        phd_prior_dir = kwargs.get('phd_prior_dir', '')
+        if phd_prior_dir and os.path.exists(phd_prior_dir):
+            phd_prior = PHDBodyPrior.from_checkpoint(phd_prior_dir, device=device)
+        else:
+            # Create with default config for testing
+            from signbposer.phd_score_network import PHDScoreNetwork
+            from signbposer.phd_diffusion import PHDDiffusion
+            score_net = PHDScoreNetwork(pose_dim=63, hidden_dim=1024, num_layers=4).to(device)
+            diffusion = PHDDiffusion(score_network=score_net, num_timesteps=1000)
+            phd_prior = PHDBodyPrior(
+                diffusion=diffusion,
+                guidance_scale=kwargs.get('phd_guidance_scale', 1.0),
+            ).to(device)
+        phd_prior.eval()
+        # Direct body pose optimization (63-dim)
+        pose_embedding = torch.zeros([batch_size, 63],
+                                     dtype=dtype, device=device,
+                                     requires_grad=True)
+        # Initialize from SMPLer-X init
+        if init_smplx_param is not None and 'body_pose' in init_smplx_param:
+            init_bp = init_smplx_param['body_pose']
+            if isinstance(init_bp, np.ndarray):
+                init_bp = torch.from_numpy(init_bp).float()
+            pose_embedding.data.copy_(init_bp.reshape(batch_size, -1).to(device))
 
     use_hposer3d = kwargs.get('use_hposer3d', True)
     hposer3d, rhand_embedding3d, lhand_embedding3d = [None, ] * 3
@@ -572,6 +620,10 @@ def fit_single_frame(img,
                     hand_body_contact_weight=kwargs.get('hand_body_contact_weight', 0.0),
                     finger_prior_weight=kwargs.get('finger_prior_weight', 0.0),
                     pose_embedding=pose_embedding,
+                    use_motionbert_prior=use_motionbert_prior,
+                    motionbert_prior=motionbert_prior,
+                    use_phd_prior=use_phd_prior,
+                    phd_prior=phd_prior,
                     return_verts=True, return_full_pose=True)
 
                 if interactive:
@@ -611,6 +663,9 @@ def fit_single_frame(img,
                            for key, val in body_model.named_parameters()})
             if use_signbposer:
                 result['body_pose'] = signbposer.decode(pose_embedding, output_type='aa').view(1, -1).detach().cpu().numpy()
+            elif use_motionbert_prior or use_phd_prior:
+                # Direct optimization: pose_embedding IS body_pose
+                result['body_pose'] = pose_embedding.detach().cpu().numpy().reshape(1, -1)
             result['K'] = camera.cpu().numpy()
 
             # ===== APPROACH A: Direct SMPL-X Parameter Refinement =====
@@ -623,6 +678,8 @@ def fit_single_frame(img,
                 # Get current decoded poses as starting point
                 if use_signbposer:
                     cur_body_pose = signbposer.decode(pose_embedding, output_type='aa').view(1, -1).detach().clone()
+                elif use_motionbert_prior or use_phd_prior:
+                    cur_body_pose = pose_embedding.detach().clone()
                 else:
                     cur_body_pose = torch.from_numpy(init_smplx_param['body_pose'][None]).to(device=device, dtype=dtype)
 
@@ -738,9 +795,14 @@ def fit_single_frame(img,
             pickle.dump(results[min_idx]['result'], result_file, protocol=2)
 
     if save_meshes or visualize:
-        body_pose = signbposer.decode(
-            pose_embedding,
-            output_type='aa').view(1, -1) if use_signbposer else None
+        if use_signbposer:
+            body_pose = signbposer.decode(
+                pose_embedding,
+                output_type='aa').view(1, -1)
+        elif use_motionbert_prior or use_phd_prior:
+            body_pose = pose_embedding.view(1, -1)
+        else:
+            body_pose = None
 
         model_type = kwargs.get('model_type', 'smpl')
         append_wrists = model_type == 'smpl' and use_signbposer

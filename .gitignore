@@ -32,7 +32,9 @@ Thumbs.db
 # Data (large files)
 _DATA/
 data/frames/
-data/smplx_gt/
+data/frames_*/
+data/smplx_gt*/
+data/signbposer_data/
 data/dummy_test/
 data/images_sgnify
 *.zip
@@ -41,6 +43,13 @@ data/images_sgnify
 *.pt
 *.ckpt
 *.npy
+*.pkl
+*.h5
+*.hdf5
+
+# Evaluation data
+evaluation/data/
+evaluation/SMPLer-X/
 
 # Large external projects (not part of core pipeline)
 LHM-plusplus/
@@ -55,6 +64,20 @@ frankmocap/
 
 # Environment
 .env
+.env.*
 .venv/
 env/
 venv/
+*.egg-info/
+.eggs/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# pytest
+.pytest_cache/
+.coverage
+htmlcov/
+
+# mypy
+.mypy_cache/

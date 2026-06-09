@@ -376,6 +376,38 @@ def parse_config(argv=None):
                         type=float,
                         help='Minimum hand loss weight when confidence is low')
 
+    # ---- MotionBERT Prior (NEW) ----
+    parser.add_argument('--use_motionbert_prior',
+                        default=False,
+                        type=lambda arg: arg.lower() in ['true', '1'],
+                        help='Use MotionBERT body pose prior instead of SignBPoser')
+    parser.add_argument('--motionbert_prior_dir', default='', type=str,
+                        help='Path to MotionBERT prior checkpoint')
+    parser.add_argument('--motionbert_guidance_weight',
+                        default=1.0, type=float,
+                        help='Guidance weight for MotionBERT prior loss')
+
+    # ---- PHD Diffusion Prior (NEW) ----
+    parser.add_argument('--use_phd_prior',
+                        default=False,
+                        type=lambda arg: arg.lower() in ['true', '1'],
+                        help='Use PHD diffusion body pose prior instead of SignBPoser')
+    parser.add_argument('--phd_prior_dir', default='', type=str,
+                        help='Path to PHD prior checkpoint')
+    parser.add_argument('--phd_guidance_scale',
+                        default=1.0, type=float,
+                        help='Guidance scale for PHD score function')
+    parser.add_argument('--phd_num_inference_steps',
+                        default=50, type=int,
+                        help='Number of diffusion steps for PHD')
+    parser.add_argument('--phd_timestep_strategy',
+                        default='random', type=str,
+                        choices=['random', 'fixed'],
+                        help='Timestep strategy for PHD prior loss')
+    parser.add_argument('--phd_fixed_timestep',
+                        default=50, type=int,
+                        help='Fixed timestep for PHD (if strategy=fixed)')
+
     parser.add_argument('--depth_loss_weight', default=1e2, type=float,
                         help='The weight for the regularizer for the' +
                         ' z coordinate of the camera translation')

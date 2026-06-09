@@ -237,6 +237,8 @@ class FittingMonitor(object):
                                use_signbposer=False, signbposer=None,
                                pose_embedding=None,
                                create_graph=False,
+                               use_motionbert_prior=False, motionbert_prior=None,
+                               use_phd_prior=False, phd_prior=None,
                                **kwargs):
         faces_tensor = body_model.faces_tensor.view(-1)
         append_wrists = self.model_type == 'smpl' and use_signbposer
@@ -245,9 +247,15 @@ class FittingMonitor(object):
             if backward:
                 optimizer.zero_grad()
 
-            body_pose = signbposer.decode(
-                pose_embedding, output_type='aa').view(
-                    1, -1) if use_signbposer else None
+            # Decode body pose: handle all prior types
+            if use_signbposer:
+                body_pose = signbposer.decode(
+                    pose_embedding, output_type='aa').view(1, -1)
+            elif use_motionbert_prior or use_phd_prior:
+                # Direct optimization: pose_embedding IS body_pose
+                body_pose = pose_embedding.view(1, -1)
+            else:
+                body_pose = None
 
             if append_wrists:
                 wrist_pose = torch.zeros([body_pose.shape[0], 6],
@@ -294,6 +302,10 @@ class FittingMonitor(object):
                               rhand_embedding3d=rhand_embedding3d,
                               use_signbposer=use_signbposer,
                               signbposer=signbposer,
+                              use_motionbert_prior=use_motionbert_prior,
+                              motionbert_prior=motionbert_prior,
+                              use_phd_prior=use_phd_prior,
+                              phd_prior=phd_prior,
                               **kwargs)
 
             if backward:
@@ -452,6 +464,8 @@ class SMPLifyLoss(nn.Module):
     def forward(self, body_model_output, camera, gt_joints, p3DGT_hand, psmplx_bodyGT, joints_conf, psmplx_lhandGT, psmplx_rhandGT,
                 body_model_faces, joint_weights, lhand_embedding3d=None, rhand_embedding3d=None, use_hposer3d=False, hposer3d=None,
                 use_signbposer=False, signbposer=None, pose_embedding=None, indp_sign_class=None, hand_label=None, joints_temp=None,
+                use_motionbert_prior=False, motionbert_prior=None,
+                use_phd_prior=False, phd_prior=None,
                 **kwargs):
         pred_vert = body_model_output.vertices.float() # take out the vertices from the body model output
         new_replace_vert = torch.matmul(torch.from_numpy(regressor_mat).cuda().float(), pred_vert[0]) # converting vertices to joints
@@ -590,6 +604,35 @@ class SMPLifyLoss(nn.Module):
             pprior_loss += self.data_init_core_weight * torch.abs(
                 signbposer.decode(pose_embedding, output_type='aa').view(1, -1)[:, 0:11*3] - psmplx_bodyGT[:,0:11*3]).sum() + \
                 self.data_init_noncore_weight * torch.abs(signbposer.decode(pose_embedding, output_type='aa').view(1, -1)[:, 11*3:] - psmplx_bodyGT[:, 11*3:]).sum()
+
+        # ---- MotionBERT Prior (NEW) ----
+        elif use_motionbert_prior and motionbert_prior is not None:
+            # Direct body pose optimization: pose_embedding IS body_pose (63-dim)
+            body_pose_direct = pose_embedding  # (1, 63)
+
+            # MotionBERT prior loss
+            pprior_loss = motionbert_prior.prior_loss(body_pose_direct, smplerx_init=psmplx_bodyGT)
+
+            # Init prior: L1 vs SMPLer-X init (same structure as SignBPoser)
+            pprior_loss += self.data_init_core_weight * torch.abs(
+                body_pose_direct[:, 0:11*3] - psmplx_bodyGT[:, 0:11*3]).sum()
+            pprior_loss += self.data_init_noncore_weight * torch.abs(
+                body_pose_direct[:, 11*3:] - psmplx_bodyGT[:, 11*3:]).sum()
+
+        # ---- PHD Diffusion Prior (NEW) ----
+        elif use_phd_prior and phd_prior is not None:
+            # Direct body pose optimization: pose_embedding IS body_pose (63-dim)
+            body_pose_direct = pose_embedding  # (1, 63)
+
+            # PHD score-based prior loss
+            pprior_loss = phd_prior.prior_loss(body_pose_direct)
+
+            # Init prior: L1 vs SMPLer-X init
+            pprior_loss += self.data_init_core_weight * torch.abs(
+                body_pose_direct[:, 0:11*3] - psmplx_bodyGT[:, 0:11*3]).sum()
+            pprior_loss += self.data_init_noncore_weight * torch.abs(
+                body_pose_direct[:, 11*3:] - psmplx_bodyGT[:, 11*3:]).sum()
+
         # pose embedding loss + core 11 joints rotation loss + Left over rotation loss (this only happens for the first stage of fitting because the \
         # rest of the data_init_prior_weight is set to 0)
         else:
