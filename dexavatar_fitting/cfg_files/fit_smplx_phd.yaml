@@ -35,7 +35,7 @@ use_signbposer: False
 
 # Enable PHD diffusion prior
 use_phd_prior: True
-phd_prior_dir: './smplifyx/signbposer/snapshots_new/phd_best.pt'
+phd_prior_dir: './smplifyx/signbposer/snapshots/phd_best.pt'
 phd_guidance_scale: 1.0
 phd_num_inference_steps: 50
 phd_timestep_strategy: 'random'   # 'random' hoặc 'fixed'

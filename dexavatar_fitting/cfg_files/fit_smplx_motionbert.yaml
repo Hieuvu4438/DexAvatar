@@ -35,7 +35,7 @@ use_signbposer: False
 
 # Enable MotionBERT prior
 use_motionbert_prior: True
-motionbert_prior_dir: './smplifyx/signbposer/snapshots_new/motionbert_best.pt'
+motionbert_prior_dir: './smplifyx/signbposer/snapshots/motionbert_best.pt'
 motionbert_guidance_weight: 1.0
 
 # Disable original SignHPoser (keep if you want hand prior)

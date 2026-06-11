@@ -82,7 +82,7 @@ def collect_pairs(pred_root: Path, gt_root: Path, sign_name: str):
     if not pred_sign.exists() or not gt_sign.exists():
         return []
 
-    # Find prediction files: meshes/*.obj or results/*.pkl
+    # Find prediction files: smplifyx/meshes/ (smplerx/mesh/ is in camera space, not comparable to GT)
     pred_files = sorted(
         list(pred_sign.glob('**/meshes/low_*.obj')) +
         list(pred_sign.glob('**/meshes/low_*.pkl')) +
@@ -125,6 +125,34 @@ def compute_mpvpe_part(pred_v, gt_v, idxs, regressor, joint_idx):
     err = np.linalg.norm(pred_part - gt_part, axis=-1)
     return float(err.mean() * 1000.0)
 
+def tr_v2v(pred_v, gt_v, idxs):
+    """TR-V2V (mm) — per-region centroid alignment (SGNify paper Table 3)."""
+    p = pred_v[idxs]
+    g = gt_v[idxs]
+    p = p - p.mean(axis=0, keepdims=True)
+    g = g - g.mean(axis=0, keepdims=True)
+    err = np.linalg.norm(p - g, axis=-1)
+    return float(err.mean() * 1000.0)
+
+def select_central_frames(pairs):
+    """Filter pairs to central frames only: 0.5×T/8 < t < 7×T/8 (SGNify paper, Appendix C)."""
+    import re
+    if not pairs:
+        return pairs
+    gt_indices = []
+    for pp, gp in pairs:
+        m = re.search(r'(\d{5})', gp.stem)
+        gt_indices.append(int(m.group(1)) if m else None)
+    valid = [i for i in gt_indices if i is not None]
+    if not valid:
+        return pairs
+    T = max(valid) - min(valid) + 1
+    t_min = min(valid)
+    core_lo = t_min + 0.5 * T / 8.0
+    core_hi = t_min + 7.0 * T / 8.0
+    return [(pp, gp) for (pp, gp), gt_idx in zip(pairs, gt_indices)
+            if gt_idx is not None and core_lo < gt_idx < core_hi]
+
 def main():
     ap = argparse.ArgumentParser(description='MPVPE evaluation on body parts (Pelvis/Wrist aligned).')
     ap.add_argument('--pred_root', required=True)
@@ -135,6 +163,8 @@ def main():
     ap.add_argument('--lhand_indices', required=True)
     ap.add_argument('--rhand_indices', required=True)
     ap.add_argument('--method_name', default='DexAvatar')
+    ap.add_argument('--central_frames', action='store_true',
+                    help='Filter to central frames only (0.5×T/8 < t < 7×T/8, per SGNify paper)')
     ap.add_argument('--output_csv', default='')
     ap.add_argument('--output_summary', default='')
     args = ap.parse_args()
@@ -151,9 +181,14 @@ def main():
     frame_rows = []
     sign_rows = []
     missing_signs = []
+    central_skipped = 0
 
     for sign in signs:
         pairs = collect_pairs(pred_root, gt_root, sign)
+        if args.central_frames:
+            original_count = len(pairs)
+            pairs = select_central_frames(pairs)
+            central_skipped += original_count - len(pairs)
         if not pairs:
             missing_signs.append(sign)
             continue
@@ -161,20 +196,21 @@ def main():
         for pp, gp in pairs:
             pred_v = load_vertices(pp)
             gt_v = load_vertices(gp)
-            
-            # Align UBody by Pelvis (index 0)
+
+            # MPVPE (pelvis/wrist aligned)
             err_ubody = compute_mpvpe_part(pred_v, gt_v, ubody_idx, J_regressor, 0)
-            
-            # Align LHand by L_Wrist (index 20)
             err_lhand = compute_mpvpe_part(pred_v, gt_v, lhand_idx, J_regressor, 20)
-            
-            # Align RHand by R_Wrist (index 21)
             err_rhand = compute_mpvpe_part(pred_v, gt_v, rhand_idx, J_regressor, 21)
-            
-            metrics = [err_ubody, err_lhand, err_rhand]
+
+            # TR-V2V (pelvis-aligned, matching SGNify paper)
+            t_ubody = tr_v2v(pred_v, gt_v, ubody_idx)
+            t_lhand = tr_v2v(pred_v, gt_v, lhand_idx)
+            t_rhand = tr_v2v(pred_v, gt_v, rhand_idx)
+
+            metrics = [err_ubody, err_lhand, err_rhand, t_ubody, t_lhand, t_rhand]
             rows.append(metrics)
             frame_rows.append((sign, pp.stem, *metrics, str(pp), str(gp)))
-            
+
         arr = np.asarray(rows, dtype=np.float32)
         mean = arr.mean(axis=0)
         sign_rows.append((sign, len(rows), mean))
@@ -186,32 +222,41 @@ def main():
     arr = np.asarray(all_rows, dtype=np.float32)
     mean = arr.mean(axis=0)
 
+    frame_desc = "Central Frames" if args.central_frames else "All Frames"
+    if args.central_frames:
+        print(f'Frame filter: CENTRAL (0.5×T/8 < t < 7×T/8), {central_skipped} frames excluded')
+    print()
+    print('MPVPE (mm) — Pelvis/Wrist Aligned')
     print('Method,UBody(-F),LHand,RHand')
     print(f"{args.method_name},{mean[0]:.2f},{mean[1]:.2f},{mean[2]:.2f}")
-    print(f'Frames,{len(all_rows)}')
+    print()
+    print('TR-V2V (mm) — Pelvis Aligned (SGNify)')
+    print('Method,UBody(-F),LHand,RHand')
+    print(f"{args.method_name},{mean[3]:.2f},{mean[4]:.2f},{mean[5]:.2f}")
+    print(f'\nFrames,{len(all_rows)}')
     print(f'SignsCovered,{len(sign_rows)}/{len(signs)}')
     if missing_signs:
         print(f"MissingSigns,{len(missing_signs)},{' '.join(missing_signs)}")
 
     print('\nPer-sign summary:')
-    print('Sign,Frames,UBody(-F),LHand,RHand')
+    print('Sign,Frames,MPVPE_UBody,MPVPE_LHand,MPVPE_RHand,TRV2V_UBody,TRV2V_LHand,TRV2V_RHand')
     for sign, n, m in sign_rows:
-        print(f'{sign},{n},{m[0]:.2f},{m[1]:.2f},{m[2]:.2f}')
+        print(f'{sign},{n},{m[0]:.2f},{m[1]:.2f},{m[2]:.2f},{m[3]:.2f},{m[4]:.2f},{m[5]:.2f}')
 
     if args.output_csv:
         out = Path(args.output_csv)
         out.parent.mkdir(parents=True, exist_ok=True)
         with open(out, 'w', encoding='utf-8') as f:
-            f.write('sign,frame,UBody(-F),LHand,RHand,pred_path,gt_path\n')
+            f.write('sign,frame,mpvpe_ubody,mpvpe_lhand,mpvpe_rhand,trv2v_ubody,trv2v_lhand,trv2v_rhand,pred_path,gt_path\n')
             for row in frame_rows:
-                f.write(f'{row[0]},{row[1]},{row[2]:.6f},{row[3]:.6f},{row[4]:.6f},{row[5]},{row[6]}\n')
+                f.write(f'{row[0]},{row[1]},{row[2]:.6f},{row[3]:.6f},{row[4]:.6f},{row[5]:.6f},{row[6]:.6f},{row[7]:.6f},{row[8]},{row[9]}\n')
 
     if args.output_summary:
         out = Path(args.output_summary)
         out.parent.mkdir(parents=True, exist_ok=True)
         with open(out, 'w', encoding='utf-8') as f:
-            f.write('method,UBody(-F),LHand,RHand,frames,signs_covered,total_signs\n')
-            f.write(f'{args.method_name},{mean[0]:.6f},{mean[1]:.6f},{mean[2]:.6f},{len(all_rows)},{len(sign_rows)},{len(signs)}\n')
+            f.write('method,mpvpe_ubody,mpvpe_lhand,mpvpe_rhand,trv2v_ubody,trv2v_lhand,trv2v_rhand,frames,signs_covered,total_signs\n')
+            f.write(f'{args.method_name},{mean[0]:.6f},{mean[1]:.6f},{mean[2]:.6f},{mean[3]:.6f},{mean[4]:.6f},{mean[5]:.6f},{len(all_rows)},{len(sign_rows)},{len(signs)}\n')
 
 if __name__ == '__main__':
     main()

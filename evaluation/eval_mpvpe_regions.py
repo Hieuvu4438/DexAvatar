@@ -19,7 +19,7 @@ from pathlib import Path
 import numpy as np
 
 # ── paths ────────────────────────────────────────────────────────────────────
-PROJECT = Path(__file__).resolve().parent
+PROJECT = Path(__file__).resolve().parent.parent
 SMPLX_MODEL = PROJECT / "SMPLer-X/common/utils/human_model_files/smplx/SMPLX_NEUTRAL.pkl"
 SIGNS_TXT = PROJECT / "data/signs.txt"
 GT_ROOT = PROJECT / "data/smplx_gt"
@@ -90,7 +90,10 @@ def mpvpe(pred_v: np.ndarray, gt_v: np.ndarray, idxs: np.ndarray,
 
 
 def tr_v2v(pred_v: np.ndarray, gt_v: np.ndarray, idxs: np.ndarray) -> float:
-    """TR-V2V (mm) — translation-removed, per-region centroid alignment."""
+    """TR-V2V (mm) — per-region centroid alignment.
+
+    Matches SGNify paper Table 3: remove translation per region, then compute V2V.
+    """
     p = pred_v[idxs]
     g = gt_v[idxs]
     p = p - p.mean(axis=0, keepdims=True)
@@ -104,6 +107,7 @@ def collect_pairs(pred_sign_dir: Path, gt_sign_dir: Path) -> list:
     if not pred_sign_dir.exists() or not gt_sign_dir.exists():
         return []
 
+    # Only smplifyx/meshes/ — smplerx/mesh/ is in camera space, not comparable to GT
     pred_files = sorted(
         list(pred_sign_dir.glob("**/meshes/low_*.obj")) +
         list(pred_sign_dir.glob("**/meshes/low_*.npy")) +
@@ -123,21 +127,46 @@ def collect_pairs(pred_sign_dir: Path, gt_sign_dir: Path) -> list:
     return pairs
 
 
+def select_central_frames(pairs):
+    """Filter pairs to central frames only: 0.5×T/8 < t < 7×T/8 (SGNify paper, Appendix C)."""
+    if not pairs:
+        return pairs
+    gt_indices = []
+    for pp, gp in pairs:
+        m = re.search(r'(\d{5})', gp.stem)
+        gt_indices.append(int(m.group(1)) if m else None)
+    valid = [i for i in gt_indices if i is not None]
+    if not valid:
+        return pairs
+    T = max(valid) - min(valid) + 1
+    t_min = min(valid)
+    core_lo = t_min + 0.5 * T / 8.0
+    core_hi = t_min + 7.0 * T / 8.0
+    return [(pp, gp) for (pp, gp), gt_idx in zip(pairs, gt_indices)
+            if gt_idx is not None and core_lo < gt_idx < core_hi]
+
+
 # ── main ─────────────────────────────────────────────────────────────────────
 def evaluate_method(method_name: str, pred_root: Path, joints: dict,
-                    ubody_idx, lhand_idx, rhand_idx, signs: list) -> dict:
+                    ubody_idx, lhand_idx, rhand_idx, signs: list,
+                    central_frames: bool = False) -> dict:
     """Evaluate one method, return per-frame and summary results."""
     J_reg = joints["J_regressor"]
     pelvis_i = joints["name2idx"]["pelvis"]
     lwrist_i = joints["name2idx"]["left_wrist"]
     rwrist_i = joints["name2idx"]["right_wrist"]
 
-    frame_rows = []   # (sign, frame, mpvpe_ubody, mpvpe_lhand, mpvpe_rhand, trv2v_ubody, trv2v_lhand, trv2v_rhand)
-    sign_stats = {}   # sign → list of metric arrays
+    frame_rows = []
+    sign_stats = {}
     missing = []
+    central_skipped = 0
 
     for sign in signs:
         pairs = collect_pairs(pred_root / sign, GT_ROOT / sign)
+        if central_frames:
+            original_count = len(pairs)
+            pairs = select_central_frames(pairs)
+            central_skipped += original_count - len(pairs)
         if not pairs:
             missing.append(sign)
             continue
@@ -154,12 +183,12 @@ def evaluate_method(method_name: str, pred_root: Path, joints: dict,
             rwrist_pred = get_joint_positions(pv, J_reg, rwrist_i)
             rwrist_gt   = get_joint_positions(gv, J_reg, rwrist_i)
 
-            # MPVPE (OSX-style alignment)
+            # MPVPE (pelvis/wrist aligned)
             m_ubody = mpvpe(pv, gv, ubody_idx, pelvis_pred, pelvis_gt)
             m_lhand = mpvpe(pv, gv, lhand_idx, lwrist_pred, lwrist_gt)
             m_rhand = mpvpe(pv, gv, rhand_idx, rwrist_pred, rwrist_gt)
 
-            # TR-V2V (region-centroid alignment, for reference)
+            # TR-V2V (per-region centroid aligned, matching SGNify paper Table 3)
             t_ubody = tr_v2v(pv, gv, ubody_idx)
             t_lhand = tr_v2v(pv, gv, lhand_idx)
             t_rhand = tr_v2v(pv, gv, rhand_idx)
@@ -188,6 +217,7 @@ def evaluate_method(method_name: str, pred_root: Path, joints: dict,
         "missing": missing,
         "frame_rows": frame_rows,
         "sign_stats": sign_stats,
+        "central_skipped": central_skipped,
     }
 
 
@@ -215,6 +245,8 @@ def main():
     ap.add_argument("--method_names", nargs="+", default=None,
                     help="Display names for methods (same order as --methods)")
     ap.add_argument("--output_csv", default="", help="Optional CSV output path")
+    ap.add_argument("--central_frames", action="store_true",
+                    help="Filter to central frames only (0.5×T/8 < t < 7×T/8, per SGNify paper)")
     args = ap.parse_args()
 
     if args.method_names is None:
@@ -243,7 +275,8 @@ def main():
             print(f"[SKIP] {pred_root} does not exist")
             continue
         print(f"Evaluating {method_name} from {pred_root} ...")
-        r = evaluate_method(method_name, pred_root, joints, ubody_idx, lhand_idx, rhand_idx, signs)
+        r = evaluate_method(method_name, pred_root, joints, ubody_idx, lhand_idx, rhand_idx, signs,
+                            central_frames=args.central_frames)
         if r:
             results.append(r)
             print(f"  → {r['frames']} frames, {r['signs']}/{r['total_signs']} signs")
@@ -253,8 +286,10 @@ def main():
         return
 
     # Print tables
-    print_table("MPVPE (mm) — Pelvis/Wrist Aligned", "mpvpe", results)
-    print_table("TR-V2V (mm) — Region-Centroid Aligned", "trv2v", results)
+    frame_desc = "Central Frames" if args.central_frames else "All Frames"
+    print(f"\nFrame filter: {frame_desc}")
+    print_table(f"MPVPE (mm) — {frame_desc} — Pelvis/Wrist Aligned", "mpvpe", results)
+    print_table(f"TR-V2V (mm) — {frame_desc} — Region-Centroid Aligned (SGNify)", "trv2v", results)
 
     # Per-sign detail for each method
     for r in results:

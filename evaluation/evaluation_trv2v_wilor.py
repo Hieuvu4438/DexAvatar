@@ -1,10 +1,19 @@
 #!/usr/bin/env python3
+"""TR-V2V evaluation matching SGNify paper methodology (Table 3).
+
+TR-V2V = mean per-vertex error with per-region centroid alignment.
+Optional --central_frames flag filters to core part of each sign
+(0.5×T/8 < t < 7×T/8, per SGNify Appendix C).
+"""
 import argparse
 import json
 import pickle
+import re
 from pathlib import Path
 
 import numpy as np
+
+PROJECT = Path(__file__).resolve().parent.parent
 
 
 def load_vertices(path: Path):
@@ -46,12 +55,53 @@ def load_vertices(path: Path):
 
 
 def tr_v2v_mm(pred_v, gt_v, idxs):
+    """TR-V2V (mm) — per-region centroid alignment (SGNify paper Table 3).
+
+    "We compute the mean per-vertex error (TR-V2V) by considering the vertices
+    above the pelvis. The prefix 'TR' means that we translationally align the mesh
+    reconstructed for each frame with the ground truth before computing errors."
+    """
     pred = pred_v[idxs]
     gt = gt_v[idxs]
-    pred_root = pred.mean(axis=0, keepdims=True)
-    gt_root = gt.mean(axis=0, keepdims=True)
-    err = np.linalg.norm((pred - pred_root) - (gt - gt_root), axis=-1)
+    pred = pred - pred.mean(axis=0, keepdims=True)
+    gt = gt - gt.mean(axis=0, keepdims=True)
+    err = np.linalg.norm(pred - gt, axis=-1)
     return float(err.mean() * 1000.0)
+
+
+def select_central_frames(pairs):
+    """Filter pairs to central frames only: 0.5×T/8 < t < 7×T/8 (SGNify paper, Appendix C).
+
+    T = total number of frames in the sign sequence.
+    Frame index t is derived from the GT filename (0-padded 5-digit).
+    """
+    if not pairs:
+        return pairs
+    # Extract GT frame indices
+    gt_indices = []
+    for pp, gp in pairs:
+        m = re.search(r'(\d{5})', gp.stem)
+        if m:
+            gt_indices.append(int(m.group(1)))
+        else:
+            gt_indices.append(None)
+
+    # Determine T from the GT frame range
+    valid = [i for i in gt_indices if i is not None]
+    if not valid:
+        return pairs
+    T = max(valid) - min(valid) + 1
+    t_min = min(valid)
+
+    # Core window: 0.5×T/8 < t < 7×T/8  (relative to sequence start)
+    core_lo = t_min + 0.5 * T / 8.0
+    core_hi = t_min + 7.0 * T / 8.0
+
+    filtered = []
+    for (pp, gp), gt_idx in zip(pairs, gt_indices):
+        if gt_idx is not None and core_lo < gt_idx < core_hi:
+            filtered.append((pp, gp))
+    return filtered
 
 
 def load_indices(path):
@@ -89,7 +139,7 @@ def collect_pairs(pred_root: Path, gt_root: Path, sign_name: str):
     if not pred_sign.exists() or not gt_sign.exists():
         return []
 
-    # Find prediction files: meshes/*.obj or results/*.pkl
+    # Find prediction files: smplifyx/meshes/ (smplerx/mesh/ is in camera space, not comparable to GT)
     pred_files = sorted(
         list(pred_sign.glob('**/meshes/low_*.obj')) +
         list(pred_sign.glob('**/meshes/low_*.pkl')) +
@@ -100,13 +150,12 @@ def collect_pairs(pred_root: Path, gt_root: Path, sign_name: str):
     for pf in pred_files:
         stem = pf.stem
         # Extract frame index from low_XXX
-        import re
         m = re.search(r'low_(\d+)', stem)
         if not m:
             continue
         pred_idx = int(m.group(1))
         gt_idx = pred_idx * 2
-        
+
         # Check if corresponding GT file exists in gt_sign
         # GT files are 5-digit zero-padded, e.g. "00286.obj"
         gt_file = gt_sign / f"{gt_idx:05d}.obj"
@@ -116,15 +165,19 @@ def collect_pairs(pred_root: Path, gt_root: Path, sign_name: str):
 
 
 def main():
-    ap = argparse.ArgumentParser(description='TR-V2V evaluation on 57-sign split (Table-1 style regions).')
+    ap = argparse.ArgumentParser(
+        description='TR-V2V evaluation (SGNify paper Table 3: per-region centroid aligned).')
     ap.add_argument('--pred_root', required=True, help='Root folder containing per-sign prediction vertex files')
     ap.add_argument('--gt_root', required=True, help='Root folder containing per-sign GT vertex files (smplxgt)')
     ap.add_argument('--signs_txt', default='data/signs.txt')
-    ap.add_argument('--segment_json', default='data/segment.json', help='Reserved for compatibility/check; currently not used for file pairing')
+    ap.add_argument('--segment_json', default='data/segment.json',
+                    help='Reserved for compatibility/check; currently not used for file pairing')
     ap.add_argument('--ubody_indices', required=True)
     ap.add_argument('--lhand_indices', required=True)
     ap.add_argument('--rhand_indices', required=True)
-    ap.add_argument('--method_name', default='DexAvatar-WiLor')
+    ap.add_argument('--method_name', default='DexAvatar-WiLoR')
+    ap.add_argument('--central_frames', action='store_true',
+                    help='Filter to central frames only (0.5×T/8 < t < 7×T/8, per SGNify paper)')
     ap.add_argument('--output_csv', default='', help='Optional per-frame CSV output path')
     ap.add_argument('--output_summary', default='', help='Optional summary CSV output path')
     args = ap.parse_args()
@@ -141,9 +194,14 @@ def main():
     frame_rows = []
     sign_rows = []
     missing_signs = []
+    central_skipped = 0
 
     for sign in signs:
         pairs = collect_pairs(pred_root, gt_root, sign)
+        if args.central_frames:
+            original_count = len(pairs)
+            pairs = select_central_frames(pairs)
+            central_skipped += original_count - len(pairs)
         if not pairs:
             missing_signs.append(sign)
             continue
@@ -169,6 +227,12 @@ def main():
     arr = np.asarray(all_rows, dtype=np.float32)
     mean = arr.mean(axis=0)
 
+    print(f'\nAlignment: PER-REGION CENTROID (SGNify paper Table 3)')
+    if args.central_frames:
+        print(f'Frame filter: CENTRAL (0.5×T/8 < t < 7×T/8), {central_skipped} frames excluded')
+    else:
+        print(f'Frame filter: ALL frames')
+    print()
     print('Method,UBody(-F),LHand,RHand')
     print(f"{args.method_name},{mean[0]:.2f},{mean[1]:.2f},{mean[2]:.2f}")
     print(f'Frames,{len(all_rows)}')

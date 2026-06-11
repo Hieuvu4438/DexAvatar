@@ -17,7 +17,7 @@ from pathlib import Path
 
 import numpy as np
 
-PROJECT = Path(__file__).resolve().parent
+PROJECT = Path(__file__).resolve().parent.parent
 SMPLX_MODEL = PROJECT / "SMPLer-X/common/utils/human_model_files/smplx/SMPLX_NEUTRAL.pkl"
 SIGNS_TXT = PROJECT / "data/signs.txt"
 GT_ROOT = PROJECT / "data/smplx_gt"
@@ -66,6 +66,7 @@ def mpvpe(pred_v, gt_v, idxs, align_pred, align_gt):
 
 
 def tr_v2v(pred_v, gt_v, idxs):
+    """TR-V2V (mm) — per-region centroid alignment (SGNify paper Table 3)."""
     p = pred_v[idxs]; g = gt_v[idxs]
     p = p - p.mean(axis=0, keepdims=True)
     g = g - g.mean(axis=0, keepdims=True)
@@ -92,8 +93,27 @@ def stem_to_gt_path(stem: str, gt_sign_dir: Path) -> Path:
     return gt_sign_dir / f"{gt_idx:05d}.obj"
 
 
+def select_central_stems(stems: set) -> set:
+    """Filter stems to central frames only: 0.5×T/8 < t < 7×T/8 (SGNify paper, Appendix C)."""
+    if not stems:
+        return stems
+    gt_indices = {}
+    for stem in stems:
+        m = re.search(r'low_(\d+)', stem)
+        if m:
+            gt_indices[stem] = int(m.group(1)) * 2
+    if not gt_indices:
+        return stems
+    valid = list(gt_indices.values())
+    T = max(valid) - min(valid) + 1
+    t_min = min(valid)
+    core_lo = t_min + 0.5 * T / 8.0
+    core_hi = t_min + 7.0 * T / 8.0
+    return {stem for stem, gt_idx in gt_indices.items() if core_lo < gt_idx < core_hi}
+
+
 def evaluate_method_common(method_name, pred_root, joints, ubody_idx, lhand_idx, rhand_idx,
-                           signs, common_frames_per_sign):
+                           signs, common_frames_per_sign, central_frames=False):
     J_reg = joints["J_regressor"]
     pelvis_i = joints["name2idx"]["pelvis"]
     lwrist_i = joints["name2idx"]["left_wrist"]
@@ -101,9 +121,14 @@ def evaluate_method_common(method_name, pred_root, joints, ubody_idx, lhand_idx,
 
     frame_rows = []
     sign_stats = {}
+    central_skipped = 0
 
     for sign in signs:
         common_stems = common_frames_per_sign.get(sign, set())
+        if central_frames and common_stems:
+            original_count = len(common_stems)
+            common_stems = select_central_stems(common_stems)
+            central_skipped += original_count - len(common_stems)
         if not common_stems:
             continue
 
@@ -157,6 +182,7 @@ def evaluate_method_common(method_name, pred_root, joints, ubody_idx, lhand_idx,
         "total_signs": len(signs),
         "frame_rows": frame_rows,
         "sign_stats": sign_stats,
+        "central_skipped": central_skipped,
     }
 
 
@@ -181,6 +207,8 @@ def main():
     ap.add_argument("--methods", nargs="+", required=True)
     ap.add_argument("--method_names", nargs="+", required=True)
     ap.add_argument("--output_csv", default="")
+    ap.add_argument("--central_frames", action="store_true",
+                    help="Filter to central frames only (0.5×T/8 < t < 7×T/8, per SGNify paper)")
     args = ap.parse_args()
 
     print("Loading SMPL-X joint regressor...")
@@ -233,7 +261,7 @@ def main():
             continue
         print(f"\nEvaluating {method_name} on common frames...")
         r = evaluate_method_common(method_name, pred_root, joints, ubody_idx, lhand_idx, rhand_idx,
-                                   signs, common_frames_per_sign)
+                                   signs, common_frames_per_sign, central_frames=args.central_frames)
         if r:
             results.append(r)
             print(f"  → {r['frames']} frames, {r['signs']}/{r['total_signs']} signs")
@@ -243,8 +271,10 @@ def main():
         return
 
     # Print tables
-    print_table("MPVPE (mm) — Common Frames — Pelvis/Wrist Aligned", "mpvpe", results)
-    print_table("TR-V2V (mm) — Common Frames — Region-Centroid Aligned", "trv2v", results)
+    frame_desc = "Central Frames" if args.central_frames else "Common Frames"
+    print(f"\nFrame filter: {frame_desc}")
+    print_table(f"MPVPE (mm) — {frame_desc} — Pelvis/Wrist Aligned", "mpvpe", results)
+    print_table(f"TR-V2V (mm) — {frame_desc} — Pelvis Aligned (SGNify)", "trv2v", results)
 
     # Write CSV
     if args.output_csv:
