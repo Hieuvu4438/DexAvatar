@@ -408,6 +408,44 @@ def parse_config(argv=None):
                         default=50, type=int,
                         help='Fixed timestep for PHD (if strategy=fixed)')
 
+    # ---- SOKE VQVAE Hand Prior (NEW, additive) ----
+    parser.add_argument('--use_vqvae_hand', default=False,
+                        type=lambda arg: arg.lower() in ['true', '1'],
+                        help='Use SOKE VQVAE hand prior (continuous-bottleneck path) '
+                             'instead of SignHPoser')
+    parser.add_argument('--vqvae_hand_ckpt', default='', type=str,
+                        help='Path to SOKE VQVAE hand .ckpt (Lightning state_dict). '
+                             'Empty = random-init (use only for smoke-testing).')
+    parser.add_argument('--vqvae_hand_config', default='', type=str,
+                        help='Path to VQVAE hand config YAML (optional; defaults to '
+                             'SOKE hand192 config: nfeats=45, code_num=192, down_t=2).')
+    parser.add_argument('--vqvae_hand_latent_dim', default=23, type=int,
+                        help='Latent dim of the upstream L-BFGS variable. '
+                             'Default 23 matches the existing SignHPoser lhand_embedding3d slot.')
+    parser.add_argument('--vqvae_recon_loss_weight', default=1.0, type=float,
+                        help='Weight for the VQVAE hand reconstruction prior loss '
+                             'added to the L-BFGS objective.')
+
+    # ---- DPoser-X Body Prior (NEW, additive) ----
+    parser.add_argument('--use_dposerx_body', default=False,
+                        type=lambda arg: arg.lower() in ['true', '1'],
+                        help='Use DPoser-X diffusion body prior instead of SignBPoser')
+    parser.add_argument('--dposerx_ckpt', default='', type=str,
+                        help='Path to DPoser-X body .ckpt file (last.ckpt or last.pt).')
+    parser.add_argument('--dposerx_config', default='', type=str,
+                        help='Path to DPoser-X config .py (e.g. '
+                             '/home/haipd/DexAvatar/DPoser-X/configs/body/subvp/timefc.py).')
+    parser.add_argument('--dposerx_normalizer_dir', default='', type=str,
+                        help='Path to DPoser-X body_normalizer/ dir (output of '
+                             'scripts/fit_dposerx_normalizer.py).')
+    parser.add_argument('--dposerx_guidance_scale', default=1.0, type=float,
+                        help='Weight for DPoser-X prior loss.')
+    parser.add_argument('--dposerx_timestep_strategy', default='random', type=str,
+                        choices=['random', 'fixed'],
+                        help='Timestep strategy for DPoser-X prior loss (mirrors PHD).')
+    parser.add_argument('--dposerx_fixed_timestep', default=50, type=int,
+                        help='Fixed timestep for DPoser-X (if strategy=fixed).')
+
     parser.add_argument('--depth_loss_weight', default=1e2, type=float,
                         help='The weight for the regularizer for the' +
                         ' z coordinate of the camera translation')

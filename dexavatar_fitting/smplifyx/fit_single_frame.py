@@ -277,6 +277,35 @@ def fit_single_frame(img,
                 init_bp = torch.from_numpy(init_bp).float()
             pose_embedding.data.copy_(init_bp.reshape(batch_size, -1).to(device))
 
+    # ---- DPoser-X Body Prior (NEW, additive) ----
+    use_dposerx_body = kwargs.get('use_dposerx_body', False)
+    dposerx_body_prior = None
+    if (use_dposerx_body
+            and not use_signbposer
+            and not use_motionbert_prior
+            and not use_phd_prior):
+        # Direct body pose optimization (63-dim) — same shape as the PHD branch.
+        pose_embedding = torch.zeros([batch_size, 63],
+                                     dtype=dtype, device=device,
+                                     requires_grad=True)
+        # Initialize from SMPLer-X init
+        if init_smplx_param is not None and 'body_pose' in init_smplx_param:
+            init_bp = init_smplx_param['body_pose']
+            if isinstance(init_bp, np.ndarray):
+                init_bp = torch.from_numpy(init_bp).float()
+            pose_embedding.data.copy_(init_bp.reshape(batch_size, -1).to(device))
+        from signbposer_dposerx.loaders import load_signbposer_dposerx
+        dposerx_body_prior = load_signbposer_dposerx(
+            config_path=kwargs.get('dposerx_config', ''),
+            ckpt_path=kwargs.get('dposerx_ckpt', ''),
+            body_normalizer_path=kwargs.get('dposerx_normalizer_dir', ''),
+            device=device,
+            guidance_scale=kwargs.get('dposerx_guidance_scale', 1.0),
+            timestep_strategy=kwargs.get('dposerx_timestep_strategy', 'random'),
+            fixed_timestep=kwargs.get('dposerx_fixed_timestep', 50),
+        )
+        dposerx_body_prior.eval()
+
     use_hposer3d = kwargs.get('use_hposer3d', True)
     hposer3d, rhand_embedding3d, lhand_embedding3d = [None, ] * 3
 
@@ -286,10 +315,32 @@ def fit_single_frame(img,
         lhand_embedding3d = torch.zeros([batch_size, 23], dtype=dtype, device=device, requires_grad=True)
 
         rhand_embedding3d = torch.zeros([batch_size, 23], dtype=dtype, device=device, requires_grad=True)
-        
+
         hposer3d, _ = load_hposer3d(kwargs.get('signhposer_dir'))
         hposer3d = hposer3d.to(device=device)
         hposer3d.eval()
+
+    # ---- SOKE VQVAE Hand Prior (NEW, additive) ----
+    use_vqvae_hand = kwargs.get('use_vqvae_hand', False)
+    hposer3d_vqvae = None
+    if use_vqvae_hand and not use_hposer3d:
+        # Reuse the 23-dim lhand/rhand latent slots so the existing optimizer
+        # state and gradient flow paths in `fitting.py` keep working.
+        lhand_embedding3d = torch.zeros([batch_size, 23],
+                                         dtype=dtype, device=device, requires_grad=True)
+        rhand_embedding3d = torch.zeros([batch_size, 23],
+                                         dtype=dtype, device=device, requires_grad=True)
+        from signhposer_vqvae.loaders import load_signhposer_vqvae
+        hposer3d_vqvae, _ = load_signhposer_vqvae(
+            ckpt_path=kwargs.get('vqvae_hand_ckpt', ''),
+            config_yaml=kwargs.get('vqvae_hand_config', ''),
+            latent_dim=kwargs.get('vqvae_hand_latent_dim', 23),
+        )
+        hposer3d_vqvae = hposer3d_vqvae.to(device=device)
+        hposer3d_vqvae.eval()
+        # Keep `hposer3d` as None — downstream code uses it to decide whether
+        # to call into the hand-prior decode. The VQVAE branch is wired in
+        # `fitting.py` via the `use_vqvae_hand` flag instead.
 
     keypoint_data = torch.tensor(keypoints, dtype=dtype)
     gt_joints = keypoint_data[:, :, :2]
@@ -624,6 +675,10 @@ def fit_single_frame(img,
                     motionbert_prior=motionbert_prior,
                     use_phd_prior=use_phd_prior,
                     phd_prior=phd_prior,
+                    use_dposerx_body=use_dposerx_body,
+                    dposerx_body_prior=dposerx_body_prior,
+                    use_vqvae_hand=use_vqvae_hand,
+                    hposer3d_vqvae=hposer3d_vqvae,
                     return_verts=True, return_full_pose=True)
 
                 if interactive:

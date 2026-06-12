@@ -239,6 +239,8 @@ class FittingMonitor(object):
                                create_graph=False,
                                use_motionbert_prior=False, motionbert_prior=None,
                                use_phd_prior=False, phd_prior=None,
+                               use_dposerx_body=False, dposerx_body_prior=None,
+                               use_vqvae_hand=False, hposer3d_vqvae=None,
                                **kwargs):
         faces_tensor = body_model.faces_tensor.view(-1)
         append_wrists = self.model_type == 'smpl' and use_signbposer
@@ -251,7 +253,7 @@ class FittingMonitor(object):
             if use_signbposer:
                 body_pose = signbposer.decode(
                     pose_embedding, output_type='aa').view(1, -1)
-            elif use_motionbert_prior or use_phd_prior:
+            elif use_motionbert_prior or use_phd_prior or use_dposerx_body:
                 # Direct optimization: pose_embedding IS body_pose
                 body_pose = pose_embedding.view(1, -1)
             else:
@@ -306,6 +308,10 @@ class FittingMonitor(object):
                               motionbert_prior=motionbert_prior,
                               use_phd_prior=use_phd_prior,
                               phd_prior=phd_prior,
+                              use_dposerx_body=use_dposerx_body,
+                              dposerx_body_prior=dposerx_body_prior,
+                              use_vqvae_hand=use_vqvae_hand,
+                              hposer3d_vqvae=hposer3d_vqvae,
                               **kwargs)
 
             if backward:
@@ -466,6 +472,8 @@ class SMPLifyLoss(nn.Module):
                 use_signbposer=False, signbposer=None, pose_embedding=None, indp_sign_class=None, hand_label=None, joints_temp=None,
                 use_motionbert_prior=False, motionbert_prior=None,
                 use_phd_prior=False, phd_prior=None,
+                use_dposerx_body=False, dposerx_body_prior=None,
+                use_vqvae_hand=False, hposer3d_vqvae=None,
                 **kwargs):
         pred_vert = body_model_output.vertices.float() # take out the vertices from the body model output
         new_replace_vert = torch.matmul(torch.from_numpy(regressor_mat).cuda().float(), pred_vert[0]) # converting vertices to joints
@@ -633,6 +641,27 @@ class SMPLifyLoss(nn.Module):
             pprior_loss += self.data_init_noncore_weight * torch.abs(
                 body_pose_direct[:, 11*3:] - psmplx_bodyGT[:, 11*3:]).sum()
 
+        # ---- DPoser-X Body Prior (NEW, additive) ----
+        elif use_dposerx_body and dposerx_body_prior is not None:
+            # Direct body pose optimization: pose_embedding IS body_pose (63-dim)
+            body_pose_direct = pose_embedding  # (1, 63)
+
+            # DPoser-X score-based prior loss
+            dposerx_t = None
+            if kwargs.get('dposerx_timestep_strategy', 'random') == 'fixed':
+                dposerx_t = torch.full((batch_size,),
+                                        float(kwargs.get('dposerx_fixed_timestep', 50))
+                                        / max(dposerx_body_prior.sde.N - 1, 1),
+                                        device=device)
+            pprior_loss = dposerx_body_prior.prior_loss(
+                body_pose_direct, condition=None, t=dposerx_t)
+
+            # Init prior: L1 vs SMPLer-X init (same structure as PHD branch)
+            pprior_loss += self.data_init_core_weight * torch.abs(
+                body_pose_direct[:, 0:11*3] - psmplx_bodyGT[:, 0:11*3]).sum()
+            pprior_loss += self.data_init_noncore_weight * torch.abs(
+                body_pose_direct[:, 11*3:] - psmplx_bodyGT[:, 11*3:]).sum()
+
         # pose embedding loss + core 11 joints rotation loss + Left over rotation loss (this only happens for the first stage of fitting because the \
         # rest of the data_init_prior_weight is set to 0)
         else:
@@ -708,7 +737,39 @@ class SMPLifyLoss(nn.Module):
                     self.hand_prior_weight ** 2
             
             hand_prior_3dloss = left_hand_prior_loss + right_hand_prior_loss
-        
+
+        # ---- SOKE VQVAE Hand Prior Loss (NEW, additive) ----
+        if use_vqvae_hand and hposer3d_vqvae is not None and not use_hposer3d:
+            # Reconstruct through VQVAE and penalize reconstruction error.
+            # This regularizes the decoded hand poses to lie on the VQVAE manifold.
+            vqvae_weight = kwargs.get('vqvae_recon_loss_weight', 1.0)
+            if lhand_embedding3d is not None:
+                decoded_lhand = hposer3d_vqvae.decode_aa(lhand_embedding3d)  # (B, 1, 15, 3)
+                decoded_lhand_flat = decoded_lhand.view(1, 45)
+                # Pad to T_min and run VQVAE encode+decode for reconstruction loss
+                lhand_recon, lhand_commit, _ = hposer3d_vqvae(decoded_lhand_flat.unsqueeze(1).expand(1, 8, 45))
+                lhand_center = lhand_recon[:, lhand_recon.shape[1]//2, :]
+                vqvae_lhand_loss = (decoded_lhand_flat - lhand_center).abs().mean() + 0.02 * lhand_commit
+            else:
+                vqvae_lhand_loss = 0.0
+
+            if rhand_embedding3d is not None:
+                decoded_rhand = hposer3d_vqvae.decode_aa(rhand_embedding3d)
+                decoded_rhand_flat = decoded_rhand.view(1, 45)
+                rhand_recon, rhand_commit, _ = hposer3d_vqvae(decoded_rhand_flat.unsqueeze(1).expand(1, 8, 45))
+                rhand_center = rhand_recon[:, rhand_recon.shape[1]//2, :]
+                vqvae_rhand_loss = (decoded_rhand_flat - rhand_center).abs().mean() + 0.02 * rhand_commit
+            else:
+                vqvae_rhand_loss = 0.0
+
+            hand_prior_3dloss = vqvae_weight * (vqvae_lhand_loss + vqvae_rhand_loss)
+            # Also add the standard L2+init regularizer (same as use_hposer3d branch).
+            if lhand_embedding3d is not None:
+                hand_prior_3dloss += (lhand_embedding3d.pow(2).sum() * self.hand_prior_weight ** 2) + \
+                    torch.abs(hposer3d_vqvae.decode_aa(lhand_embedding3d).view(1, -1) - psmplx_lhandGT).sum() * self.data_init_lhand_weight
+            if rhand_embedding3d is not None:
+                hand_prior_3dloss += (rhand_embedding3d.pow(2).sum() * self.hand_prior_weight ** 2) + \
+                    torch.abs(hposer3d_vqvae.decode_aa(rhand_embedding3d).view(1, -1) - psmplx_rhandGT).sum() * self.data_init_rhand_weight
 
         shape_loss = torch.sum(self.shape_prior(
             body_model_output.betas)) * self.shape_weight ** 2

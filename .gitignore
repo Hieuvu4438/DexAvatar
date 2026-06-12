@@ -37,6 +37,8 @@ data/smplx_gt*/
 data/signbposer_data/
 data/dummy_test/
 data/images_sgnify
+# New: extracted hand-pose data for VQVAE fine-tuning
+data/vqvae_hand_data/
 # Papers (third-party copyrighted PDFs - keep markdown notes only)
 data/paper/*.pdf
 *.zip
@@ -60,6 +62,13 @@ sapiens/
 WiLoR/
 OSX/
 frankmocap/
+# New: cloned SOKE and DPoser-X repos (added by VQVAE+DPoserX prior work)
+SOKE/
+DPoser-X/
+# New: NLF (background, unrelated to this work)
+nlf/
+# New: training log dir from prior training scripts
+data/signbposer_data/*/train_*.log
 
 # Claude Code session data
 .claude/
