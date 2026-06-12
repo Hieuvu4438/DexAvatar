@@ -29,6 +29,7 @@ OUTPUT_BASE = PROJECT / "outputs"
 UBODY_IDX = PROJECT / "dexavatar_fitting/assets/smplx_upper_body_minus_face_vidx.npy"
 LHAND_IDX = PROJECT / "dexavatar_fitting/assets/smplx_left_hand_vidx.npy"
 RHAND_IDX = PROJECT / "dexavatar_fitting/assets/smplx_right_hand_vidx.npy"
+FRAMES_ROOT = PROJECT / "data/frames"
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
@@ -146,10 +147,83 @@ def select_central_frames(pairs):
             if gt_idx is not None and core_lo < gt_idx < core_hi]
 
 
+def load_sign_frames(frames_root: Path, sign_name: str):
+    """Load [start, end] from start_end_central.txt for a sign.
+
+    Returns (start, end) as 30fps PNG frame indices, or None if file not found.
+    """
+    txt_path = frames_root / sign_name / "start_end_central.txt"
+    if not txt_path.exists():
+        return None
+    with open(txt_path, 'r') as f:
+        content = f.read().strip().strip('[]')
+    parts = [x.strip() for x in content.split(',')]
+    return int(parts[0]), int(parts[1])
+
+
+def filter_by_sign_frames(pairs, start, end):
+    """Filter prediction frames to only those within [start, end] range.
+
+    Prediction files are low_{idx}.obj where idx is 30fps PNG frame index.
+    """
+    filtered = []
+    for pp, gp in pairs:
+        m = re.search(r'low_(\d+)', pp.stem)
+        if not m:
+            continue
+        pred_idx = int(m.group(1))
+        if start <= pred_idx <= end:
+            filtered.append((pp, gp))
+    return filtered
+
+
+def get_input_frame_range(frames_root: Path, sign_name: str):
+    """Return (min_idx, max_idx) from data/frames/{sign}/low_*.png, or None.
+
+    T = max_idx - min_idx + 1 defines the input video length per the SGNify paper.
+    Mirrors data_parser.py filename_to_int (lines 154-158).
+    """
+    ids = []
+    for p in (frames_root / sign_name).glob("low_*.png"):
+        try:
+            ids.append(int(p.stem.split("_")[-1]))
+        except ValueError:
+            continue
+    if not ids:
+        return None
+    return min(ids), max(ids)
+
+
+def paper_central_range(min_idx: int, max_idx: int):
+    """Return (new_start, new_end) per the SGNify paper, applied to the input video.
+
+    new_start = min + round(0.5*T/8),  new_end = min + round(7*T/8),
+    where T = max - min + 1. Caller should apply strict < on both ends.
+    """
+    T = max_idx - min_idx + 1
+    new_start = min_idx + round(0.5 * T / 8.0)
+    new_end   = min_idx + round(7.0 * T / 8.0)
+    return new_start, new_end
+
+
+def filter_by_paper_central(pairs, new_start: int, new_end: int):
+    """Filter pairs to those with pred_idx strictly inside (new_start, new_end)."""
+    out = []
+    for pp, gp in pairs:
+        m = re.search(r'low_(\d+)', pp.stem)
+        if not m:
+            continue
+        if new_start < int(m.group(1)) < new_end:
+            out.append((pp, gp))
+    return out
+
+
 # ── main ─────────────────────────────────────────────────────────────────────
 def evaluate_method(method_name: str, pred_root: Path, joints: dict,
                     ubody_idx, lhand_idx, rhand_idx, signs: list,
-                    central_frames: bool = False) -> dict:
+                    central_frames: bool = False,
+                    sign_frames: bool = False,
+                    paper_central_ranges: dict | None = None) -> dict:
     """Evaluate one method, return per-frame and summary results."""
     J_reg = joints["J_regressor"]
     pelvis_i = joints["name2idx"]["pelvis"]
@@ -163,7 +237,21 @@ def evaluate_method(method_name: str, pred_root: Path, joints: dict,
 
     for sign in signs:
         pairs = collect_pairs(pred_root / sign, GT_ROOT / sign)
-        if central_frames:
+        if sign_frames:
+            # Use start/end from start_end_central.txt
+            bounds = load_sign_frames(FRAMES_ROOT, sign)
+            if bounds:
+                original_count = len(pairs)
+                pairs = filter_by_sign_frames(pairs, bounds[0], bounds[1])
+                central_skipped += original_count - len(pairs)
+        elif paper_central_ranges is not None and sign in paper_central_ranges:
+            # Use paper's 0.5T/8 < t < 7T/8 formula on input video T
+            new_start, new_end = paper_central_ranges[sign]
+            original_count = len(pairs)
+            pairs = filter_by_paper_central(pairs, new_start, new_end)
+            central_skipped += original_count - len(pairs)
+        elif central_frames:
+            # Use formula 0.5×T/8 < t < 7×T/8 (on GT indices)
             original_count = len(pairs)
             pairs = select_central_frames(pairs)
             central_skipped += original_count - len(pairs)
@@ -246,12 +334,19 @@ def main():
                     help="Display names for methods (same order as --methods)")
     ap.add_argument("--output_csv", default="", help="Optional CSV output path")
     ap.add_argument("--central_frames", action="store_true",
-                    help="Filter to central frames only (0.5×T/8 < t < 7×T/8, per SGNify paper)")
+                    help="Filter to central frames only (0.5×T/8 < t < 7×T/8, per SGNify paper, on GT indices)")
+    ap.add_argument("--sign_frames", action="store_true",
+                    help="Filter to [start,end] from data/frames/*/start_end_central.txt (actual sign boundaries)")
+    ap.add_argument("--paper_central", action="store_true",
+                    help="Filter to 0.5*T/8 < t < 7*T/8 with T = input video length "
+                         "from data/frames/{sign}/low_*.png (SGNify paper definition)")
     args = ap.parse_args()
 
     if args.method_names is None:
         args.method_names = [f"DexAvatar-{m.replace('method_', '').capitalize()}" for m in args.methods]
     assert len(args.methods) == len(args.method_names), "--methods and --method_names must have same length"
+    n_filters = sum([args.central_frames, args.sign_frames, args.paper_central])
+    assert n_filters <= 1, "--central_frames, --sign_frames, and --paper_central are mutually exclusive"
 
     # Load shared resources
     print("Loading SMPL-X joint regressor...")
@@ -267,6 +362,20 @@ def main():
                 signs.append(line.split()[0])
     print(f"Loaded {len(signs)} signs, {len(ubody_idx)} UBody verts, {len(lhand_idx)} LHand verts, {len(rhand_idx)} RHand verts\n")
 
+    # Build per-sign paper-central range map (T = input video length)
+    paper_central_ranges = None
+    if args.paper_central:
+        paper_central_ranges = {}
+        for sign in signs:
+            r = get_input_frame_range(FRAMES_ROOT, sign)
+            if r is None:
+                print(f"[WARN] {sign}: no input frames in {FRAMES_ROOT/sign}; skipping sign")
+                continue
+            ns, ne = paper_central_range(r[0], r[1])
+            paper_central_ranges[sign] = (ns, ne)
+            print(f"  paper_central {sign}: input T={r[1]-r[0]+1} (min={r[0]}, max={r[1]}) "
+                  f"→ keep pred_idx in ({ns}, {ne})")
+
     # Evaluate each method
     results = []
     for method_dir, method_name in zip(args.methods, args.method_names):
@@ -276,7 +385,9 @@ def main():
             continue
         print(f"Evaluating {method_name} from {pred_root} ...")
         r = evaluate_method(method_name, pred_root, joints, ubody_idx, lhand_idx, rhand_idx, signs,
-                            central_frames=args.central_frames)
+                            central_frames=args.central_frames,
+                            sign_frames=args.sign_frames,
+                            paper_central_ranges=paper_central_ranges)
         if r:
             results.append(r)
             print(f"  → {r['frames']} frames, {r['signs']}/{r['total_signs']} signs")
@@ -286,7 +397,14 @@ def main():
         return
 
     # Print tables
-    frame_desc = "Central Frames" if args.central_frames else "All Frames"
+    if args.paper_central:
+        frame_desc = "Central Frames (paper, on input video T)"
+    elif args.sign_frames:
+        frame_desc = "Sign Boundaries (start_end_central.txt)"
+    elif args.central_frames:
+        frame_desc = "Central Frames (formula)"
+    else:
+        frame_desc = "All Frames"
     print(f"\nFrame filter: {frame_desc}")
     print_table(f"MPVPE (mm) — {frame_desc} — Pelvis/Wrist Aligned", "mpvpe", results)
     print_table(f"TR-V2V (mm) — {frame_desc} — Region-Centroid Aligned (SGNify)", "trv2v", results)

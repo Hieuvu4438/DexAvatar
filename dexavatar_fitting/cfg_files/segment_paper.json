@@ -1,0 +1,230 @@
+{
+  "Ablehnen": [
+    128,
+    222
+  ],
+  "Akzeptieren": [
+    105,
+    221
+  ],
+  "Arzt": [
+    136,
+    267
+  ],
+  "AufgebenResignieren": [
+    103,
+    223
+  ],
+  "AusgebenGeldVerschwenden": [
+    94,
+    192
+  ],
+  "Auto": [
+    86,
+    212
+  ],
+  "BesuchenEinmischen": [
+    152,
+    252
+  ],
+  "Blitz": [
+    98,
+    209
+  ],
+  "Blume": [
+    97,
+    207
+  ],
+  "Boese": [
+    106,
+    198
+  ],
+  "BroetchenAufschneiden": [
+    114,
+    284
+  ],
+  "Dort": [
+    145,
+    229
+  ],
+  "Duenn": [
+    114,
+    240
+  ],
+  "Einkaufen": [
+    124,
+    222
+  ],
+  "Einnehmen": [
+    140,
+    254
+  ],
+  "EinstellenJob": [
+    116,
+    249
+  ],
+  "EisGefroren": [
+    156,
+    285
+  ],
+  "Empathie": [
+    114,
+    224
+  ],
+  "Entschuldigung": [
+    100,
+    223
+  ],
+  "FestellenDiagnose": [
+    128,
+    222
+  ],
+  "Frech": [
+    128,
+    218
+  ],
+  "Frieren": [
+    125,
+    243
+  ],
+  "Frisch": [
+    120,
+    233
+  ],
+  "Froh": [
+    106,
+    235
+  ],
+  "Glas": [
+    77,
+    219
+  ],
+  "IdiomPffIgnorieren": [
+    92,
+    195
+  ],
+  "Jahr": [
+    146,
+    279
+  ],
+  "Klar": [
+    103,
+    200
+  ],
+  "Kochen": [
+    115,
+    268
+  ],
+  "Lesen": [
+    129,
+    265
+  ],
+  "LiebBitte": [
+    112,
+    212
+  ],
+  "Luegen": [
+    98,
+    186
+  ],
+  "Muell": [
+    93,
+    187
+  ],
+  "Mutter": [
+    115,
+    228
+  ],
+  "Naehen": [
+    91,
+    250
+  ],
+  "Nebel": [
+    96,
+    220
+  ],
+  "Neu": [
+    84,
+    185
+  ],
+  "Operieren": [
+    151,
+    310
+  ],
+  "Regen": [
+    96,
+    222
+  ],
+  "SauerWuetend": [
+    127,
+    227
+  ],
+  "Schnee": [
+    139,
+    265
+  ],
+  "Schreiben": [
+    102,
+    251
+  ],
+  "Schwach": [
+    116,
+    245
+  ],
+  "Schwer": [
+    137,
+    244
+  ],
+  "Sonne": [
+    115,
+    233
+  ],
+  "Sorry": [
+    115,
+    236
+  ],
+  "SparenSparsam": [
+    118,
+    241
+  ],
+  "Spezial": [
+    100,
+    213
+  ],
+  "Tisch": [
+    117,
+    224
+  ],
+  "Treffen": [
+    114,
+    221
+  ],
+  "Vater": [
+    118,
+    241
+  ],
+  "Verschieden": [
+    126,
+    260
+  ],
+  "VorsichtPassAuf": [
+    109,
+    217
+  ],
+  "Waschen": [
+    103,
+    258
+  ],
+  "Widerspruch": [
+    112,
+    219
+  ],
+  "Ziel": [
+    103,
+    219
+  ],
+  "reparieren": [
+    97,
+    204
+  ]
+}
