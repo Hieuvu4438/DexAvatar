@@ -70,6 +70,20 @@ nlf/
 # New: training log dir from prior training scripts
 data/signbposer_data/*/train_*.log
 
+# MLflow / experiment tracking
+mlruns/
+mlartifacts/
+
+# Editor autosaves / merge artifacts
+*.tmp
+*.bak
+*.orig
+*.rej
+
+# Python / TorchHub caches
+.cache/
+.wheelhouse/
+
 # Claude Code session data
 .claude/
 

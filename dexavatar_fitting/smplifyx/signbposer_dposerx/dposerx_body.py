@@ -84,7 +84,31 @@ class DPoserXBodyPrior(nn.Module):
         self._mutils = mutils
         self._sde_lib = sde_lib
 
-        config = import_configs(config_path)
+        # DPoser-X's import_configs uses importlib.import_module + a final
+        # `getattr(_, function_name)` call. The expected format is therefore
+        # `configs.body.subvp.timefc.get_config` (note the trailing
+        # `.get_config` — the function inside the module). Accept either:
+        #   - the full dotted path ending in `.get_config`
+        #   - a filesystem path to the .py file
+        if os.sep in config_path or config_path.endswith(".py"):
+            norm = os.path.normpath(config_path)
+            parts = norm.split(os.sep)
+            if "configs" not in parts:
+                raise ValueError(
+                    f"Cannot derive module path from {config_path}. "
+                    f"Pass the dotted module path instead "
+                    f"(e.g. 'configs.body.subvp.timefc.get_config')."
+                )
+            i = parts.index("configs")
+            rel = parts[i:]
+            rel[-1] = rel[-1][:-3] if rel[-1].endswith(".py") else rel[-1]
+            config_module = ".".join(rel) + ".get_config"
+        elif not config_path.endswith(".get_config"):
+            config_module = config_path + ".get_config"
+        else:
+            config_module = config_path
+
+        config = import_configs(config_module)
         self._config = config
         self._device = device
 
@@ -102,7 +126,21 @@ class DPoserXBodyPrior(nn.Module):
         model = create_model(config.model, N_POSES, POSE_DIM)
         model.to(device)
         model.eval()
-        load_model(model, config.model, ckpt_path, device, is_ema=True)
+        # DPoser-X's load_model uses torch.load (which defaults to
+        # weights_only=True in torch>=2.6 and rejects numpy scalars).
+        # We trust the Hugging Face checkpoint, so we monkey-patch
+        # `torch.load` to weights_only=False for this single call. This is
+        # safe because the only user-provided path is `--dposerx_ckpt`.
+        import torch as _torch
+        _orig_load = _torch.load
+        def _load_trusted(*a, **kw):
+            kw["weights_only"] = False
+            return _orig_load(*a, **kw)
+        _torch.load = _load_trusted
+        try:
+            load_model(model, config.model, ckpt_path, device, is_ema=True)
+        finally:
+            _torch.load = _orig_load
         self._model = model
         self._pose_dim = POSE_DIM
         self._n_poses = N_POSES

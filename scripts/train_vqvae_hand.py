@@ -52,11 +52,16 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data_dir", default="/home/haipd/DexAvatar/data/vqvae_hand_data")
     parser.add_argument("--output_dir", default="/home/haipd/DexAvatar/checkpoints/vqvae_hand/signhposer_vqvae")
-    parser.add_argument("--epochs", type=int, default=50)
-    parser.add_argument("--batch_size", type=int, default=256)
+    parser.add_argument("--epochs", type=int, default=200)
+    parser.add_argument("--batch_size", type=int, default=64)
     parser.add_argument("--lr", type=float, default=2e-4)
-    parser.add_argument("--code_num", type=int, default=192)
-    parser.add_argument("--code_dim", type=int, default=512)
+    # SOKE's published hand192 uses code_num=192; for a small sign dataset
+    # (~378 train samples) we shrink the codebook to 64 to avoid codebook
+    # collapse (rule of thumb: at least ~2 samples per code). Override with
+    # --code_num 192 to use the published SOKE size if you have more data.
+    parser.add_argument("--code_num", type=int, default=64)
+    parser.add_argument("--code_dim", type=int, default=256)
+    parser.add_argument("--width", type=int, default=256)
     parser.add_argument("--lambda_commit", type=float, default=0.02)
     parser.add_argument("--lambda_recon", type=float, default=1.0)
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
@@ -78,13 +83,17 @@ def main():
 
     # Model.
     model = SignHVQVAE(nfeats=45, code_num=args.code_num, code_dim=args.code_dim,
-                       latent_dim=23, down_t=2, stride_t=2, width=512, depth=3,
+                       latent_dim=23, down_t=2, stride_t=2, width=args.width, depth=3,
                        dilation_growth_rate=3, quantizer="ema_reset").to(args.device)
     if args.init_ckpt and os.path.exists(args.init_ckpt):
         from signhposer_vqvae.loaders import load_signhposer_vqvae
         pretrained, _ = load_signhposer_vqvae(ckpt_path=args.init_ckpt, map_location=args.device)
         model.vqvae.load_state_dict(pretrained.vqvae.state_dict(), strict=False)
         print(f"Loaded pretrained vqvae weights from {args.init_ckpt}")
+
+    config = dict(nfeats=45, code_num=args.code_num, code_dim=args.code_dim,
+                  latent_dim=23, down_t=2, stride_t=2, width=args.width, depth=3,
+                  dilation_growth_rate=3, quantizer="ema_reset")
 
     opt = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=0.0)
     sched = torch.optim.lr_scheduler.CosineAnnealingLR(opt, T_max=args.epochs)
@@ -93,7 +102,7 @@ def main():
     for epoch in range(args.epochs):
         model.train()
         t0 = time.time()
-        train_losses = []
+        train_losses, train_perps = [], []
         for (x,) in train_loader:
             x = x.to(args.device)
             opt.zero_grad()
@@ -104,41 +113,39 @@ def main():
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             opt.step()
             train_losses.append(loss.item())
+            train_perps.append(perplexity.item())
         sched.step()
         train_loss = float(np.mean(train_losses))
+        train_perp = float(np.mean(train_perps))
 
         val_loss = float("nan")
+        val_perp = float("nan")
         if val_loader is not None:
             model.eval()
-            v_losses = []
+            v_losses, v_perps = [], []
             with torch.no_grad():
                 for (x,) in val_loader:
                     x = x.to(args.device)
-                    recon, commit, _ = model(x)
+                    recon, commit, perp = model(x)
                     rec_l1 = (recon - x).abs().mean()
                     v_losses.append((args.lambda_recon * rec_l1 + args.lambda_commit * commit).item())
+                    v_perps.append(perp.item())
             val_loss = float(np.mean(v_losses))
+            val_perp = float(np.mean(v_perps))
 
         dt = time.time() - t0
         print(f"epoch {epoch+1:03d}/{args.epochs}  "
-              f"train_loss={train_loss:.4f}  val_loss={val_loss:.4f}  "
+              f"train_loss={train_loss:.4f} (perp={train_perp:.1f}/{args.code_num})  "
+              f"val_loss={val_loss:.4f} (perp={val_perp:.1f}/{args.code_num})  "
               f"lr={opt.param_groups[0]['lr']:.2e}  ({dt:.1f}s)")
 
         # Save last + best.
         ckpt_path = os.path.join(args.output_dir, "last.ckpt")
-        torch.save({"state_dict": model.state_dict(),
-                    "config": dict(nfeats=45, code_num=args.code_num, code_dim=args.code_dim,
-                                   latent_dim=23, down_t=2, stride_t=2, width=512,
-                                   depth=3, dilation_growth_rate=3, quantizer="ema_reset")},
-                   ckpt_path)
+        torch.save({"state_dict": model.state_dict(), "config": config}, ckpt_path)
         if not np.isnan(val_loss) and val_loss < best_val:
             best_val = val_loss
             best_path = os.path.join(args.output_dir, "best.ckpt")
-            torch.save({"state_dict": model.state_dict(),
-                        "config": dict(nfeats=45, code_num=args.code_num, code_dim=args.code_dim,
-                                       latent_dim=23, down_t=2, stride_t=2, width=512,
-                                       depth=3, dilation_growth_rate=3, quantizer="ema_reset")},
-                       best_path)
+            torch.save({"state_dict": model.state_dict(), "config": config}, best_path)
             print(f"  best so far → {best_path}")
 
 

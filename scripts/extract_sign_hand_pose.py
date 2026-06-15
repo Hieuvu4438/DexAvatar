@@ -78,23 +78,53 @@ def main():
     args = parser.parse_args()
 
     # Mapping from existing data dir to split name.
-    # The existing body_poses.npy uses (How2Sign → train, Phoenix → train) and (Phoenix → val/test).
-    # We mirror that: put How2Sign in train, Phoenix in val, and the test split (if any) in test.
-    sources = [
-        ("how2sign", "train"),
-        ("phoenix", "val"),
+    # How2Sign has per-frame SMPLer-X pkls with full SMPL-X outputs (incl. hands).
+    # We split How2Sign deterministically 90/10 into train/val (the script keeps
+    # the same per-frame pkls as before; we just redistribute them across splits).
+    #
+    # Phoenix doesn't have per-frame hand pkls in `data/signbposer_data/raw/phoenix/`
+    # (only an aggregated body_poses.npy), so we skip it here. Phoenix body
+    # poses already live in `data/signbposer_data/{train,val,test}/body_poses.npy`.
+    sources_how2sign_splits = [
+        ("how2sign", "train", 0.0, 0.9),  # first 90%
+        ("how2sign", "val",   0.9, 1.0),  # last 10%
     ]
     test_dir = os.path.join(args.data_root, "phoenix", "extracted")
     if os.path.isdir(test_dir):
-        sources.append(("phoenix", "test"))
+        sources_how2sign_splits.append(("phoenix", "test", 0.0, 1.0))
 
-    for sub, split in sources:
+    for sub, split, lo, hi in sources_how2sign_splits:
         raw_dir = os.path.join(args.data_root, sub)
         out_dir = os.path.join(args.output_root, split)
         if not os.path.isdir(raw_dir):
             print(f"  skip: missing {raw_dir}")
             continue
-        process_split(raw_dir, out_dir, split, max_files=args.max_files)
+        # Take a deterministic slice of the per-frame pkls.
+        pkls = sorted(glob.glob(os.path.join(raw_dir, "*", "smplx", "*.pkl")))
+        n = len(pkls)
+        if n == 0:
+            print(f"  [{split}] no pkls under {raw_dir}")
+            continue
+        s = int(n * lo)
+        e = int(n * hi) if hi < 1.0 else n
+        pkls = pkls[s:e]
+        lhand_list, rhand_list = [], []
+        for pkl in pkls:
+            l, r = extract_from_pkl(pkl)
+            if l is None:
+                continue
+            lhand_list.append(l)
+            rhand_list.append(r)
+        if not lhand_list:
+            print(f"  [{split}] no valid hand poses found")
+            continue
+        os.makedirs(out_dir, exist_ok=True)
+        lhand_arr = np.stack(lhand_list, axis=0)
+        rhand_arr = np.stack(rhand_list, axis=0)
+        np.save(os.path.join(out_dir, "lhand_poses.npy"), lhand_arr)
+        np.save(os.path.join(out_dir, "rhand_poses.npy"), rhand_arr)
+        print(f"  [{split}] saved {lhand_arr.shape} lhand + {rhand_arr.shape} rhand "
+              f"to {out_dir} (from {len(pkls)} pkls)")
 
     print("Done.")
 

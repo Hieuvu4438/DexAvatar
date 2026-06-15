@@ -56,6 +56,25 @@ def load_signhposer_vqvae(ckpt_path: str = "",
             if k in params:
                 cfg[k] = params[k]
 
+    # If a checkpoint is provided and was saved by our training script, the
+    # saved `config` dict is the source of truth (overrides the SOKE default
+    # and any YAML). This is important for fine-tuned models that may have
+    # shrunk the codebook (code_num=64 for our sign-data fine-tune).
+    if ckpt_path and os.path.exists(ckpt_path):
+        state = torch.load(ckpt_path, map_location=map_location)
+        saved_cfg = None
+        if isinstance(state, dict) and "config" in state:
+            saved_cfg = state["config"]
+        if saved_cfg is not None:
+            for k, v in saved_cfg.items():
+                if k in ("nfeats", "code_num", "code_dim", "down_t", "stride_t",
+                         "width", "depth", "dilation_growth_rate", "quantizer",
+                         "latent_dim"):
+                    cfg[k] = v
+            if verbose:
+                print(f"[load_signhposer_vqvae] using saved config: code_num={cfg.get('code_num')}, "
+                      f"code_dim={cfg.get('code_dim')}, width={cfg.get('width')}")
+
     cfg["latent_dim"] = latent_dim
     model = SignHVQVAE(**cfg)
 
