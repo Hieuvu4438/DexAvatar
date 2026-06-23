@@ -106,3 +106,11 @@ htmlcov/
 
 # mypy
 .mypy_cache/
+
+# Local untracked directories
+body_models/
+data/_tmp/
+data/evaluation_from_author/
+logs/
+scratch/
+

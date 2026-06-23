@@ -1,11 +1,18 @@
-# SOKE VQVAE hand + DPoser-X body — additive variant of the baseline config.
-# This config is consumed by `dexavatar_fitting/smplifyx/main.py` when the
-# runner invokes it with `--config` set to this file.
+# Sign-trained DPoser-X body prior + VQVAE hand prior, ACTIVE fitting mode with
+# an annealed diffusion timestep (coarse-to-fine across the 4 stages).
+#
+# Based on fit_smplx_vposer_x_vqvae_dposerx.yaml. Only the body-prior block
+# differs: it points at the sign-fine-tuned checkpoint + sign normalizer and
+# enables per-stage annealed timesteps (dposerx_fixed_timesteps). Old configs
+# are unaffected.
+#
+# Requires the sign body prior produced by scripts/train_dposerx_sign_body.sh
+# and the sign normalizer from scripts/fit_sign_normalizer.py.
 dataset: 'openpose'
 joints_to_ign:
     - -1
 data_folder: "data"
-output_folder: 'smplx_debug'
+output_folder: 'smplx_debug_sign'
 prior_folder: 'priors'
 model_folder: 'models'
 result_folder: 'results'
@@ -20,32 +27,22 @@ use_face: True
 flat_hand_mean: False
 sign_class: '../data/signs.txt'
 sign_segment: '../data/segment.json'
-# Old posers are NOT used in this variant. They must be disabled so the new
-# VQVAE / DPoser-X branches in `fit_single_frame.py` are the only ones taken.
 signhposer_dir: './smplifyx/signhposer'
 signbposer_dir: './smplifyx/signbposer'
 use_signbposer: False
 use_hposer3d: False
-# New posers
 use_vqvae_hand: True
 use_dposerx_body: True
-# Checkpoint paths are passed via the runner shell (see
-# methods/Full_running_command_wilor_vqvae_dposerx.sh). They appear here only
-# as documentation — main.py reads from CLI flags, not from this YAML.
 vqvae_hand_ckpt: '/home/haipd/DexAvatar/checkpoints/vqvae_hand/signhposer_vqvae/last.ckpt'
-dposerx_ckpt: '/home/haipd/DexAvatar/checkpoints/dposerx_body/body.ckpt'
+# --- sign-trained body prior (swap these after training) ---
+dposerx_ckpt: '/home/haipd/DexAvatar/DPoser-X/checkpoints/dposer/sign/sign_body_ft/last.ckpt'
 dposerx_config: '/home/haipd/DexAvatar/DPoser-X/configs/body/subvp/timefc.py'
-dposerx_normalizer_dir: '/home/haipd/DexAvatar/checkpoints/dposerx_body/body_normalizer'
-# Lower the DPoser-X guidance scale — the default of 1.0 produces NaN
-# gradients on most sequences and the body_pose diverges. Reduced to 0.05
-# to keep the prior as a soft regularizer while avoiding the divergence
-# seen at higher values.
-dposerx_guidance_scale: 0.05
-# Use a small fixed timestep (low noise) so the score function sees a
-# near-clean pose and stays well-behaved.
+dposerx_normalizer_dir: '/home/haipd/DexAvatar/checkpoints/dposerx_body_sign/body_normalizer'
+# Active prior + annealed timestep (Strategy 2 + 3). guidance_scale tunable (Strategy 7).
+dposerx_guidance_scale: 0.1
 dposerx_timestep_strategy: fixed
-dposerx_fixed_timestep: 10
-
+dposerx_fixed_timesteps: [400, 200, 100, 50]
+dposerx_loss_mode: x0_prediction
 num_gaussians: 8
 body_prior_type: 'l2'
 left_hand_prior_type: l2
@@ -58,13 +55,11 @@ interpenetration: True
 df_cone_height: 0.0001
 penalize_outside: True
 max_collisions: 128
-# LBFGS with line search
 optim_type: 'lbfgs'
 lr: 1.0
 gtol: 1e-8
 ftol: 2e-9
 maxiters: 100
-# Stage 1: rough fit
 body_pose_prior_weights: [404.0, 404.0, 57.4, 4.78]
 hand_pose_prior_weights: [100.0, 50.0, 10.0, 5.0]
 shape_weights: [100.0, 50.0, 10.0, 5.0]
@@ -79,13 +74,7 @@ data_init_core_weights: [100.0, 50.0, 10.0, 5.0]
 data_init_noncore_weights: [0.0, 0.0, 0.0, 0.0]
 data_init_lhand_weights: [0.0, 0.0, 0.0, 0.0]
 data_init_rhand_weights: [0.0, 0.0, 0.0, 0.0]
-# Approach D: Absolute Depth + Wrist Alignment — disabled in this variant.
-# cmd_parser.py defaults `absolute_depth_weight=100.0` and
-# `wrist_alignment_weight=50.0`. The gate in fitting.py uses the *weight*,
-# not the `use_*_loss` flag, so leaving the weights at default produces NaN
-# losses on the first frame and the run aborts after 1 frame per sequence.
 use_absolute_depth_loss: False
 absolute_depth_weight: 0.0
 use_wrist_alignment_loss: False
 wrist_alignment_weight: 0.0
-use_hposer3d: False

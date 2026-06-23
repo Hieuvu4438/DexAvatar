@@ -16,6 +16,9 @@ def _cubic_interpolate(x1, f1, g1, x2, f2, g2, bounds=None):
     else:
         xmin_bound, xmax_bound = (x1, x2) if x1 <= x2 else (x2, x1)
 
+    if abs(x1 - x2) < 1e-10:
+        return (xmin_bound + xmax_bound) / 2.
+
     # Code for most common case: cubic interpolation of 2 points
     #   w/ function and derivative values for both
     # Solution in this case (where x2 is the farthest point):
@@ -27,13 +30,15 @@ def _cubic_interpolate(x1, f1, g1, x2, f2, g2, bounds=None):
     d2_square = d1 ** 2 - g1 * g2
     if d2_square >= 0:
         d2 = d2_square.sqrt()
-        if x1 <= x2:
-            min_pos = x2 - (x2 - x1) * ((g2 + d2 - d1) / (g2 - g1 + 2 * d2))
-        else:
-            min_pos = x1 - (x1 - x2) * ((g1 + d2 - d1) / (g1 - g2 + 2 * d2))
-        return min(max(min_pos, xmin_bound), xmax_bound)
-    else:
-        return (xmin_bound + xmax_bound) / 2.
+        denom = (g2 - g1 + 2 * d2) if x1 <= x2 else (g1 - g2 + 2 * d2)
+        if denom != 0:
+            if x1 <= x2:
+                min_pos = x2 - (x2 - x1) * ((g2 + d2 - d1) / denom)
+            else:
+                min_pos = x1 - (x1 - x2) * ((g1 + d2 - d1) / denom)
+            if not torch.isnan(min_pos) and not torch.isinf(min_pos):
+                return min(max(min_pos, xmin_bound), xmax_bound)
+    return (xmin_bound + xmax_bound) / 2.
 
 
 def _strong_Wolfe(obj_func, x, t, d, f, g, gtd, c1=1e-4, c2=0.9, tolerance_change=1e-9,
@@ -333,8 +338,10 @@ class LBFGS(Optimizer):
                     old_stps.append(s)
                     ro.append(1. / ys)
 
-                    # update scale of initial Hessian approximation
-                    H_diag = ys / y.dot(y)  # (y*y)
+                    ydot = y.dot(y)
+                    H_diag = ys / ydot if ydot > 1e-10 else 1.0
+                    if torch.is_tensor(H_diag):
+                        H_diag = torch.clamp(H_diag, min=1e-5, max=1e5)
 
                 # compute the approximate (L-BFGS) inverse Hessian
                 # multiplied by the gradient

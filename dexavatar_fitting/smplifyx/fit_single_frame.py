@@ -303,8 +303,23 @@ def fit_single_frame(img,
             guidance_scale=kwargs.get('dposerx_guidance_scale', 1.0),
             timestep_strategy=kwargs.get('dposerx_timestep_strategy', 'random'),
             fixed_timestep=kwargs.get('dposerx_fixed_timestep', 50),
+            loss_mode=kwargs.get('dposerx_loss_mode', 'x0_prediction'),
         )
         dposerx_body_prior.eval()
+
+    # ---- DPoser-X post-fit refinement: preload ONCE ----
+    dposerx_refine_prior = None
+    if kwargs.get('use_dposerx_refine', False):
+        from signbposer_dposerx.loaders import load_signbposer_dposerx
+        print('Loading DPoser-X for post-fit refinement...')
+        dposerx_refine_prior = load_signbposer_dposerx(
+            config_path=kwargs.get('dposerx_config', ''),
+            ckpt_path=kwargs.get('dposerx_ckpt', ''),
+            body_normalizer_path=kwargs.get('dposerx_normalizer_dir', ''),
+            device=device)
+        dposerx_refine_prior.eval()
+        kwargs['dposerx_refine_prior'] = dposerx_refine_prior
+        print('DPoser-X refinement model loaded.')
 
     use_hposer3d = kwargs.get('use_hposer3d', True)
     hposer3d, rhand_embedding3d, lhand_embedding3d = [None, ] * 3
@@ -319,6 +334,28 @@ def fit_single_frame(img,
         hposer3d, _ = load_hposer3d(kwargs.get('signhposer_dir'))
         hposer3d = hposer3d.to(device=device)
         hposer3d.eval()
+
+        # Initialize hand latents to match WiLoR/HaMeR 3D predictions.
+        # Without this step, latents start at zero (mean hand pose) and
+        # L-BFGS may not converge to the WiLoR target within 100 iterations.
+        _psmplx_lhand = torch.from_numpy(
+            init_smplx_param['left_hand_pose'][None]
+        ).to(device=device, dtype=dtype)
+        _psmplx_rhand = torch.from_numpy(
+            init_smplx_param['right_hand_pose'][None]
+        ).to(device=device, dtype=dtype)
+        for _latent, _target in [(lhand_embedding3d, _psmplx_lhand),
+                                  (rhand_embedding3d, _psmplx_rhand)]:
+            with torch.enable_grad():
+                _z = _latent.clone().detach().requires_grad_(True)
+                _opt = torch.optim.Adam([_z], lr=0.02)
+                for _ in range(60):
+                    _decoded = hposer3d.decode(_z, output_type='aa').view(1, -1)
+                    _loss = ((_decoded - _target) ** 2).sum()
+                    _opt.zero_grad()
+                    _loss.backward()
+                    _opt.step()
+                _latent.data.copy_(_z.data)
 
     # ---- SOKE VQVAE Hand Prior (NEW, additive) ----
     use_vqvae_hand = kwargs.get('use_vqvae_hand', False)
@@ -338,6 +375,16 @@ def fit_single_frame(img,
         )
         hposer3d_vqvae = hposer3d_vqvae.to(device=device)
         hposer3d_vqvae.eval()
+        # Always initialize pose_embedding from NLF so the body model
+        # gets a valid pose (not zero/NaN) regardless of body prior settings.
+        if pose_embedding is None:
+            pose_embedding = torch.zeros([batch_size, 63],
+                                         dtype=dtype, device=device, requires_grad=True)
+            if init_smplx_param is not None and 'body_pose' in init_smplx_param:
+                init_bp = init_smplx_param['body_pose']
+                if isinstance(init_bp, np.ndarray):
+                    init_bp = torch.from_numpy(init_bp).float()
+                pose_embedding.data.copy_(init_bp.reshape(batch_size, -1).to(device))
         # Keep `hposer3d` as None — downstream code uses it to decide whether
         # to call into the hand-prior decode. The VQVAE branch is wired in
         # `fitting.py` via the `use_vqvae_hand` flag instead.
@@ -425,10 +472,9 @@ def fit_single_frame(img,
     if body_biomechanics_loss_weights:
         opt_weights_dict['body_biomechanics_loss_weights'] = body_biomechanics_loss_weights
 
-    keys = opt_weights_dict.keys()
-    opt_weights = [dict(zip(keys, vals)) for vals in
-                   zip(*(opt_weights_dict[k] for k in keys
-                         if opt_weights_dict[k] is not None))]
+    filtered_keys = [k for k in opt_weights_dict.keys() if opt_weights_dict[k] is not None]
+    opt_weights = [dict(zip(filtered_keys, vals)) for vals in
+                   zip(*(opt_weights_dict[k] for k in filtered_keys))]
     for weight_list in opt_weights:
         for key in weight_list:
             weight_list[key] = torch.tensor(weight_list[key],
@@ -550,10 +596,25 @@ def fit_single_frame(img,
 
 
             body_model.reset_params(**new_params) # This is the place where you initialise the body model parameters for the SMPL-X layer
+
             if use_signbposer:
-                with torch.no_grad():
-                    pose_embedding.fill_(0)
-            
+                # Initialize VAE latent to best match NLF body_pose instead of
+                # zero. This preserves NLF's superior pose prediction while the
+                # VAE prior keeps the result on the valid human pose manifold.
+                nlf_body_pose = torch.from_numpy(
+                    init_smplx_param['body_pose'][None]
+                ).to(device=device, dtype=dtype)
+                with torch.enable_grad():
+                    z = pose_embedding.clone().detach().requires_grad_(True)
+                    latent_opt = torch.optim.Adam([z], lr=0.02)
+                    for _ in range(60):
+                        decoded = signbposer.decode(z, output_type='aa').view(1, -1)
+                        latent_loss = ((decoded - nlf_body_pose) ** 2).sum()
+                        latent_opt.zero_grad()
+                        latent_loss.backward()
+                        latent_opt.step()
+                    pose_embedding.data.copy_(z.data)
+
             if use_hposer3d:
                     with torch.no_grad():
 
@@ -570,6 +631,14 @@ def fit_single_frame(img,
 
             for opt_idx, curr_weights in enumerate(tqdm(opt_weights, desc='Stage')):
 
+                # Per-stage annealed DPoser-X timestep (Strategy 3). Additive: only
+                # acts when dposerx_fixed_timesteps is set AND the active body prior
+                # is in use; otherwise behavior is identical to before.
+                _dposerx_ts = kwargs.get('dposerx_fixed_timesteps')
+                if (use_dposerx_body and dposerx_body_prior is not None
+                        and _dposerx_ts and opt_idx < len(_dposerx_ts)):
+                    dposerx_body_prior.set_fixed_timestep(int(_dposerx_ts[opt_idx]))
+
                 # body_params = list(body_model.parameters())
                 # body_params = []
                 # for k, v in body_model.named_parameters():
@@ -584,23 +653,38 @@ def fit_single_frame(img,
 
                 final_params = []
 
-                if use_signbposer:
-                    final_params.append(pose_embedding)
+                # NOTE: VQVAE-only mode deliberately does NOT optimize the body
+                # pose. Direct LBFGS optimization of the 63-dim body pose under
+                # the perspective-reprojection loss diverges to NaN (the
+                # non-core joints have no regularizer). The NLF body init is
+                # already high quality, so we freeze it and let the VQVAE prior
+                # refine only the hands.
+                if (use_signbposer or use_motionbert_prior or use_phd_prior
+                        or use_dposerx_body):
+                    if pose_embedding is not None:
+                        final_params.append(pose_embedding)
 
-                if use_hposer3d:
+                if use_hposer3d or use_vqvae_hand:
 
                     if indp_sign_class != "0":
-                        final_params.append(lhand_embedding3d)
-                        final_params.append(rhand_embedding3d)
+                        if lhand_embedding3d is not None:
+                            final_params.append(lhand_embedding3d)
+                        if rhand_embedding3d is not None:
+                            final_params.append(rhand_embedding3d)
 
                     else:
                         if hand_label == 'left_hand':
-                            final_params.append(lhand_embedding3d)
+                            if lhand_embedding3d is not None:
+                                final_params.append(lhand_embedding3d)
 
                         elif hand_label == 'right_hand':
-                            final_params.append(rhand_embedding3d)
+                            if rhand_embedding3d is not None:
+                                final_params.append(rhand_embedding3d)
 
-                
+                # NOTE: transl and global_orient are kept out of final_params.
+                # They were already optimized in the camera-only stage above
+                # for DPoser-X refine mode, or frozen at NLF init for other modes.
+                use_dposerx_refine = kwargs.get('use_dposerx_refine', False)
 
                 #tqdm.write('Stage {:03d} has parameters {:01d}'.format(opt_idx, len(final_params)))
 
@@ -664,6 +748,7 @@ def fit_single_frame(img,
                     joint_weights=joint_weights,
                     loss=loss, create_graph=body_create_graph,
                     use_signbposer=use_signbposer, signbposer=signbposer,
+                    body_init=psmplx_bodyGT,  # L2 anchor for DPoser-X refine mode
                     hand_2d_keypoints=hand_2d_keypoints,
                     use_hand2d_supervision=kwargs.get('use_hand2d_supervision', False),
                     use_sign_biomechanics=kwargs.get('use_sign_biomechanics', False),
@@ -718,10 +803,45 @@ def fit_single_frame(img,
                            for key, val in body_model.named_parameters()})
             if use_signbposer:
                 result['body_pose'] = signbposer.decode(pose_embedding, output_type='aa').view(1, -1).detach().cpu().numpy()
-            elif use_motionbert_prior or use_phd_prior:
+            elif use_motionbert_prior or use_phd_prior or use_dposerx_body:
                 # Direct optimization: pose_embedding IS body_pose
                 result['body_pose'] = pose_embedding.detach().cpu().numpy().reshape(1, -1)
+            elif pose_embedding is not None:
+                # Body pose is frozen from NLF init (not optimized).
+                result['body_pose'] = pose_embedding.detach().cpu().numpy().reshape(1, -1)
             result['K'] = camera.cpu().numpy()
+
+            # Save decoded hand poses so the mesh/render section can reuse them.
+            if use_hposer3d:
+                if lhand_embedding3d is not None:
+                    result['left_hand_pose'] = hposer3d.decode(
+                        lhand_embedding3d, output_type='aa').view(1, -1).detach().cpu().numpy()
+                if rhand_embedding3d is not None:
+                    result['right_hand_pose'] = hposer3d.decode(
+                        rhand_embedding3d, output_type='aa').view(1, -1).detach().cpu().numpy()
+            elif use_vqvae_hand and hposer3d_vqvae is not None:
+                if lhand_embedding3d is not None:
+                    result['left_hand_pose'] = hposer3d_vqvae.decode_aa(
+                        lhand_embedding3d).view(1, -1).detach().cpu().numpy()
+                if rhand_embedding3d is not None:
+                    result['right_hand_pose'] = hposer3d_vqvae.decode_aa(
+                        rhand_embedding3d).view(1, -1).detach().cpu().numpy()
+
+            # ---- DPoser-X post-fit denoising refinement ----
+            if kwargs.get('use_dposerx_refine', False):
+                _dpr_prior = kwargs.get('dposerx_refine_prior', None)
+                if _dpr_prior is not None:
+                    try:
+                        bp_tensor = torch.from_numpy(result['body_pose']).float().to(device)
+                        bp_refined = _dpr_prior.decode_to_pose(bp_tensor, num_steps=50)
+                        if not torch.isnan(bp_refined).any():
+                            # Keep result['body_pose'] as the OPTIMIZED pose (matching
+                            # the optimized camera params) for mesh rendering.
+                            # Store the DPoser-X refined pose separately for evaluation.
+                            result['body_pose_refined'] = bp_refined.detach().cpu().numpy()
+                            result['body_pose_raw'] = bp_tensor.cpu().numpy()
+                    except Exception as _dpr_err:
+                        print(f'  [WARN] DPoser-X refinement skipped: {_dpr_err}')
 
             # ===== APPROACH A: Direct SMPL-X Parameter Refinement =====
             use_direct = kwargs.get('use_direct_optimization', False)
@@ -733,18 +853,46 @@ def fit_single_frame(img,
                 # Get current decoded poses as starting point
                 if use_signbposer:
                     cur_body_pose = signbposer.decode(pose_embedding, output_type='aa').view(1, -1).detach().clone()
-                elif use_motionbert_prior or use_phd_prior:
+                elif use_motionbert_prior or use_phd_prior or use_dposerx_body or (use_vqvae_hand and pose_embedding is not None):
                     cur_body_pose = pose_embedding.detach().clone()
                 else:
                     cur_body_pose = torch.from_numpy(init_smplx_param['body_pose'][None]).to(device=device, dtype=dtype)
+                # Always fall back to NLF init if cur_body_pose has NaN
+                if torch.isnan(cur_body_pose).any():
+                    print(f'  [NaN guard] cur_body_pose has NaN, resetting to NLF init')
+                    cur_body_pose = torch.from_numpy(init_smplx_param['body_pose'][None]).to(device=device, dtype=dtype)
 
-                if use_hposer3d:
+                if use_hposer3d or use_vqvae_hand:
                     if lhand_embedding3d is not None:
-                        cur_lhand = hposer3d.decode(lhand_embedding3d, output_type='aa').view(1, -1).detach().clone()
+                        if use_hposer3d:
+                            cur_lhand = hposer3d.decode(lhand_embedding3d, output_type='aa').view(1, -1).detach().clone()
+                        else:
+                            cur_lhand = hposer3d_vqvae.decode_aa(lhand_embedding3d).view(1, -1).detach().clone()
+                        if torch.isnan(cur_lhand).any():
+                            print(f'  [NaN guard] lhand has NaN, resetting to WiLoR init')
+                            # Reset BOTH the decoded output AND the latent embedding
+                            # so NaN doesn't propagate to the saved result
+                            if psmplx_lhandGT is not None:
+                                cur_lhand = psmplx_lhandGT.detach().clone()
+                            else:
+                                cur_lhand = torch.zeros(1, 45, device=device, dtype=dtype)
+                            with torch.no_grad():
+                                lhand_embedding3d.fill_(0)
                     else:
                         cur_lhand = None
                     if rhand_embedding3d is not None:
-                        cur_rhand = hposer3d.decode(rhand_embedding3d, output_type='aa').view(1, -1).detach().clone()
+                        if use_hposer3d:
+                            cur_rhand = hposer3d.decode(rhand_embedding3d, output_type='aa').view(1, -1).detach().clone()
+                        else:
+                            cur_rhand = hposer3d_vqvae.decode_aa(rhand_embedding3d).view(1, -1).detach().clone()
+                        if torch.isnan(cur_rhand).any():
+                            print(f'  [NaN guard] rhand has NaN, resetting to WiLoR init')
+                            if psmplx_rhandGT is not None:
+                                cur_rhand = psmplx_rhandGT.detach().clone()
+                            else:
+                                cur_rhand = torch.zeros(1, 45, device=device, dtype=dtype)
+                            with torch.no_grad():
+                                rhand_embedding3d.fill_(0)
                     else:
                         cur_rhand = None
                 else:
@@ -778,6 +926,31 @@ def fit_single_frame(img,
                 # Direct refinement closure
                 def direct_closure():
                     direct_optimizer.zero_grad()
+                    # Guard: restore body_pose_direct from NLF if corrupted
+                    if torch.isnan(body_pose_direct).any():
+                        body_pose_direct.data.copy_(torch.from_numpy(
+                            init_smplx_param['body_pose'][None]).to(device=device, dtype=dtype))
+                        return torch.tensor(0.0, device=device)
+                    # Guard: restore hand direct params from init if NaN
+                    if lhand_direct is not None and torch.isnan(lhand_direct).any():
+                        if lhand_init is not None:
+                            lhand_direct.data.copy_(lhand_init)
+                        else:
+                            lhand_direct.data.fill_(0)
+                        return torch.tensor(0.0, device=device)
+                    if rhand_direct is not None and torch.isnan(rhand_direct).any():
+                        if rhand_init is not None:
+                            rhand_direct.data.copy_(rhand_init)
+                        else:
+                            rhand_direct.data.fill_(0)
+                        return torch.tensor(0.0, device=device)
+                    # Decode hand poses and guard against NaN (VQVAE path)
+                    if use_vqvae_hand and hposer3d_vqvae is not None:
+                        lhand_direct.data.copy_(hposer3d_vqvae.decode_aa(lhand_embedding3d).view(1,-1))
+                        rhand_direct.data.copy_(hposer3d_vqvae.decode_aa(rhand_embedding3d).view(1,-1))
+                        if torch.isnan(lhand_direct).any() or torch.isnan(rhand_direct).any():
+                            lhand_direct.data.fill_(0)
+                            rhand_direct.data.fill_(0)
                     body_model_output = body_model(
                         return_verts=True,
                         body_pose=body_pose_direct,
@@ -785,7 +958,10 @@ def fit_single_frame(img,
                         right_hand_pose=rhand_direct,
                         return_full_pose=True)
 
-                    # Reuse existing loss with same weights
+                    # Reuse existing loss with same weights — disable body priors
+                    # since pose_embedding may have NaN from the first optimizer.
+                    # Use body_pose_direct (clean) instead of pose_embedding.
+                    # Also pass hand embeddings so the optimizer can refine hands.
                     direct_loss = loss(
                         body_model_output, camera=camera,
                         gt_joints=gt_joints, p3DGT_hand=p3DGT_hand,
@@ -796,10 +972,15 @@ def fit_single_frame(img,
                         indp_sign_class=indp_sign_class, hand_label=hand_label,
                         joints_temp=joints_temp,
                         joint_weights=joint_weights,
-                        pose_embedding=pose_embedding,
+                        pose_embedding=body_pose_direct,  # use body_pose_direct so VQVAE branch activates
                         use_hposer3d=False, hposer3d=None,
-                        lhand_embedding3d=None, rhand_embedding3d=None,
+                        lhand_embedding3d=lhand_embedding3d,
+                        rhand_embedding3d=rhand_embedding3d,
                         use_signbposer=False, signbposer=None,
+                        use_dposerx_body=False, dposerx_body_prior=None,
+                        use_vqvae_hand=True,  # keep VQVAE hand prior active
+                        hposer3d_vqvae=hposer3d_vqvae,
+                        use_direct_body=True,  # flag: optimize body_pose_direct directly
                         hand_2d_keypoints=hand_2d_keypoints,
                         use_hand2d_supervision=kwargs.get('use_hand2d_supervision', False),
                         use_sign_biomechanics=kwargs.get('use_sign_biomechanics', False),
@@ -811,8 +992,10 @@ def fit_single_frame(img,
                             'use_hand2d_supervision', 'use_sign_biomechanics',
                             'hand_contact_weight', 'hand_body_contact_weight',
                             'finger_prior_weight', 'use_uncertainty_hand',
-                            'use_hposer3d', 'hposer3d', 'lhand_embedding3d',
-                            'rhand_embedding3d', 'use_signbposer', 'signbposer']})
+                            'use_hposer3d', 'hposer3d',
+                            'use_signbposer', 'signbposer',
+                            'use_dposerx_body', 'dposerx_body_prior',
+                            'use_vqvae_hand', 'hposer3d_vqvae']})
 
                     # L2 regularization vs SMPLer-X init
                     l2_reg = direct_body_w * torch.sum((body_pose_direct - body_init) ** 2)
@@ -838,6 +1021,16 @@ def fit_single_frame(img,
                     result['right_hand_pose'] = rhand_direct.detach().cpu().numpy()
                 tqdm.write('  Direct refinement done.')
 
+            # NaN safety: if any pose has NaN, replace with init values
+            for key in ['body_pose', 'left_hand_pose', 'right_hand_pose',
+                        'global_orient', 'transl', 'jaw_pose']:
+                if key in result and isinstance(result[key], np.ndarray):
+                    if np.isnan(result[key]).any():
+                        if key in init_smplx_param:
+                            result[key] = init_smplx_param[key].copy()
+                            tqdm.write(f'  [NaN guard] result.{key} had NaN, '
+                                       f'reset to init')
+
             results.append({'loss': final_loss_val,
                             'result': result})
 
@@ -850,39 +1043,65 @@ def fit_single_frame(img,
             pickle.dump(results[min_idx]['result'], result_file, protocol=2)
 
     if save_meshes or visualize:
-        if use_signbposer:
+        # Prefer the refined pose from result dict (set by DPoser-X
+        # post-fit refinement or direct optimization).  Fall back to
+        # decoding pose_embedding for the SignBPoser / MotionBERT /
+        # PHD / VQVAE branches.
+        body_pose = None
+        if result is not None and 'body_pose' in result:
+            body_pose = torch.from_numpy(result['body_pose']).to(device=device, dtype=dtype)
+        elif use_signbposer:
             body_pose = signbposer.decode(
                 pose_embedding,
                 output_type='aa').view(1, -1)
-        elif use_motionbert_prior or use_phd_prior:
+        elif use_motionbert_prior or use_phd_prior or use_dposerx_body or use_vqvae_hand:
             body_pose = pose_embedding.view(1, -1)
-        else:
-            body_pose = None
 
         model_type = kwargs.get('model_type', 'smpl')
         append_wrists = model_type == 'smpl' and use_signbposer
-        if append_wrists:
+        if append_wrists and body_pose is not None:
                 wrist_pose = torch.zeros([body_pose.shape[0], 6],
                                          dtype=body_pose.dtype,
                                          device=body_pose.device)
                 body_pose = torch.cat([body_pose, wrist_pose], dim=1)
 
-        # model_output = body_model(body_pose=body_pose, return_verts=True)
-        # vertices = model_output.vertices.detach().cpu().numpy().squeeze()
+        # Hand poses: prefer result dict (already decoded during fitting).
+        lhand_pose = None
+        rhand_pose = None
+        if result is not None and 'left_hand_pose' in result:
+            lhand_pose = torch.from_numpy(result['left_hand_pose']).to(device=device, dtype=dtype)
+        if result is not None and 'right_hand_pose' in result:
+            rhand_pose = torch.from_numpy(result['right_hand_pose']).to(device=device, dtype=dtype)
 
-        if use_hposer3d:
+        if use_hposer3d or use_vqvae_hand:
 
             if indp_sign_class != "0":
-                    lhand_pose = hposer3d.decode(lhand_embedding3d, output_type='aa').view(1, -1)
-                    rhand_pose = hposer3d.decode(rhand_embedding3d, output_type='aa').view(1, -1)
+                    if lhand_pose is None:
+                        if use_hposer3d:
+                            lhand_pose = hposer3d.decode(lhand_embedding3d, output_type='aa').view(1, -1)
+                        else:
+                            lhand_pose = hposer3d_vqvae.decode_aa(lhand_embedding3d).view(1, -1)
+                    if rhand_pose is None:
+                        if use_hposer3d:
+                            rhand_pose = hposer3d.decode(rhand_embedding3d, output_type='aa').view(1, -1)
+                        else:
+                            rhand_pose = hposer3d_vqvae.decode_aa(rhand_embedding3d).view(1, -1)
                     model_output = body_model(return_verts=True, body_pose=body_pose, right_hand_pose=rhand_pose, left_hand_pose=lhand_pose)
             else:
                 if hand_label == 'right_hand':
-                    rhand_pose = hposer3d.decode(rhand_embedding3d, output_type='aa').view(1, -1)
+                    if rhand_pose is None:
+                        if use_hposer3d:
+                            rhand_pose = hposer3d.decode(rhand_embedding3d, output_type='aa').view(1, -1)
+                        else:
+                            rhand_pose = hposer3d_vqvae.decode_aa(rhand_embedding3d).view(1, -1)
                     model_output = body_model(return_verts=True, body_pose=body_pose, right_hand_pose=rhand_pose)
-                
+
                 elif hand_label == 'left_hand':
-                    lhand_pose = hposer3d.decode(lhand_embedding3d, output_type='aa').view(1, -1)
+                    if lhand_pose is None:
+                        if use_hposer3d:
+                            lhand_pose = hposer3d.decode(lhand_embedding3d, output_type='aa').view(1, -1)
+                        else:
+                            lhand_pose = hposer3d_vqvae.decode_aa(lhand_embedding3d).view(1, -1)
                     model_output = body_model(return_verts=True, body_pose=body_pose, left_hand_pose=lhand_pose)
 
 
@@ -892,7 +1111,7 @@ def fit_single_frame(img,
         
         vertices = model_output.vertices.detach().cpu().numpy().squeeze()
 
-        
+
         import trimesh
         import neural_renderer as nr
 

@@ -14,7 +14,8 @@ def load_signbposer_dposerx(config_path: str,
                             device: str = "cuda",
                             guidance_scale: float = 1.0,
                             timestep_strategy: str = "random",
-                            fixed_timestep: int = 50):
+                            fixed_timestep: int = 50,
+                            loss_mode: str = "x0_prediction"):
     """Instantiate a DPoserXBodyPrior.
 
     Args:
@@ -23,6 +24,8 @@ def load_signbposer_dposerx(config_path: str,
         body_normalizer_path: e.g. `/home/haipd/DexAvatar/checkpoints/dposerx_body/body_normalizer`
         device: torch device.
         guidance_scale, timestep_strategy, fixed_timestep: prior-loss controls.
+        loss_mode: 'x0_prediction' (default, matches DPoser-X paper) or
+                   'noise_prediction' (legacy eps-prediction MSE).
 
     Returns:
         A `DPoserXBodyPrior` instance (already on `device`, in eval mode).
@@ -42,5 +45,6 @@ def load_signbposer_dposerx(config_path: str,
         guidance_scale=guidance_scale,
         timestep_strategy=timestep_strategy,
         fixed_timestep=fixed_timestep,
+        loss_mode=loss_mode,
     )
     return prior.to(device)

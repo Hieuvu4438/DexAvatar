@@ -11,8 +11,9 @@ Implementation notes:
   * Imports `lib.algorithms.advanced.model.create_model` from the DPoser-X
     clone at /home/haipd/DexAvatar/DPoser-X/ (we mutate `sys.path` once).
   * Loads checkpoint with `lib.utils.generic.load_model(..., is_ema=True)`.
-  * Uses the score-based noise-prediction MSE loss (PHD-style), which is
-    stable in an inner-loop L-BFGS and matches the existing PHD branch.
+  * Default loss mode 'x0_prediction' matches the original DPoser-X paper
+    (ICCV 2025 Oral): one-step Tweedie denoising + SNR-weighted MSE.
+    Alternative 'noise_prediction' uses simple eps-prediction MSE.
 """
 import os
 import sys
@@ -40,14 +41,18 @@ class DPoserXBodyPrior(nn.Module):
         config_path: path to the DPoser-X body config .py (e.g. `configs/body/subvp/timefc.py`).
         ckpt_path: path to the DPoser-X `.ckpt` file.
         body_normalizer_path: path to the `body_normalizer/` directory containing
-            `axis_normalize1.pt` (min/max stats). Computed once by
-            `scripts/fit_dposerx_normalizer.py` from sign-language data.
+            ``axis_normalize1.pt`` (min/max stats). Computed once by
+            ``scripts/fit_dposerx_normalizer.py``.  **Important:** DPoser-X
+            was trained on AMASS; for best results use the original AMASS
+            body normalizer at ``DPoser-X/data/body_data/body_normalizer/``.
         device: torch device.
         batch_size: nominal batch size for timestep sampling.
         guidance_scale: weight for the prior loss.
         num_inference_steps: number of diffusion steps for post-fit denoising (unused in fitting).
         timestep_strategy: 'random' | 'fixed'.
         fixed_timestep: integer timestep for the 'fixed' strategy (0..N-1).
+        loss_mode: 'x0_prediction' (default, matches DPoser-X paper) or
+            'noise_prediction' (legacy eps-prediction MSE).
     """
 
     def __init__(self,
@@ -59,8 +64,14 @@ class DPoserXBodyPrior(nn.Module):
                  guidance_scale: float = 1.0,
                  num_inference_steps: int = 50,
                  timestep_strategy: str = "random",
-                 fixed_timestep: int = 50):
+                 fixed_timestep: int = 50,
+                 loss_mode: str = "x0_prediction"):
         super().__init__()
+
+        if loss_mode not in ("x0_prediction", "noise_prediction"):
+            raise ValueError(
+                f"loss_mode must be 'x0_prediction' or 'noise_prediction', got '{loss_mode}'"
+            )
 
         if not os.path.exists(config_path):
             raise FileNotFoundError(f"DPoser-X config not found: {config_path}")
@@ -173,6 +184,7 @@ class DPoserXBodyPrior(nn.Module):
         self.num_inference_steps = num_inference_steps
         self.timestep_strategy = timestep_strategy
         self.fixed_timestep = fixed_timestep
+        self.loss_mode = loss_mode
 
     # ------------------------------------------------------------------
     # Helpers
@@ -187,6 +199,16 @@ class DPoserXBodyPrior(nn.Module):
             t = torch.rand(B, device=device) * (self.sde.T - eps) + eps
         return t
 
+    def set_fixed_timestep(self, t):
+        """Override the fixed timestep at runtime (used for per-stage annealing).
+
+        With timestep_strategy='fixed', _sample_t reads self.fixed_timestep; this
+        lets the fitting loop schedule a coarse-to-fine noise level across stages
+        (e.g. [400, 200, 100, 50]) without changing the constructor or touching
+        the loss code. No-op for other strategies.
+        """
+        self.fixed_timestep = int(t)
+
     # ------------------------------------------------------------------
     # Prior loss
     # ------------------------------------------------------------------
@@ -194,14 +216,29 @@ class DPoserXBodyPrior(nn.Module):
                    body_pose: torch.Tensor,
                    condition: Optional[torch.Tensor] = None,
                    t: Optional[torch.Tensor] = None) -> torch.Tensor:
-        """Differentiable body-pose prior loss (PHD-style noise-prediction MSE).
+        """Differentiable body-pose prior loss.
+
+        Two modes (set via ``loss_mode`` in ``__init__``):
+
+        ``'x0_prediction'`` (default, matches DPoser-X paper)
+            One-step Tweedie denoising to estimate x̂₀ from x_t, then
+            SNR-weighted MSE(x₀, x̂₀).  Gradients flow only through the
+            MSE term (x̂₀ is detached), which is simpler and more stable
+            in inner-loop L-BFGS.  This is exactly how the original
+            DPoser-X ``DPoser_loss`` in ``smplify.py`` works.
+
+        ``'noise_prediction'``
+            Classic eps-prediction MSE: the score network predicts the
+            noise ``z`` added during SDE perturbation.  Gradients flow
+            through the full score network.
 
         Args:
             body_pose: (B, 63) axis-angle SMPL-X body pose.
             condition: unused (DPoser-X body is unconditional).
             t: optional (B,) or scalar timestep in [0, 1]. Sampled if None.
+
         Returns:
-            Scalar loss tensor, differentiable w.r.t. `body_pose`.
+            Scalar loss tensor, differentiable w.r.t. ``body_pose``.
         """
         if body_pose.dim() == 3:
             B = body_pose.shape[0]
@@ -211,13 +248,22 @@ class DPoserXBodyPrior(nn.Module):
 
         if body_pose.shape[-1] != self._pose_flat:
             raise ValueError(
-                f"body_pose last dim must be {self._pose_flat} (={self._n_poses}*{self._pose_dim}), "
+                f"body_pose last dim must be {self._pose_flat} "
+                f"(={self._n_poses}*{self._pose_dim}), "
                 f"got {body_pose.shape[-1]}"
             )
 
         device = body_pose.device
+        _zero = torch.zeros(1, device=device, dtype=body_pose.dtype)
+
+        # Early bail if input body_pose already has NaN (corrupted params).
+        if torch.isnan(body_pose).any():
+            return _zero
+
         # Normalize to the model's training scale.
         x0 = self.Normalizer.offline_normalize(body_pose)  # (B, pose_flat)
+        if torch.isnan(x0).any():
+            return _zero
 
         # Sample t.
         if t is None:
@@ -227,22 +273,49 @@ class DPoserXBodyPrior(nn.Module):
         else:
             t = t.to(device)
 
-        # Forward SDE: x_t = alpha * x0 + sigma * z
+        # Forward SDE perturbation:  x_t = alpha * x0 + sigma * z
         mean, std = self.sde.marginal_prob(x0, t)
         z = torch.randn_like(x0)
         x_t = mean + std[:, None] * z
 
-        # Score: dPoser-X's get_score_fn returns the **negative score** directly
-        # (i.e. -nabla_x log p), because of the line `score = -score / std`.
-        # Concretely, the model output (with scale_by_sigma=True) is the
-        # epsilon prediction * sigma. So `score_fn` returns -(eps / sigma).
-        neg_score = self.score_fn(x_t, t, condition, mask=None)
-        # Recover the epsilon prediction: eps = -neg_score * sigma
-        eps_pred = -neg_score * std[:, None]
+        if self.loss_mode == "x0_prediction":
+            # --- Paper-matched: x₀-prediction loss with SNR weighting ---
+            #
+            # Tweedie's formula:  E[x₀ | x_t] = (x_t + σ² * score) / α
+            # where α, σ² come from ``return_alpha_sigma`` (variance for
+            # subVPSDE, std² for VPSDE — both are consistent with the
+            # ``score_fn`` output convention).
+            score = self.score_fn(x_t, t, condition, mask=None)
+            alpha, sigma_sq = self.sde.return_alpha_sigma(t)
 
-        # Standard DDPM noise-prediction loss.
-        loss = F.mse_loss(eps_pred, z) * self.guidance_scale
-        return loss
+            # One-step denoised estimate of x₀ (detached, matching paper).
+            x0_pred = (x_t + sigma_sq[:, None] * score) / alpha[:, None]
+
+            if torch.isnan(x0_pred).any():
+                return _zero
+
+            # SNR-based weighting: higher SNR → more reliable denoising →
+            # higher weight.  Matches DPoser-X smplify.py L95.
+            snr = alpha[:, None] / torch.sqrt(sigma_sq[:, None])
+            weight = 0.5 * torch.sqrt(1.0 + snr ** 2)  # (B, 1)
+
+            # MSE between clean x₀ and denoised estimate (x₀_pred detached
+            # so gradients are simply weight * (x₀ - x̂₀), same as paper).
+            loss_per_dim = F.mse_loss(x0, x0_pred.detach(), reduction="none")  # (B, D)
+            loss = (weight * loss_per_dim).sum() / B
+            loss = loss * self.guidance_scale
+            return loss
+
+        else:
+            # --- Noise-prediction loss (legacy fallback) ---
+            neg_score = self.score_fn(x_t, t, condition, mask=None)
+            eps_pred = -neg_score * std[:, None]
+
+            if torch.isnan(eps_pred).any():
+                return _zero
+
+            loss = F.mse_loss(eps_pred, z) * self.guidance_scale
+            return loss
 
     # ------------------------------------------------------------------
     # Optional decode (multi-step denoising) — kept for parity, not used in fitting.
@@ -251,12 +324,22 @@ class DPoserXBodyPrior(nn.Module):
     def decode_to_pose(self,
                        body_pose: torch.Tensor,
                        num_steps: int = 10) -> torch.Tensor:
-        """Multi-step denoising of a body pose (for post-fit refinement / sampling)."""
-        from lib.algorithms.advanced.sde_lib import subVPSDE
+        """Multi-step denoising of a body pose (for post-fit refinement / sampling).
+
+        Works around a GroupNorm batch_size=1 issue by duplicating the
+        input to batch_size=2 when needed, then taking the first output.
+        """
         x = self.Normalizer.offline_normalize(body_pose)
-        # Reverse-time SDE solver (mirror of DPoser-X multi_step_denoise).
         B = x.shape[0]
         device = x.device
+
+        # Work around GroupNorm requiring >1 channels in some PyTorch
+        # versions by ensuring at least batch_size=2.
+        _orig_B = B
+        if B == 1:
+            x = x.repeat(2, 1)
+            B = 2
+
         t_end = torch.full((B,), 1e-3, device=device)
         time_traj = torch.linspace(self.sde.T, 1e-3, num_steps + 1, device=device)
         for i in range(num_steps):
@@ -264,11 +347,18 @@ class DPoserXBodyPrior(nn.Module):
             t_before = time_traj[i + 1]
             alpha_c, sigma_c = self.sde.return_alpha_sigma(t_current.expand(B))
             alpha_b, sigma_b = self.sde.return_alpha_sigma(t_before.expand(B))
-            score = self.score_fn(x, t_current.expand(B), condition=None, mask=None)
-            # model output = score * sigma, so eps = -score * sigma
-            eps = -score * sigma_c[:, None]
-            x = (alpha_b[:, None] / alpha_c[:, None] * (x - sigma_c[:, None] * eps)
+            # Ensure 2D input (B, D) for the score network.
+            x_flat = x.reshape(B, -1)
+            score = self.score_fn(x_flat, t_current.expand(B), condition=None, mask=None)
+            # score to noise prediction (matches DPoser-X multi_step_denoise).
+            # alpha is (B,1), sigma is (B,) — do NOT add [:,None] to alpha.
+            eps = -score.reshape(B, -1) * sigma_c[:, None]
+            x = (alpha_b / alpha_c * (x_flat - sigma_c[:, None] * eps)
                  + sigma_b[:, None] * eps)
+
+        # Take only the first (original) output.
+        if _orig_B == 1:
+            x = x[:1]
         return self.Normalizer.offline_denormalize(x)
 
     def forward(self, body_pose: torch.Tensor,

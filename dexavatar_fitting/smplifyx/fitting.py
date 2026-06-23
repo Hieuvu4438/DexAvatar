@@ -180,12 +180,24 @@ class FittingMonitor(object):
         '''
         append_wrists = self.model_type == 'smpl' and use_signbposer
         prev_loss = None
+        # Snapshot of clean params at start of each iteration — restored if NaN.
+        _param_snapshot = [p.data.clone() for p in params]
         for n in range(self.maxiters):
+            # Restore clean params at start of each iteration
+            for p, snap in zip(params, _param_snapshot):
+                p.data.copy_(snap)
+
             loss = optimizer.step(closure)
 
             if torch.isnan(loss).sum() > 0:
                 print('NaN loss value, stopping!')
+                # Restore clean params so next stage starts fresh
+                for p, snap in zip(params, _param_snapshot):
+                    p.data.copy_(snap)
                 break
+
+            # Snapshot clean params for next iteration
+            _param_snapshot = [p.data.clone() for p in params]
 
             if torch.isinf(loss).sum() > 0:
                 print('Infinite loss value, stopping!')
@@ -253,9 +265,15 @@ class FittingMonitor(object):
             if use_signbposer:
                 body_pose = signbposer.decode(
                     pose_embedding, output_type='aa').view(1, -1)
-            elif use_motionbert_prior or use_phd_prior or use_dposerx_body:
+            elif (use_motionbert_prior or use_phd_prior or use_dposerx_body
+                  or kwargs.get('use_dposerx_refine', False)
+                  or (use_vqvae_hand and pose_embedding is not None)):
                 # Direct optimization: pose_embedding IS body_pose
                 body_pose = pose_embedding.view(1, -1)
+                # Clip body_pose to safe axis-angle range to prevent SMPL-X
+                # from producing NaN joints when L-BFGS explores extreme values.
+                if use_dposerx_body or kwargs.get('use_dposerx_refine', False):
+                    body_pose = torch.clamp(body_pose, -3.0, 3.0)
             else:
                 body_pose = None
 
@@ -279,19 +297,56 @@ class FittingMonitor(object):
                         body_model_output = body_model(return_verts=return_verts,
                                                     body_pose=body_pose, right_hand_pose=rhand_pose,
                                                     return_full_pose=return_full_pose)
-                    
+
                     elif hand_label == 'left_hand':
                         lhand_pose = hposer3d.decode(lhand_embedding3d, output_type='aa').view(1, -1)
                         body_model_output = body_model(return_verts=return_verts,
                                                     body_pose=body_pose, left_hand_pose=lhand_pose,
-                                                    return_full_pose=return_full_pose)   
-            
+                                                    return_full_pose=return_full_pose)
+
+            elif use_vqvae_hand and hposer3d_vqvae is not None:
+                rhand_pose = hposer3d_vqvae.decode_aa(rhand_embedding3d).view(1, -1) if rhand_embedding3d is not None else None
+                lhand_pose = hposer3d_vqvae.decode_aa(lhand_embedding3d).view(1, -1) if lhand_embedding3d is not None else None
+                # Guard: if any pose input is NaN, skip model forward pass
+                _safe_loss = False
+                if torch.isnan(body_pose).any():
+                    print('[WARN] body_pose is NaN, skipping model forward')
+                    _safe_loss = True
+                elif lhand_pose is not None and torch.isnan(lhand_pose).any():
+                    print('[WARN] lhand_pose is NaN, skipping model forward')
+                    _safe_loss = True
+                elif rhand_pose is not None and torch.isnan(rhand_pose).any():
+                    print('[WARN] rhand_pose is NaN, skipping model forward')
+                    _safe_loss = True
+
+                if _safe_loss:
+                    total_loss = torch.tensor(0.0, device=body_pose.device, requires_grad=True)
+                    if backward:
+                        total_loss.backward()
+                    return total_loss
+
+                if indp_sign_class != "0":
+                    body_model_output = body_model(return_verts=return_verts,
+                                                body_pose=body_pose, right_hand_pose=rhand_pose, left_hand_pose=lhand_pose,
+                                                return_full_pose=return_full_pose)
+                else:
+                    if hand_label == 'right_hand':
+                        body_model_output = body_model(return_verts=return_verts,
+                                                    body_pose=body_pose, right_hand_pose=rhand_pose,
+                                                    return_full_pose=return_full_pose)
+                    elif hand_label == 'left_hand':
+                        body_model_output = body_model(return_verts=return_verts,
+                                                    body_pose=body_pose, left_hand_pose=lhand_pose,
+                                                    return_full_pose=return_full_pose)
+                    else:
+                        body_model_output = body_model(return_verts=return_verts,
+                                                    body_pose=body_pose,
+                                                    return_full_pose=return_full_pose)
             else:
-            
                 body_model_output = body_model(return_verts=return_verts,
                                             body_pose=body_pose,
                                             return_full_pose=return_full_pose)
-                
+
             total_loss = loss(body_model_output, camera=camera,
                               gt_joints=gt_joints, p3DGT_hand=p3DGT_hand, psmplx_bodyGT=psmplx_bodyGT, psmplx_lhandGT=psmplx_lhandGT, psmplx_rhandGT=psmplx_rhandGT,
                               body_model_faces=faces_tensor,
@@ -314,6 +369,10 @@ class FittingMonitor(object):
                               hposer3d_vqvae=hposer3d_vqvae,
                               **kwargs)
 
+            # If total_loss is NaN, skip backward to prevent corrupting gradients.
+            # Return a LARGE value (not 0) so L-BFGS line search REJECTS this step.
+            if torch.isnan(total_loss).any():
+                total_loss = torch.tensor(1e10, device=total_loss.device, requires_grad=True)
             if backward:
                 total_loss.backward(create_graph=create_graph)
 
@@ -498,10 +557,10 @@ class SMPLifyLoss(nn.Module):
         gt_joints = gt_joints[:, dst2inter] # selecting only the COCO detections that match those same SMPL-X joint names
         p3dgt_joints = p3dgt_joints[:, dst2inter] # selecting only the COCO detections that match those same SMPL-X joint names
 
-        def normalize_points_torch(points):
+        def normalize_points_torch(points, eps=1e-8):
                 mean = torch.mean(points, dim=0)
                 std = torch.std(points, dim=0)
-                normalized_points = (points - mean) / std
+                normalized_points = (points - mean) / (std + eps)
                 return normalized_points
         
 
@@ -646,21 +705,77 @@ class SMPLifyLoss(nn.Module):
             # Direct body pose optimization: pose_embedding IS body_pose (63-dim)
             body_pose_direct = pose_embedding  # (1, 63)
 
-            # DPoser-X score-based prior loss
-            dposerx_t = None
-            if kwargs.get('dposerx_timestep_strategy', 'random') == 'fixed':
-                dposerx_t = torch.full((batch_size,),
-                                        float(kwargs.get('dposerx_fixed_timestep', 50))
-                                        / max(dposerx_body_prior.sde.N - 1, 1),
-                                        device=device)
-            pprior_loss = dposerx_body_prior.prior_loss(
-                body_pose_direct, condition=None, t=dposerx_t)
+            # Early bail: if body_pose_direct has become NaN (corrupted by
+            # a previous L-BFGS line-search step), return a large constant
+            # loss so the optimizer rejects this point.
+            if torch.isnan(body_pose_direct).any():
+                pprior_loss = torch.tensor(1e10, device=body_pose_direct.device,
+                                           dtype=body_pose_direct.dtype,
+                                           requires_grad=True)
+            else:
+                # DPoser-X score-based prior loss — fully differentiable.
+                # NaN guards live inside prior_loss() (returns 0 when NaN detected).
+                dposerx_t = None
+                if kwargs.get('dposerx_timestep_strategy', 'random') == 'fixed':
+                    B = body_pose_direct.shape[0]
+                    device_bp = body_pose_direct.device
+                    dposerx_t = torch.full(
+                        (B,),
+                        float(kwargs.get('dposerx_fixed_timestep', 50))
+                        / max(dposerx_body_prior.sde.N - 1, 1),
+                        device=device_bp,
+                    )
 
-            # Init prior: L1 vs SMPLer-X init (same structure as PHD branch)
+                pprior_loss = dposerx_body_prior.prior_loss(
+                    body_pose_direct, condition=None, t=dposerx_t)
+
+                # Apply body_pose_weight so the YAML config can control prior
+                # strength per fitting stage.  NOTE: we use **linear** scaling
+                # (not squared) because the DPoser-X prior_loss already returns a
+                # properly-scaled loss.  Squaring would produce extreme values
+                # (~1e5) that drive body_pose to NaN.
+                pprior_loss = pprior_loss * self.body_pose_weight
+
+            # Init prior: L1 vs SMPLer-X init (same structure as PHD branch).
+            # Guard against NaN in psmplx_bodyGT by skipping if body_pose is NaN.
+            if not torch.isnan(body_pose_direct).any():
+                pprior_loss += self.data_init_core_weight * torch.abs(
+                    body_pose_direct[:, 0:11*3] - psmplx_bodyGT[:, 0:11*3]).sum()
+                pprior_loss += self.data_init_noncore_weight * torch.abs(
+                    body_pose_direct[:, 11*3:] - psmplx_bodyGT[:, 11*3:]).sum()
+
+        # ---- DPoser-X refine: free body optimization + light anchor ----
+        elif kwargs.get('use_dposerx_refine', False) and pose_embedding is not None:
+            # Body pose + camera are jointly optimized by L-BFGS to fit 2D
+            # keypoints.  A very light L2 anchor prevents extreme drift, and
+            # DPoser-X denoising is applied post-fit for plausibility.
+            body_pose_direct = pose_embedding  # (1, 63)
+            body_init = kwargs.get('body_init', psmplx_bodyGT)
+            pprior_loss = 0.1 * torch.sum((body_pose_direct - body_init) ** 2)
+            # Core-joint L1 init prior.
             pprior_loss += self.data_init_core_weight * torch.abs(
                 body_pose_direct[:, 0:11*3] - psmplx_bodyGT[:, 0:11*3]).sum()
             pprior_loss += self.data_init_noncore_weight * torch.abs(
                 body_pose_direct[:, 11*3:] - psmplx_bodyGT[:, 11*3:]).sum()
+
+        # ---- VQVAE-only: direct body pose optimization from NLF init (no score prior) ----
+        elif (use_vqvae_hand and not use_hposer3d and pose_embedding is not None
+              and not kwargs.get('use_direct_body', False)
+              and not use_dposerx_body):
+            # pose_embedding IS the 63-dim body pose, optimized directly from NLF init.
+            # No score-based body prior — anchor to NLF init instead.
+            body_pose_direct = pose_embedding  # (1, 63)
+            pprior_loss = self.data_init_core_weight * torch.abs(
+                body_pose_direct[:, 0:11*3] - psmplx_bodyGT[:, 0:11*3]).sum()
+            pprior_loss += self.data_init_noncore_weight * torch.abs(
+                body_pose_direct[:, 11*3:] - psmplx_bodyGT[:, 11*3:]).sum()
+            # Always-on L2 anchor to the NLF init. The data_init_* weights above
+            # are zeroed in later stages, leaving the non-core body joints with no
+            # regularizer — under the reprojection loss alone, LBFGS drives them to
+            # NaN. This fixed anchor keeps the body pose near the high-quality NLF
+            # init while the VQVAE hand prior refines the hands.
+            pprior_loss += self.body_pose_weight ** 2 * torch.sum(
+                (body_pose_direct - psmplx_bodyGT) ** 2)
 
         # pose embedding loss + core 11 joints rotation loss + Left over rotation loss (this only happens for the first stage of fitting because the \
         # rest of the data_init_prior_weight is set to 0)
@@ -962,6 +1077,29 @@ class SMPLifyLoss(nn.Module):
                         self.absolute_depth_weight * absolute_depth_loss +
                         self.wrist_alignment_weight * wrist_alignment_loss)
         
+        # NaN guard: replace any NaN component with 0, then recompute total_loss
+        def _nan0(v):
+            if torch.is_tensor(v) and torch.isnan(v).any():
+                return torch.zeros_like(v).sum() * 0.0
+            return v
+        _jl = _nan0(joint_loss)
+        _pp = _nan0(pprior_loss)
+        _sl = _nan0(shape_loss)
+        _al = _nan0(angle_prior_loss)
+        _pl = _nan0(pen_loss)
+        _j2 = _nan0(jaw_prior_loss)
+        _el = _nan0(expression_loss)
+        _hl = _nan0(hand_prior_3dloss)
+
+        if torch.isnan(total_loss).any():
+            print(f'[NaN] joint={float(_jl):.4f}, pprior={float(_pp):.4f}, shape={float(_sl):.4f}, '
+                  f'angle={float(_al):.4f}, jaw={float(_j2):.4f}, hand={float(_hl):.4f}')
+            if use_hposer3d:
+                total_loss = (_jl + _pp + _sl + _al + _pl + _j2 + _el + _hl
+                            + torch.tensor(0.0, device=total_loss.device))
+            else:
+                total_loss = _jl + _pp + _sl + _al + _pl + _j2 + _el + _hl
+
         return total_loss
 
 

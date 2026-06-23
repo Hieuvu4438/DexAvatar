@@ -145,7 +145,8 @@ def main(**args):
         # neutral_model = smplx.create(gender='neutral', **model_params)
         neutral_model = SMPLX(model_path='../SMPLer-X/common/utils/human_model_files/smplx/SMPLX_NEUTRAL.pkl', ext='pkl',
                      use_face_contour=True, flat_hand_mean=True, use_pca=False,
-                     num_betas=10, num_expression_coeffs=10)
+                     num_betas=10, num_expression_coeffs=10,
+                     create_body_pose=True)  # must be True so body_pose is NOT ignored
     female_model = smplx.create(gender='female', **model_params)
 
     # Create the camera object
@@ -301,7 +302,8 @@ def main(**args):
             if os.path.exists(out_img_fn):
                 continue
 
-            joints_temp_re = fit_single_frame(img, keypoints[[person_id]], data['img_path'],
+            try:
+                joints_temp_re = fit_single_frame(img, keypoints[[person_id]], data['img_path'],
                              body_model=body_model,
                              idx=idx,
                              camera=cam_param,
@@ -326,7 +328,19 @@ def main(**args):
                              indp_sign_class=indp_sign_class,
                              hand_label=data['label'],
                              **args)
-            
+            except Exception as _frame_err:
+                # Per-frame failure (NaN divergence, empty-mesh crash, etc.)
+                # should not abort the whole sequence. Touch a sentinel image
+                # so the outer loop's `if os.path.exists(out_img_fn): continue`
+                # skips this frame on subsequent runs, and move on.
+                print('  [WARN] frame {}/{} failed: {}: {}'.format(
+                    idx, fn, type(_frame_err).__name__, _frame_err))
+                try:
+                    open(out_img_fn, 'wb').close()
+                except OSError:
+                    pass
+                continue
+
             joints_temp = joints_temp_re.clone()
 
     elapsed = time.time() - start

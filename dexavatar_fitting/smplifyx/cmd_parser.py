@@ -429,7 +429,10 @@ def parse_config(argv=None):
     # ---- DPoser-X Body Prior (NEW, additive) ----
     parser.add_argument('--use_dposerx_body', default=False,
                         type=lambda arg: arg.lower() in ['true', '1'],
-                        help='Use DPoser-X diffusion body prior instead of SignBPoser')
+                        help='Use DPoser-X diffusion body prior during L-BFGS')
+    parser.add_argument('--use_dposerx_refine', default=False,
+                        type=lambda arg: arg.lower() in ['true', '1'],
+                        help='Apply DPoser-X multi-step denoising to body_pose after fitting')
     parser.add_argument('--dposerx_ckpt', default='', type=str,
                         help='Path to DPoser-X body .ckpt file (last.ckpt or last.pt).')
     parser.add_argument('--dposerx_config', default='', type=str,
@@ -445,6 +448,18 @@ def parse_config(argv=None):
                         help='Timestep strategy for DPoser-X prior loss (mirrors PHD).')
     parser.add_argument('--dposerx_fixed_timestep', default=50, type=int,
                         help='Fixed timestep for DPoser-X (if strategy=fixed).')
+    parser.add_argument('--dposerx_loss_mode', default='x0_prediction', type=str,
+                        choices=['x0_prediction', 'noise_prediction'],
+                        help='Loss mode for DPoser-X prior. '
+                             '"x0_prediction" (default) matches the paper: '
+                             'SNR-weighted one-step denoising MSE. '
+                             '"noise_prediction" uses simple eps-prediction MSE.')
+    parser.add_argument('--dposerx_fixed_timesteps', default=None, nargs='*', type=int,
+                        help='Optional per-stage fixed timesteps for DPoser-X body prior '
+                             '(annealed coarse-to-fine, e.g. 400 200 100 50). When set, '
+                             'the fitting loop calls DPoserXBodyPrior.set_fixed_timestep '
+                             'per stage. Overrides dposerx_fixed_timestep for the body '
+                             'branch only; absent -> existing behavior unchanged.')
 
     parser.add_argument('--depth_loss_weight', default=1e2, type=float,
                         help='The weight for the regularizer for the' +
