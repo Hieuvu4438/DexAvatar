@@ -39,6 +39,12 @@ data/dummy_test/
 data/images_sgnify
 # New: extracted hand-pose data for VQVAE fine-tuning
 data/vqvae_hand_data/
+data/ARCTIC/
+data/InterHand2.6M/
+data/WHIM/
+opencode-quota/
+opencode.json
+tui.json
 # Papers (third-party copyrighted PDFs - keep markdown notes only)
 data/paper/*.pdf
 *.zip

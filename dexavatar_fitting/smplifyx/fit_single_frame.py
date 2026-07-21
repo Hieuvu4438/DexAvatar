@@ -615,19 +615,8 @@ def fit_single_frame(img,
                         latent_opt.step()
                     pose_embedding.data.copy_(z.data)
 
-            if use_hposer3d:
-                    with torch.no_grad():
-
-                        if indp_sign_class != "0":
-                            lhand_embedding3d.fill_(0)
-                            rhand_embedding3d.fill_(0)
-
-                        else:
-                            if hand_label == 'left_hand':
-                                lhand_embedding3d.fill_(0)
-
-                            elif hand_label == 'right_hand':
-                                rhand_embedding3d.fill_(0)
+    # Keep the latent regression above. Resetting these latents to zero discards
+    # the WiLoR/HaMeR initialization and forces every hand to start at the mean pose.
 
             for opt_idx, curr_weights in enumerate(tqdm(opt_weights, desc='Stage')):
 
@@ -652,6 +641,7 @@ def fit_single_frame(img,
 
 
                 final_params = []
+                use_dposerx_refine = kwargs.get('use_dposerx_refine', False)
 
                 # NOTE: VQVAE-only mode deliberately does NOT optimize the body
                 # pose. Direct LBFGS optimization of the 63-dim body pose under
@@ -660,7 +650,7 @@ def fit_single_frame(img,
                 # already high quality, so we freeze it and let the VQVAE prior
                 # refine only the hands.
                 if (use_signbposer or use_motionbert_prior or use_phd_prior
-                        or use_dposerx_body):
+                        or use_dposerx_body or use_dposerx_refine):
                     if pose_embedding is not None:
                         final_params.append(pose_embedding)
 
@@ -684,7 +674,27 @@ def fit_single_frame(img,
                 # NOTE: transl and global_orient are kept out of final_params.
                 # They were already optimized in the camera-only stage above
                 # for DPoser-X refine mode, or frozen at NLF init for other modes.
-                use_dposerx_refine = kwargs.get('use_dposerx_refine', False)
+
+                # Config-gated root-pose optimization. Default OFF, so every
+                # existing method is unaffected (final_params stays as above).
+                # global_orient is a real nn.Parameter (create_global_orient=True);
+                # transl is NOT optimizable here (create_transl=False), so depth
+                # is handled by NLF-init smoothing + the rebalanced data term.
+                # Start after the initialization stage, when 2D body evidence
+                # anchors the root pose and prevents an unconstrained rotation.
+                if kwargs.get('optim_global_orient', False) and opt_idx > 0:
+                    final_params.append(body_model.global_orient)
+
+                # Optimize the global translation. transl positions/scales the
+                # body in the 2D projection (forward does `joints += transl`).
+                # It is already a registered Parameter (frozen by default).
+                # IMPORTANT: like global_orient, free transl opt DIVERGES under
+                # L-BFGS (lr=1.0) — stage 0 has no body-2D weight to anchor it,
+                # and the perspective term is non-convex in transl_z. So we (a)
+                # only optimize transl in stages 1-3 where body 2D data anchors
+                # it, and (b) clamp it to a physical range in the closure.
+                if kwargs.get('optim_transl', False) and opt_idx > 0:
+                    final_params.append(body_model.transl)
 
                 #tqdm.write('Stage {:03d} has parameters {:01d}'.format(opt_idx, len(final_params)))
 
@@ -764,7 +774,20 @@ def fit_single_frame(img,
                     dposerx_body_prior=dposerx_body_prior,
                     use_vqvae_hand=use_vqvae_hand,
                     hposer3d_vqvae=hposer3d_vqvae,
-                    return_verts=True, return_full_pose=True)
+                    return_verts=True, return_full_pose=True,
+                    # Forward so the closure can clamp global_orient when it is
+                    # being optimized (prevents axis-angle runaway under L-BFGS).
+                    optim_global_orient=kwargs.get('optim_global_orient', False),
+                    # Forward transl-clamp bounds so the closure can prevent
+                    # transl divergence when optim_transl is enabled.
+                    optim_transl=kwargs.get('optim_transl', False),
+                    transl_clamp_min=kwargs.get('transl_clamp_min', [-8.0, -5.0, 8.0]),
+                    transl_clamp_max=kwargs.get('transl_clamp_max', [8.0, 5.0, 30.0]),
+                    # Forward seated-leg anchor so the closure can pull leg DoF to
+                    # a folded seated pose (prevents dangling legs for seated signers).
+                    use_seated_legs=kwargs.get('use_seated_legs', False),
+                    seated_leg_weight=kwargs.get('seated_leg_weight', 50.0),
+                    seated_leg_pose=kwargs.get('seated_leg_pose', [0.0]*24))
 
                 if interactive:
                     if use_cuda and torch.cuda.is_available():
@@ -835,11 +858,11 @@ def fit_single_frame(img,
                         bp_tensor = torch.from_numpy(result['body_pose']).float().to(device)
                         bp_refined = _dpr_prior.decode_to_pose(bp_tensor, num_steps=50)
                         if not torch.isnan(bp_refined).any():
-                            # Keep result['body_pose'] as the OPTIMIZED pose (matching
-                            # the optimized camera params) for mesh rendering.
-                            # Store the DPoser-X refined pose separately for evaluation.
-                            result['body_pose_refined'] = bp_refined.detach().cpu().numpy()
+                            # DPoser-X refinement is the method output. Keep the raw
+                            # pose for diagnostics, but save and render the refinement.
                             result['body_pose_raw'] = bp_tensor.cpu().numpy()
+                            result['body_pose_refined'] = bp_refined.detach().cpu().numpy()
+                            result['body_pose'] = result['body_pose_refined']
                     except Exception as _dpr_err:
                         print(f'  [WARN] DPoser-X refinement skipped: {_dpr_err}')
 

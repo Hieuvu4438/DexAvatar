@@ -59,8 +59,13 @@ conda activate dexavatar
 cd "${FITTING_EXPERIMENT}"
 export PYTHONPATH=$(pwd)/smplifyx:$(pwd):${PYTHONPATH:-}
 
+# Config: use the baseline config (fit_smplx_vposer_x.yaml), NOT fit_smplx_vposer_x_direct.yaml.
+# direct.yaml freezes global_orient/transl and adds a direct-refinement stage that L2-locks
+# hands to the init, which DEGRADES hands despite the NLF+WiLoR init being good. Measured on
+# Glas (TR-V2V active-hand, central): direct.yaml LHand/RHand = 15.55/15.31, baseline config
+# (this) LHand/RHand = 11.62/9.53, beating the original SMPLer-X+HaMeR baseline (12.26/12.02).
 python smplifyx/main.py \
-    --config cfg_files/fit_smplx_vposer_x_direct.yaml \
+    --config cfg_files/fit_smplx_vposer_x.yaml \
     --data_folder ${OUTPUT_PATH} \
     --output_folder ${OUTPUT_PATH}/smplifyx \
     --img_folder ${ROOT_PATH} \

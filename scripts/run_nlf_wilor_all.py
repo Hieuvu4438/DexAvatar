@@ -20,6 +20,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--input_img_folder', type=str, default='data/frames')
 parser.add_argument('--output_path', type=str, default='outputs/method_nlf_wilor')
 parser.add_argument('--fitting_experiment', type=str, default='/home/haipd/DexAvatar/dexavatar_fitting')
+parser.add_argument('--force', action='store_true',
+                    help='Delete existing SMPLify-X outputs and refit every sign.')
 args = parser.parse_args()
 
 inp_img_folder = os.path.join(PROJECT_DIR, args.input_img_folder)
@@ -42,6 +44,12 @@ for sub_folder in sub_folder_list:
     out_folder = os.path.abspath(os.path.join(base_output_dir, sub_folder))
     os.makedirs(out_folder, exist_ok=True)
 
+    if args.force:
+        smplifyx_dir = os.path.join(out_folder, 'smplifyx')
+        if os.path.isdir(smplifyx_dir):
+            import shutil
+            shutil.rmtree(smplifyx_dir)
+
     # Check if already complete: mesh count matches expected GT segment frames
     seg = frame_seg.get(sub_folder, [0, 0])
     expected_frames = (seg[1] - seg[0]) // 2 + 1  # frames are named low_{idx}.png with step 2
@@ -53,7 +61,7 @@ for sub_folder in sub_folder_list:
     else:
         mesh_count = 0
 
-    if mesh_count == expected_frames:
+    if not args.force and mesh_count == expected_frames:
         print(f"[{skipped+1}/{total}] SKIP {sub_folder}: already complete ({mesh_count} meshes)")
         skipped += 1
         continue

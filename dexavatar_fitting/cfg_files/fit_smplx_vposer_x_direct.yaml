@@ -112,6 +112,13 @@ direct_body_weight: 500.0
 direct_lhand_weight: 500.0
 direct_rhand_weight: 500.0
 
+# Correct residual NLF placement errors only after the initialization stage.
+# Bounds keep L-BFGS in the physically valid camera range for SGNify videos.
+optim_global_orient: False
+optim_transl: False
+transl_clamp_min: [-0.5, -0.5, 12.0]
+transl_clamp_max: [0.5, 1.5, 30.0]
+
 # ===== Approach D: Absolute Depth + Wrist Alignment =====
 use_absolute_depth_loss: True
 absolute_depth_weight: 100.0

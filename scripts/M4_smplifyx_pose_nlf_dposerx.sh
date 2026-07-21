@@ -3,12 +3,10 @@
 set -e
 
 # Resolve checkpoint paths (allow override via env vars).
-DPOSERX_CKPT=${DPOSERX_CKPT:-/home/haipd/DexAvatar/checkpoints/dposerx_body/body.ckpt}
+DPOSERX_CKPT=${DPOSERX_CKPT:-/home/haipd/DexAvatar/DPoser-X/checkpoints/dposer/sign/sign_body_ft/last.ckpt}
 DPOSERX_CONFIG=${DPOSERX_CONFIG:-/home/haipd/DexAvatar/DPoser-X/configs/body/subvp/timefc.py}
-# IMPORTANT: Use the AMASS body normalizer (DPoser-X was trained on AMASS).
-# The sign-language normalizer was incorrectly computed and maps poses to
-# extreme values [-8, 17] instead of [-1, 1], causing NaN gradients.
-DPOSERX_NORMALIZER=${DPOSERX_NORMALIZER:-/home/haipd/DexAvatar/DPoser-X/data/body_data/body_normalizer}
+# The How2Sign-trained checkpoint requires its matching min/max normalizer.
+DPOSERX_NORMALIZER=${DPOSERX_NORMALIZER:-/home/haipd/DexAvatar/checkpoints/dposerx_body_sign/body_normalizer}
 
 # Check that required checkpoints exist.
 if [ ! -f "$DPOSERX_CKPT" ]; then
@@ -35,7 +33,7 @@ python smplifyx/main.py \
     --smplx_init_dir nlf/smplx \
     --use_hposer3d True \
     --use_dposerx_body False \
-    --use_dposerx_refine True \
+    --use_dposerx_refine False \
     --use_signbposer False \
     --use_vqvae_hand False \
     --use_motionbert_prior False \

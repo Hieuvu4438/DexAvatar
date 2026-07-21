@@ -261,6 +261,32 @@ class FittingMonitor(object):
             if backward:
                 optimizer.zero_grad()
 
+            # Bound the root rotation to the principal axis-angle range when
+            # optim_global_orient is enabled. global_orient has no prior/anchor,
+            # so under L-BFGS (lr=1.0) its magnitude can spin to thousands of
+            # radians (cosmetic, since SMPL-X converts to a rotation matrix, but
+            # it breaks any downstream use of the raw axis-angle). Gated so all
+            # existing methods (flag off) are byte-identical.
+            if kwargs.get('optim_global_orient', False):
+                with torch.no_grad():
+                    body_model.global_orient.clamp_(
+                        min=-3.14159265, max=3.14159265)
+
+            # Clamp transl to a physical range when optim_transl is enabled.
+            # Free transl opt diverges under L-BFGS (lr=1.0): the perspective
+            # reprojection term is non-convex in transl_z and stage 0 has no
+            # body-2D anchor, so transl can run to ~1e5. A physical clamp plus
+            # stage-1-3-only optimization (set in fit_single_frame) prevents it.
+            # Gated so existing methods (flag off) are byte-identical.
+            if kwargs.get('optim_transl', False):
+                _tmin = kwargs.get('transl_clamp_min', [-8.0, -5.0, 8.0])
+                _tmax = kwargs.get('transl_clamp_max', [8.0, 5.0, 30.0])
+                _dev = body_model.transl.device
+                with torch.no_grad():
+                    body_model.transl.data.clamp_(
+                        min=torch.tensor(_tmin, device=_dev, dtype=body_model.transl.dtype),
+                        max=torch.tensor(_tmax, device=_dev, dtype=body_model.transl.dtype))
+
             # Decode body pose: handle all prior types
             if use_signbposer:
                 body_pose = signbposer.decode(
@@ -368,6 +394,19 @@ class FittingMonitor(object):
                               use_vqvae_hand=use_vqvae_hand,
                               hposer3d_vqvae=hposer3d_vqvae,
                               **kwargs)
+
+            # Seated-leg anchor: pull the 24 leg DoF to a folded seated rest pose
+            # so legs tuck under instead of dangling below the out-of-frame legs
+            # of a seated signer. Gated (default OFF); an anchor, so it cannot
+            # diverge. leg slices [3:9],[12:18],[21:27],[30:36] of body_pose.
+            if kwargs.get('use_seated_legs', False) and body_pose is not None:
+                _leg_idx = [3,4,5,6,7,8, 12,13,14,15,16,17,
+                            21,22,23,24,25,26, 30,31,32,33,34,35]
+                _seated = torch.tensor(kwargs.get('seated_leg_pose', [0.0]*24),
+                                       dtype=body_pose.dtype, device=body_pose.device)
+                _w = float(kwargs.get('seated_leg_weight', 50.0))
+                total_loss = total_loss + _w * (
+                    (body_pose[:, _leg_idx] - _seated) ** 2).sum()
 
             # If total_loss is NaN, skip backward to prevent corrupting gradients.
             # Return a LARGE value (not 0) so L-BFGS line search REJECTS this step.

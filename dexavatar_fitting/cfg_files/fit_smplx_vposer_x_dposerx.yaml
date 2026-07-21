@@ -19,25 +19,25 @@ use_face: True
 flat_hand_mean: False
 sign_class: '../data/signs.txt'
 sign_segment: '../data/segment.json'
-# Posers: SignHPoser (hands) + DPoser-X (body)
+# Posers: SignHPoser (hands) + sign-fine-tuned DPoser-X (body)
 signhposer_dir: './smplifyx/signhposer'
 signbposer_dir: './smplifyx/signbposer'
 use_signbposer: False          # Replaced by DPoser-X
 use_hposer3d: True             # Keep original SignHPoser for hands
 # DPoser-X body prior
-# Freeze body_pose during L-BFGS (stays at NLF init). DPoser-X is applied as
-# post-fit denoising refinement — faster and more stable than using it as an
-# online prior inside the L-BFGS inner loop.
+# Disabled pending a better domain prior: the current checkpoint regressed the
+# one-frame TR-V2V smoke test. Keep the HPoser fitting path runnable without
+# accidentally overwriting results with an unvalidated DPoser-X configuration.
 use_dposerx_body: False
-use_dposerx_refine: True
+use_dposerx_refine: False
 use_vqvae_hand: False
 use_motionbert_prior: False
 use_phd_prior: False
 # DPoser-X checkpoint paths (overridden by CLI in shell script)
-dposerx_ckpt: '/home/haipd/DexAvatar/checkpoints/dposerx_body/body.ckpt'
+dposerx_ckpt: '/home/haipd/DexAvatar/DPoser-X/checkpoints/dposer/sign/sign_body_ft/last.ckpt'
 dposerx_config: '/home/haipd/DexAvatar/DPoser-X/configs/body/subvp/timefc.py'
-dposerx_normalizer_dir: '/home/haipd/DexAvatar/DPoser-X/data/body_data/body_normalizer'
-dposerx_guidance_scale: 1.0
+dposerx_normalizer_dir: '/home/haipd/DexAvatar/checkpoints/dposerx_body_sign/body_normalizer'
+dposerx_guidance_scale: 0.01
 dposerx_timestep_strategy: fixed
 dposerx_fixed_timestep: 50
 dposerx_loss_mode: x0_prediction
@@ -66,21 +66,33 @@ maxiters: 100
 # toward the keypoints.  Large values (>10) cause the L2 anchor to dominate
 # and prevent any meaningful fitting.
 body_pose_prior_weights: [5.0, 2.0, 1.0, 0.5]
-hand_pose_prior_weights: [100.0, 50.0, 10.0, 5.0]
+hand_pose_prior_weights: [0.0, 4.78, 4.78, 4.78]
 shape_weights: [100.0, 50.0, 10.0, 5.0]
 expr_weights: [100.0, 50.0, 10.0, 5.0]
 face_joints_weights: [0.0, 0.0, 0.0, 2.0]
-body_joints_weights: [0.0, 0.0, 0.0, 2.0]
-hand_joints_weights: [0.0, 0.0, 0.0, 2.0]
+body_joints_weights: [0.0, 1.0, 3.0, 4.0]
+hand_joints_weights: [0.5, 1.0, 1.5, 2.5]
 coll_loss_weights: [0.0, 0.0, 0.0, 0.0]
 data_weights: [1, 1, 0.1, 0.1]
 data_3d_weights: [1, 1, 1, 1]
 data_init_core_weights: [100.0, 50.0, 10.0, 5.0]
-data_init_noncore_weights: [0.0, 0.0, 0.0, 0.0]
-data_init_lhand_weights: [0.0, 0.0, 0.0, 0.0]
-data_init_rhand_weights: [0.0, 0.0, 0.0, 0.0]
+data_init_noncore_weights: [5.0, 2.0, 1.0, 0.5]
+data_init_lhand_weights: [1200.0, 1200.0, 1200.0, 1200.0]
+data_init_rhand_weights: [1200.0, 1200.0, 1200.0, 1200.0]
+use_hand2d_supervision: False
+hand_2d_loss_weights: [0.0, 0.0, 0.0, 0.0]
+optim_global_orient: False
+optim_transl: False
+transl_clamp_min: [-0.5, -0.5, 12.0]
+transl_clamp_max: [0.5, 1.5, 30.0]
 # Disable absolute depth / wrist alignment (caused NaN on first frame)
 use_absolute_depth_loss: False
 absolute_depth_weight: 0.0
 use_wrist_alignment_loss: False
 wrist_alignment_weight: 0.0
+
+# Match the baseline's final, strongly regularized SMPL-X refinement pass.
+use_direct_optimization: True
+direct_body_weight: 500.0
+direct_lhand_weight: 500.0
+direct_rhand_weight: 500.0

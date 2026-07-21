@@ -1,0 +1,117 @@
+# Sign-trained DPoser-X body prior + VQVAE hand prior, ACTIVE fitting mode with
+# an annealed diffusion timestep (coarse-to-fine across the 4 stages).
+#
+# v2 = REBALANCED prior-vs-data + root-orientation optimization, to fix the
+# poor body fits produced by fit_smplx_vposer_x_dposerx_sign.yaml (body ignored
+# the 2D evidence because body_pose_prior_weights=404 dominated while
+# body_joints_weights was 0 in 3/4 stages, and global_orient was frozen at init).
+#
+# What changed vs v1 (only the lines marked `# v2`):
+#   * body_pose_prior_weights  [404,404,57.4,4.78] -> [20,10,4,2]   (prior ~10-50x too high)
+#   * dposerx_guidance_scale   0.1 -> 1.0          (restore DPoser-X default)
+#   * body_joints_weights      [0,0,0,2.0] -> [0,1,3,4]   (turn body 2D supervision ON in stages 1-3)
+#   * data_init_core_weights   [100,50,10,5] -> [50,20,10,5]   (loosen SMPLer-X anchor so 2D wins)
+#   * optim_global_orient: true   (NEW gated flag; default false, so old methods unaffected)
+# Hands, shape, expression weights are UNCHANGED (hands already worked).
+#
+# Requires the sign body prior from scripts/train_dposerx_sign_body.sh and the
+# sign normalizer from scripts/fit_sign_normalizer.py. Old configs are untouched.
+dataset: 'openpose'
+joints_to_ign:
+    - -1
+data_folder: "data"
+output_folder: 'smplx_debug_sign'
+prior_folder: 'priors'
+model_folder: 'models'
+result_folder: 'results'
+gender: "neutral"
+model_type: 'smplx'
+use_cuda: True
+float_dtype: "float32"
+use_joints_conf: True
+use_pca: True
+use_hands: True
+use_face: True
+flat_hand_mean: False
+sign_class: '../data/signs.txt'
+sign_segment: '../data/segment.json'
+signhposer_dir: './smplifyx/signhposer'
+signbposer_dir: './smplifyx/signbposer'
+use_signbposer: False
+use_hposer3d: False
+use_vqvae_hand: True
+use_dposerx_body: True
+vqvae_hand_ckpt: '/home/haipd/DexAvatar/checkpoints/vqvae_hand/signhposer_vqvae/last.ckpt'
+# --- sign-trained body prior ---
+dposerx_ckpt: '/home/haipd/DexAvatar/DPoser-X/checkpoints/dposer/sign/sign_body_ft/last.ckpt'
+dposerx_config: '/home/haipd/DexAvatar/DPoser-X/configs/body/subvp/timefc.py'
+dposerx_normalizer_dir: '/home/haipd/DexAvatar/checkpoints/dposerx_body_sign/body_normalizer'
+# Active prior + annealed timestep. guidance_scale restored to default (v2).
+dposerx_guidance_scale: 1.0   # v2: was 0.1
+dposerx_timestep_strategy: fixed
+dposerx_fixed_timesteps: [400, 200, 100, 50]
+dposerx_loss_mode: x0_prediction
+num_gaussians: 8
+body_prior_type: 'l2'
+left_hand_prior_type: l2
+right_hand_prior_type: l2
+jaw_prior_type: 'l2'
+focal_length: 5000
+num_pca_comps: 12
+rho: 100
+interpenetration: True
+df_cone_height: 0.0001
+penalize_outside: True
+max_collisions: 128
+optim_type: 'lbfgs'
+lr: 1.0
+gtol: 1e-8
+ftol: 2e-9
+maxiters: 100
+# v2: prior weight dropped from [404,404,57.4,4.78] so the body tracks 2D evidence.
+body_pose_prior_weights: [20.0, 10.0, 4.0, 2.0]
+hand_pose_prior_weights: [100.0, 50.0, 10.0, 5.0]
+shape_weights: [100.0, 50.0, 10.0, 5.0]
+expr_weights: [100.0, 50.0, 10.0, 5.0]
+face_joints_weights: [0.0, 0.0, 0.0, 2.0]
+# v2: body 2D supervision ramped on in stages 1-3 (was [0,0,0,2.0]); the only
+# effective data lever since data_weights is overridden by 1000/H at runtime.
+body_joints_weights: [0.0, 1.0, 3.0, 4.0]
+hand_joints_weights: [0.0, 0.0, 0.0, 2.0]
+coll_loss_weights: [0.0, 0.0, 0.0, 0.0]
+data_weights: [1, 1, 0.1, 0.1]
+data_3d_weights: [1, 1, 1, 1]
+# v2: loosen the SMPLer-X-init L1 anchor so the 2D data term can dominate.
+data_init_core_weights: [50.0, 20.0, 10.0, 5.0]
+data_init_noncore_weights: [0.0, 0.0, 0.0, 0.0]
+data_init_lhand_weights: [0.0, 0.0, 0.0, 0.0]
+data_init_rhand_weights: [0.0, 0.0, 0.0, 0.0]
+use_absolute_depth_loss: False
+absolute_depth_weight: 0.0
+use_wrist_alignment_loss: False
+wrist_alignment_weight: 0.0
+# global_orient optimization DISABLED: under L-BFGS (lr=1.0) the unanchored root
+# diverges (spins, or pins at the +-pi clamp = [-180,180,180] degenerate flip),
+# which is worse than the correct frozen NLF init (~153 deg). Keep it frozen.
+optim_global_orient: False
+# transl optimization: CORRECTS the ~100px body offset/scale (v1 upper body
+# projects ~103px off the person). Earlier this DIVERGED — root cause was a
+# catastrophically mis-scaled clamp: transl is in METERS (body ~0.5m; init
+# x,y ~ 0.03, 0.76) but the default clamp allowed +/-8 m (= off-screen).
+# Fix = body-scale clamp on x,y (+/-0.5 m ~= +/-180px) and a sane z range.
+# Optimized only in stages 1-3 (body-2D anchored); clamped each closure call.
+optim_transl: False  # diverges (no interior optimum; 153-deg Y-flip). reverted
+transl_clamp_min: [-0.5, -0.5, 12.0]
+transl_clamp_max: [0.5, 0.5, 30.0]
+# Seated-leg anchor: pull the 24 leg DoF to a folded seated rest pose so the
+# legs tuck under (signer is seated, legs out of frame) instead of dangling
+# ~350px below the person. This also shrinks the projected body to match the
+# seated person, addressing much of the "too big / offset" perception.
+# Pose order: Lhip,Rhip,Lknee,Rknee,Lankle,Rankle,Lfoot,Rfoot (each xyz).
+# Values are a STARTING fold (needs tuning after viewing one frame).
+use_seated_legs: False  # off: guessed pose barely tucks legs, and legs are excluded from metrics
+seated_leg_weight: 100.0
+seated_leg_pose: [-1.0, 0.0, 0.0,  -1.0, 0.0, 0.0,
+                   1.3, 0.0, 0.0,   1.3, 0.0, 0.0,
+                  -0.2, 0.0, 0.0,  -0.2, 0.0, 0.0,
+                   0.0, 0.0, 0.0,   0.0, 0.0, 0.0]

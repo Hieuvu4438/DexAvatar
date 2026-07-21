@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en-US">
+
+  <head>
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width,maximum-scale=2">
+    <link rel="stylesheet" type="text/css" media="screen" href="/InterHand2.6M/assets/css/style.css?v=ffa1f60ddd0bd9220cda68509748e4609d51f0bd">
+
+<!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>InterHand2.6M dataset | InterHand2.6M</title>
+<meta name="generator" content="Jekyll v3.9.5" />
+<meta property="og:title" content="InterHand2.6M dataset" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="A Dataset and Baseline for 3D Interacting Hand Pose Estimation from a Single RGB Image (ECCV 2020)" />
+<meta property="og:description" content="A Dataset and Baseline for 3D Interacting Hand Pose Estimation from a Single RGB Image (ECCV 2020)" />
+<link rel="canonical" href="https://mks0601.github.io/InterHand2.6M/" />
+<meta property="og:url" content="https://mks0601.github.io/InterHand2.6M/" />
+<meta property="og:site_name" content="InterHand2.6M" />
+<meta property="og:type" content="website" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="InterHand2.6M dataset" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebSite","description":"A Dataset and Baseline for 3D Interacting Hand Pose Estimation from a Single RGB Image (ECCV 2020)","headline":"InterHand2.6M dataset","name":"InterHand2.6M","url":"https://mks0601.github.io/InterHand2.6M/"}</script>
+<!-- End Jekyll SEO tag -->
+
+    <!-- start custom head snippets, customize with your own _includes/head-custom.html file -->
+
+<!-- Setup Google Analytics -->
+
+
+
+<!-- You can set your favicon here -->
+<!-- link rel="shortcut icon" type="image/x-icon" href="/InterHand2.6M/favicon.ico" -->
+
+<!-- end custom head snippets -->
+
+  </head>
+
+  <body>
+
+    <!-- HEADER -->
+    <div id="header_wrap" class="outer">
+        <header class="inner">
+          
+
+          <h1 id="project_title">InterHand2.6M</h1>
+          <h2 id="project_tagline">A Dataset and Baseline for 3D Interacting Hand Pose Estimation from a Single RGB Image (ECCV 2020)</h2>
+
+          
+        </header>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div id="main_content_wrap" class="outer">
+      <section id="main_content" class="inner">
+        <h1 id="interhand26m-dataset">InterHand2.6M dataset</h1>
+
+<h2 id="our-new-reinterhand-dataset-has-been-released-which-has-much-more-diverse-image-appearances-with-more-stable-3d-gt-check-it-out-at-here">Our new Re:InterHand dataset has been released, which has much more diverse image appearances with more stable 3D GT. Check it out at <a href="https://mks0601.github.io/ReInterHand">here</a>!</h2>
+
+<h2 id="quick-visualizations">Quick visualizations</h2>
+<p align="middle">
+<img src="assets/teaser_1.gif" width="260" height="160" /><img src="assets/teaser_2.gif" width="260" height="160" /><img src="assets/teaser_3.gif" width="260" height="160" />
+</p>
+<p align="middle">
+<img src="assets/teaser_multiview_1.gif" width="390" height="240" /><img src="assets/teaser_multiview_2.gif" width="390" height="240" />
+</p>
+<p align="center">
+Above demo videos have low-quality frames because of the compression for the README upload.
+</p>
+<p align="middle">
+<img src="assets/mano1.jpg" width="120" height="120" /><img src="assets/mano2.jpg" width="120" height="120" /><img src="assets/mano3.jpg" width="120" height="120" /><img src="assets/mano4.jpg" width="120" height="120" /><img src="assets/mano5.jpg" width="120" height="120" /><img src="assets/mano6.jpg" width="120" height="120" /><img src="assets/mano7.jpg" width="120" height="120" /><img src="assets/mano8.jpg" width="120" height="120" /><img src="assets/mano9.jpg" width="120" height="120" /><img src="assets/mano10.jpg" width="120" height="120" />
+</p>
+<ul>
+  <li>Videos of 3D joint coordinates (from joint_3d.json) from the 30 fps split: [<a href="https://drive.google.com/drive/folders/1njp3jgpk2EnGek1Sz3P6LE4K1rp-jG97?usp=sharing">single hand</a>] [<a href="https://drive.google.com/drive/folders/1VGwUSf88_fGjWcQv4DlTaOe6wAWgS1Bq?usp=share_link">two hands</a>].</li>
+  <li>Videos of MANO fittings from the 30 fps split: [<a href="https://drive.google.com/drive/folders/1ALrcaH3foRUVObUAwwa_5i8yJqrNu7jr?usp=sharing">single hand</a>] [<a href="https://drive.google.com/drive/folders/1HZZy9pIiJcyIkmYQzCvg6i0RxCog-Usp?usp=share_link">two hands</a>].</li>
+</ul>
+
+<h2 id="news">News</h2>
+<ul>
+  <li>2023.05.05. Visualized videos are available.</li>
+  <li>2021.03.22. Finally, InterHand2.6M v1.0, which includes all images of 5 fps and 30 fps version, is released! 🎉 This is the dataset used in InterHand2.6M paper.</li>
+  <li>2020.11.26. Fitted MANO parameters are updated to the better ones (fitting error is about 5 mm). Also, reduced to much smaller file size by providing parameters fitted to the world coordinates (independent on the camera view).</li>
+  <li>2020.10.7. Fitted MANO parameters are available! They are obtained by <a href="https://arxiv.org/abs/2011.11232">NeuralAnnot</a>.</li>
+</ul>
+
+<h2 id="introduction">Introduction</h2>
+<ul>
+  <li>This is an official release of <strong><a href="https://arxiv.org/abs/2008.09309">InterHand2.6M: A Dataset and Baseline for 3D Interacting Hand Pose Estimation from a Single RGB Image (ECCV 2020)</a></strong>.</li>
+  <li>Our <strong>InterHand2.6M dataset</strong> is the first large-scale real-captured dataset with <strong>accurate GT 3D interacting hand poses</strong>.</li>
+  <li>Specifications of InterHand2.6M are as below.</li>
+</ul>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Train set
+* Train (H): 142,231 single hand frames / 386,251 interacting hand frames / 528,482 total frames
+* Train (M): 594,189 single hand frarmes / 314,848 interacting hand frames / 909,037 total frames
+* Train (H+M): 687,548 single hand frames / 673,514 interacting hand frames / 1,361,062 total frames
+
+Validation set
+* Val (M): 234,183 single hand frames / 145,942 interacting hand frames / 380,125 total frames
+
+Test set
+* Test (H): 33,665 single hand frames / 87,908 interacting hand frames / 121,573 total frames
+* Test (M): 455,303 single hand frames / 272,284 interacting hand frames / 727,587 total frames
+* Test (H+M): 488,968 single hand frames / 360,192 interacting hand frames / 849,160 total frames
+
+Total set
+* InterHand2.6M: 1,410,699 single hand frames / 1,179,648 interacting hand frames / 2,590,347 total frames
+</code></pre></div></div>
+
+<h2 id="download">Download</h2>
+<h3 id="images">Images</h3>
+<ul>
+  <li><a href="https://fb-baas-f32eacb9-8abb-11eb-b2b8-4857dd089e15.s3.amazonaws.com/InterHand2.6M/InterHand2.6M.images.5.fps.v1.0/index.html">Images (v1.0)</a></li>
+  <li>Instead of manually downloading files from the above link, you can run <a href="https://drive.google.com/file/d/1-dxc-ZNe2yA9a8WX629-kDJjJdEUk9F1/view?usp=sharing">a download script</a>.</li>
+  <li>To verify downloaded files using <code class="language-plaintext highlighter-rouge">md5sum</code>, run <code class="language-plaintext highlighter-rouge">python verify_download.py</code>.</li>
+  <li>To unzip images, run <code class="language-plaintext highlighter-rouge">sh unzip.sh</code>.</li>
+  <li>All image files take 80 GB.</li>
+</ul>
+
+<h3 id="annotations">Annotations</h3>
+<ul>
+  <li><a href="https://drive.google.com/drive/folders/12RNG9slv9i_TsXSoZ6pQAq-Fa98eGLoy?usp=sharing">Annotations (v1.0). H+M in the paper</a></li>
+  <li>Annotation IDs of <a href="https://drive.google.com/file/d/1Tz6P2pyc55L5ZcGx1W85v5hAnB-MZ8ok/view?usp=sharing">human annotation (H) train set</a> and <a href="https://drive.google.com/file/d/1NBGADofWE76ksA2S1bXy-kZSW6w0UIyF/view?usp=sharing">human annotation (M) test set</a></li>
+  <li>Camera positions visualization codes are available in <a href="https://github.com/facebookresearch/InterHand2.6M#camera-positions-visualization-demo">here</a></li>
+</ul>
+
+<h2 id="directory">Directory</h2>
+<p>The <code class="language-plaintext highlighter-rouge">${ROOT}</code> is described as below.</p>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>${ROOT}
+|-- images
+|   |-- train
+|   |   |-- Capture0 ~ Capture26
+|   |-- val
+|   |   |-- Capture0
+|   |-- test
+|   |   |-- Capture0 ~ Capture7
+|-- annotations
+|   |-- skeleton.txt
+|   |-- subject.txt
+|   |-- train
+|   |-- val
+|   |-- test
+</code></pre></div></div>
+<ul>
+  <li>Note: train/Capture10-26 and test/Capture2-7 contain frames less than 5 fps (or 30 fps if you downloaded the 30 fps version) due to multiple rounds of image dumping.</li>
+</ul>
+
+<h2 id="annotation-files">Annotation files</h2>
+<ul>
+  <li>Using Pycocotools for the data load is recommended. Run <code class="language-plaintext highlighter-rouge">pip install pycocotools</code>.</li>
+  <li><code class="language-plaintext highlighter-rouge">skeleton.txt</code> contains information about hand hierarchy (keypoint name, keypoint index, keypoint parent index).</li>
+  <li><code class="language-plaintext highlighter-rouge">subject.txt</code> contains information about the subject (subject_id, subject directory, subject gender).</li>
+</ul>
+
+<p>There are four <code class="language-plaintext highlighter-rouge">.json</code> files.</p>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>InterHand2.6M_$DB_SPLIT_data.json: dict
+|-- 'images': [image]
+|-- 'annotations': [annotation]
+
+image: dict
+|-- 'id': int (image id)
+|-- 'file_name': str (image file name)
+|-- 'width': int (image width)
+|-- 'height': int (image height)
+|-- 'capture': int (capture id)
+|-- 'subject': int (subject id)
+|-- 'seq_name': str (sequence name)
+|-- 'camera': str (camera name)
+|-- 'frame_idx': int (frame index)
+
+annotation: dict
+|-- 'id': int (annotation id)
+|-- 'image_id': int (corresponding image id)
+|-- 'bbox': list (bounding box coordinates. [xmin, ymin, width, height])
+|-- 'joint_valid': list (can this annotaion be use for hand pose estimation training and evaluation? 1 if a joint is annotated and inside of image. 0 otherwise. this is based on 2D observation from the image.)
+|-- 'hand_type': str (one of 'right', 'left', and 'interacting')
+|-- 'hand_type_valid': int (can this annotation be used for handedness estimation training and evaluation? 1 if hand_type in ('right', 'left') or hand_type == 'interacting' and np.sum(joint_valid) &gt; 30, 0 otherwise. this is based on 2D observation from the image.)
+</code></pre></div></div>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>InterHand2.6M_$DB_SPLIT_camera.json
+|-- str (capture id)
+|   |-- 'campos'
+|   |   |-- str (camera name): [x,y,z] (camera position)
+|   |-- 'camrot'
+|   |   |-- str (camera name): 3x3 list (camera rotation matrix)
+|   |-- 'focal'
+|   |   |-- str (camera name): [focal_x, focal_y] (focal length of x and y axis
+|   |-- 'princpt'
+|   |   |-- str (camera name): [princpt_x, princpt_y] (principal point of x and y axis)
+</code></pre></div></div>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>InterHand2.6M_$DB_SPLIT_joint_3d.json
+|-- str (capture id)
+|   |-- str (frame idx): 
+|   |   |-- 'world_coord': Jx3 list (3D joint coordinates in the world coordinate system. unit: milimeter.)
+|   |   |-- 'joint_valid': Jx3 list (1 if a joint is successfully annotated 0 else. Unlike 'joint_valid' of InterHand2.6M_$DB_SPLIT_data.json, it does not consider whether it is truncated in the image space or not.)
+|   |   |-- 'hand_type': str (one of 'right', 'left', and 'interacting'. taken from sequence names)
+|   |   |-- 'seq': str (sequence name)
+</code></pre></div></div>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>InterHand2.6M_$DB_SPLIT_MANO_NeuralAnnot.json
+|-- str (capture id)
+|   |-- str (frame idx): 
+|   |   |-- 'right'
+|   |   |   |-- 'pose': 48 dimensional MANO pose vector in axis-angle representation minus the mean pose.
+|   |   |   |-- 'shape': 10 dimensional MANO shape vector.
+|   |   |   |-- 'trans': 3 dimensional MANO translation vector in meter unit.
+|   |   |-- 'left'
+|   |   |   |-- 'pose': 48 dimensional MANO pose vector in axis-angle representation minus the mean pose.
+|   |   |   |-- 'shape': 10 dimensional MANO shape vector.
+|   |   |   |-- 'trans': 3 dimensional MANO translation vector in meter unit.
+
+The 3D MANO fits are obtained by NeuralAnnot (https://arxiv.org/abs/2011.11232).
+For the MANO mesh rendering, please see https://github.com/facebookresearch/InterHand2.6M/blob/master/MANO_render/render.py
+</code></pre></div></div>
+
+<h2 id="interhand26m-in-30-fps">InterHand2.6M in 30 fps</h2>
+<ul>
+  <li>Above InterHand2.6M is a downsampled version to 5 fps to remove redundancy.</li>
+  <li>We additionally release InterHand2.6M in 30 fps for the video-related research.</li>
+  <li>It has exactly the same directory structure with that of the InterHand2.6M in 5 fps.</li>
+</ul>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>Train set
+* Train (H): 142,240 single hand frames / 386,270 interacting hand frames / 528,510 total frames
+* Train (M): 3,420,240 single hand frarmes / 1,862,657 interacting hand frames / 5,282,897 total frames
+* Train (H+M): 3,513,605 single hand frames / 2,202,883 interacting hand frames / 5,716,488 total frames
+
+Validation set
+* Val (M): 1,401,601 single hand frames / 874,448 interacting hand frames / 2,276,049 total frames
+
+Test set
+* Test (H): 33,672 single hand frames / 87,919 interacting hand frames / 121,591 total frames
+* Test (M): 2,725,911 single hand frames / 1,629,860 interacting hand frames / 4,355,771 total frames
+* Test (H+M): 2,759,583 single hand frames / 1,717,779 interacting hand frames / 4,477,362 total frames
+
+Total set
+* InterHand2.6M: 7,674,789 single hand frames / 4,795,110 interacting hand frames / 12,469,899 total frames
+</code></pre></div></div>
+<h3 id="download-1">Download</h3>
+<h4 id="images-1">Images</h4>
+<ul>
+  <li><a href="https://fb-baas-f32eacb9-8abb-11eb-b2b8-4857dd089e15.s3.amazonaws.com/InterHand2.6M/InterHand2.6M.images.30.fps.v1.0/index.html">Images (v1.0)</a></li>
+  <li>Instead of manually downloading files from the above link, you can run <a href="https://drive.google.com/file/d/1VoPwawSQL6kbE2RrhV5eFyiLsqz0HxHE/view?usp=sharing">a download script</a>.</li>
+  <li>To verify downloaded files using <code class="language-plaintext highlighter-rouge">md5sum</code>, run <code class="language-plaintext highlighter-rouge">python verify_download.py</code>.</li>
+  <li>To unzip images, run <code class="language-plaintext highlighter-rouge">sh unzip.sh</code>.</li>
+  <li>All image files take 365 GB.</li>
+</ul>
+
+<h4 id="annotations-1">Annotations</h4>
+<ul>
+  <li><a href="https://drive.google.com/drive/folders/1MJ4ztwhMJ1RyFdsxzAprExvzr1cV6otS?usp=sharing">Annotations (v1.0). H+M in the paper</a></li>
+  <li>Annotation IDs of <a href="https://drive.google.com/file/d/1aWc2gwk9YtsegqI1MaHlqZ3aeRb0eYJu/view?usp=sharing">human annotation (H) train set</a> and <a href="https://drive.google.com/file/d/1IM3DiHVbWwtzBAcm-_szq_41nAXBg2Yd/view?usp=sharing">human annotation (M) test set</a></li>
+  <li>Camera positions visualization codes are available in <a href="https://github.com/facebookresearch/InterHand2.6M#camera-positions-visualization-demo">here</a></li>
+</ul>
+
+<h1 id="a-baseline-for-3d-interacting-hand-pose-estimation-internet">A Baseline for 3D Interacting Hand Pose Estimation (InterNet)</h1>
+<ul>
+  <li>Go to <a href="https://github.com/facebookresearch/InterHand2.6M">Github</a></li>
+</ul>
+
+<h1 id="contact">Contact</h1>
+<p>If you meet any problems, please send an e-mail to mks0601(at)gmail.com</p>
+
+<h1 id="reference">Reference</h1>
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code>@InProceedings{Moon_2020_ECCV_InterHand2.6M,  
+author = {Moon, Gyeongsik and Yu, Shoou-I and Wen, He and Shiratori, Takaaki and Lee, Kyoung Mu},  
+title = {InterHand2.6M: A Dataset and Baseline for 3D Interacting Hand Pose Estimation from a Single RGB Image},  
+booktitle = {European Conference on Computer Vision (ECCV)},  
+year = {2020}  
+}  
+</code></pre></div></div>
+
+      </section>
+    </div>
+
+    <!-- FOOTER  -->
+    <div id="footer_wrap" class="outer">
+      <footer class="inner">
+        
+        <p>Published with <a href="https://pages.github.com">GitHub Pages</a></p>
+      </footer>
+    </div>
+  </body>
+</html>

@@ -45,6 +45,8 @@ parser.add_argument('--skip_complete', action='store_true', default=True,
                     help='Skip sequences that already have results')
 parser.add_argument('--dry_run', action='store_true', default=False,
                     help='Print commands without running')
+parser.add_argument('--force', action='store_true', default=False,
+                    help='Delete existing SMPLify-X outputs and refit every sequence')
 args = parser.parse_args()
 
 inp_img_folder = args.input_img_folder
@@ -65,7 +67,12 @@ for sub_folder in sub_folder_list:
         continue
     out_folder = os.path.abspath(os.path.join(base_output_dir, sub_folder))
 
-    if args.skip_complete and already_complete(out_folder):
+    if args.force:
+        smplifyx_dir = os.path.join(out_folder, 'smplifyx')
+        if os.path.isdir(smplifyx_dir):
+            import shutil
+            shutil.rmtree(smplifyx_dir)
+    elif args.skip_complete and already_complete(out_folder):
         results_dir = os.path.join(out_folder, 'smplifyx', 'results')
         n = len(glob.glob(os.path.join(results_dir, '*.pkl')))
         print(f"Skipping {sub_folder}: already has {n} result pkls.")

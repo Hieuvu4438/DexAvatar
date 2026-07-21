@@ -124,6 +124,39 @@ def parse_config(argv=None):
     parser.add_argument('--optim_shape', default=True,
                         type=lambda x: x.lower() in ['true', '1'],
                         help='Optimize over the shape space')
+    # Optimize the SMPL-X root (global) orientation across all fitting stages.
+    # Default OFF: keeps every existing method byte-identical (global_orient is
+    # otherwise frozen at the init value). Enabled only by the v2 sign config.
+    parser.add_argument('--optim_global_orient', default=False,
+                        type=lambda x: x.lower() in ['true', '1'],
+                        help='Optimize global_orient across all stages (default False; isolated to v2 sign config).')
+    # Optimize the SMPL-X global translation (camera position/scale). Default OFF:
+    # keeps existing methods byte-identical (transl is otherwise frozen at init).
+    # The body is positioned by body_model.transl in the projection, so letting
+    # L-BFGS refine it corrects 2D offset/scale. Isolated to the v2 sign config.
+    parser.add_argument('--optim_transl', default=False,
+                        type=lambda x: x.lower() in ['true', '1'],
+                        help='Optimize transl across all stages (default False; isolated to v2 sign config).')
+    # Physical-range clamp for transl optimization (prevents L-BFGS divergence;
+    # init transl ~[0.0, 0.8, 18] for these scenes). Tunable.
+    parser.add_argument('--transl_clamp_min', nargs=3, type=float,
+                        default=[-8.0, -5.0, 8.0],
+                        help='Min [x,y,z] clamp for optim_transl.')
+    parser.add_argument('--transl_clamp_max', nargs=3, type=float,
+                        default=[8.0, 5.0, 30.0],
+                        help='Max [x,y,z] clamp for optim_transl.')
+    # Seated-leg constraint for seated signers (How2Sign): L2 anchor pulling the
+    # 24 leg DoF to a folded seated rest pose so legs tuck under instead of
+    # dangling below the out-of-frame legs. Default OFF. An anchor (not free
+    # optimization) so it cannot diverge. Leg slices: [3:9],[12:18],[21:27],[30:36].
+    parser.add_argument('--use_seated_legs', default=False,
+                        type=lambda x: x.lower() in ['true', '1'],
+                        help='Anchor leg joints to a seated rest pose (default False).')
+    parser.add_argument('--seated_leg_weight', default=50.0, type=float,
+                        help='L2 weight for the seated-leg anchor.')
+    parser.add_argument('--seated_leg_pose', nargs=24, type=float,
+                        default=[0.0]*24,
+                        help='24-dim seated rest pose for leg DoF [Lhip,Rhip,Lknee,Rknee,Lankle,Rankle,Lfoot,Rfoot].')
 
     parser.add_argument('--model_folder',
                         default='models',

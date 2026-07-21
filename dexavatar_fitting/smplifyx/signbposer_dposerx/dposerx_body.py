@@ -185,6 +185,10 @@ class DPoserXBodyPrior(nn.Module):
         self.timestep_strategy = timestep_strategy
         self.fixed_timestep = fixed_timestep
         self.loss_mode = loss_mode
+        # L-BFGS requires a deterministic closure. Reuse one diffusion noise
+        # sample while fitting a pose at a fixed timestep instead of drawing a
+        # different target at every line-search evaluation.
+        self._fixed_prior_noise = None
 
     # ------------------------------------------------------------------
     # Helpers
@@ -207,7 +211,10 @@ class DPoserXBodyPrior(nn.Module):
         (e.g. [400, 200, 100, 50]) without changing the constructor or touching
         the loss code. No-op for other strategies.
         """
-        self.fixed_timestep = int(t)
+        t = int(t)
+        if t != self.fixed_timestep:
+            self._fixed_prior_noise = None
+        self.fixed_timestep = t
 
     # ------------------------------------------------------------------
     # Prior loss
@@ -275,7 +282,15 @@ class DPoserXBodyPrior(nn.Module):
 
         # Forward SDE perturbation:  x_t = alpha * x0 + sigma * z
         mean, std = self.sde.marginal_prob(x0, t)
-        z = torch.randn_like(x0)
+        if self.timestep_strategy == "fixed":
+            if (self._fixed_prior_noise is None
+                    or self._fixed_prior_noise.shape != x0.shape
+                    or self._fixed_prior_noise.device != x0.device
+                    or self._fixed_prior_noise.dtype != x0.dtype):
+                self._fixed_prior_noise = torch.randn_like(x0)
+            z = self._fixed_prior_noise
+        else:
+            z = torch.randn_like(x0)
         x_t = mean + std[:, None] * z
 
         if self.loss_mode == "x0_prediction":
@@ -287,6 +302,13 @@ class DPoserXBodyPrior(nn.Module):
             # ``score_fn`` output convention).
             score = self.score_fn(x_t, t, condition, mask=None)
             alpha, sigma_sq = self.sde.return_alpha_sigma(t)
+
+            # ``return_alpha_sigma`` returns alpha as (B, 1) but sigma as
+            # (B,). Flatten both before adding the feature dimension below;
+            # otherwise alpha[:, None] creates (B, 1, 1) and broadcasts the
+            # denoising loss to an incorrect three-dimensional tensor.
+            alpha = alpha.reshape(B)
+            sigma_sq = sigma_sq.reshape(B)
 
             # One-step denoised estimate of x₀ (detached, matching paper).
             x0_pred = (x_t + sigma_sq[:, None] * score) / alpha[:, None]
