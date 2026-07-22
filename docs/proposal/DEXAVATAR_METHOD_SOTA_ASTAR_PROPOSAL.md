@@ -1,6 +1,6 @@
 # Method-Centered Research Proposal for SOTA 3D Sign Language Reconstruction
 
-**Working paper concept:** **SignPosterior4D: Phonology- and Interaction-Conditioned Whole-Sequence Posterior Reconstruction**
+**Working paper concept:** **SignPoste      rior4D: Phonology- and Interaction-Conditioned Whole-Sequence Posterior Reconstruction**
 
 **Primary benchmark:** SGNify, using the standard TR-V2V protocol used by SGNify and DexAvatar
 
