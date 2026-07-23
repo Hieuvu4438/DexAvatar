@@ -1,0 +1,4057 @@
+{
+  "baselines": {
+    "candidate_directories": [
+      "SGNify/cfg_files",
+      "SGNify/cluster_tmplogs",
+      "SGNify/smplifyx",
+      "SGNify/spectre",
+      "SGNify/utils",
+      "outputs/exp1_paper_nlf",
+      "outputs/exp2_base_nlf",
+      "outputs/method_biomech",
+      "outputs/method_biomech_paper",
+      "outputs/method_direct",
+      "outputs/method_ensemble",
+      "outputs/method_hamer",
+      "outputs/method_hand2d",
+      "outputs/method_nlf_dposerx_hposer",
+      "outputs/method_nlf_dposerx_sign",
+      "outputs/method_nlf_dposerx_sign_v2",
+      "outputs/method_nlf_vqvae_dposerx",
+      "outputs/method_nlf_wilor",
+      "outputs/output",
+      "outputs/output_baseline",
+      "outputs/output_test_baseline",
+      "outputs/output_wilor",
+      "outputs/output_wilor_hand2d",
+      "outputs/output_wilor_temporal",
+      "outputs/shared"
+    ],
+    "dexavatar_prediction_candidates": [
+      "outputs/method_biomech",
+      "outputs/method_biomech_paper",
+      "outputs/method_direct",
+      "outputs/method_ensemble",
+      "outputs/method_hamer",
+      "outputs/method_hand2d",
+      "outputs/method_nlf_dposerx_hposer",
+      "outputs/method_nlf_dposerx_sign",
+      "outputs/method_nlf_dposerx_sign_v2",
+      "outputs/method_nlf_vqvae_dposerx",
+      "outputs/method_nlf_wilor"
+    ],
+    "eva_candidates": [],
+    "paired_eva_available": false,
+    "paired_sgnify_available": false,
+    "sgnify_output_candidates": []
+  },
+  "blockers": [
+    "E1 blocked: SGNify GT SMPL-X parameters are unavailable; GT is meshes-only.",
+    "E3 blocked: GT hand parameters and/or a reusable per-joint hand rectifier are unavailable.",
+    "Protocol discrepancy: author-style ordinal manifest has 1493 pairs, not 2,872.",
+    "Paired EVA* comparison blocked: no EVA* per-frame outputs found."
+  ],
+  "command": "/home/haipd/DexAvatar/probes/experiments/e0_audit.py --repo /home/haipd/DexAvatar --prediction-method method_hamer",
+  "completed_utc": "2026-07-22T02:29:40.783846+00:00",
+  "evaluator_source": {
+    "central_argument_referenced_after_parse": true,
+    "contains_class_zero_left_skip": true,
+    "contains_ordinal_pairing": true,
+    "exists": true,
+    "hardcoded_author_paths": [
+      "/home/kaustubh/Desktop/Fitting/experiments/data/MANO_SMPLX_vertex_ids.pkl",
+      "/home/kaustubh/Desktop/Fitting/experiments/data/SMPLX_NEUTRAL.npz",
+      "/home/kaustubh/Desktop/Fitting/experiments/data/sgnify_part_segm_above_pelvis_joint",
+      "/home/kaustubh/Desktop/PIXIE",
+      "/home/kaustubh/Desktop/data/smplx_gt"
+    ],
+    "path": "data/evaluation_from_author/evaluate_new_fitting.py",
+    "sha256": "400bfbd736fc59fcc1867af7650188b61772136982f64b623df31494e6116877"
+  },
+  "frame_manifest": {
+    "available": true,
+    "class_zero_pair_count": 330,
+    "class_zero_sign_count": 15,
+    "equals_2872": false,
+    "left_hand_pair_count": 1163,
+    "left_hand_sign_count": 42,
+    "ordinal_pair_total": 1493,
+    "pairing": "GT frame numbers in inclusive [2*start, 2*end], paired by ordinal index with independently numerically sorted prediction meshes",
+    "per_sign": [
+      {
+        "class": "~0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 14,
+        "prediction_meshes": 14,
+        "segment_end": 175,
+        "segment_start": 149,
+        "selected_gt": 14,
+        "sign": "Ablehnen"
+      },
+      {
+        "class": "~0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 31,
+        "prediction_meshes": 31,
+        "segment_end": 184,
+        "segment_start": 124,
+        "selected_gt": 31,
+        "sign": "Akzeptieren"
+      },
+      {
+        "class": "~0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 21,
+        "prediction_meshes": 21,
+        "segment_end": 206,
+        "segment_start": 166,
+        "selected_gt": 21,
+        "sign": "Arzt"
+      },
+      {
+        "class": "~0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 34,
+        "prediction_meshes": 34,
+        "segment_end": 188,
+        "segment_start": 122,
+        "selected_gt": 34,
+        "sign": "AufgebenResignieren"
+      },
+      {
+        "class": "~0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 19,
+        "prediction_meshes": 19,
+        "segment_end": 156,
+        "segment_start": 120,
+        "selected_gt": 19,
+        "sign": "AusgebenGeldVerschwenden"
+      },
+      {
+        "class": "~0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 35,
+        "prediction_meshes": 35,
+        "segment_end": 172,
+        "segment_start": 104,
+        "selected_gt": 35,
+        "sign": "Auto"
+      },
+      {
+        "class": "~0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 19,
+        "prediction_meshes": 19,
+        "segment_end": 208,
+        "segment_start": 172,
+        "selected_gt": 19,
+        "sign": "BesuchenEinmischen"
+      },
+      {
+        "class": "0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 24,
+        "prediction_meshes": 24,
+        "segment_end": 177,
+        "segment_start": 131,
+        "selected_gt": 24,
+        "sign": "Blitz"
+      },
+      {
+        "class": "~0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 21,
+        "prediction_meshes": 21,
+        "segment_end": 161,
+        "segment_start": 121,
+        "selected_gt": 21,
+        "sign": "Blume"
+      },
+      {
+        "class": "0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 19,
+        "prediction_meshes": 19,
+        "segment_end": 163,
+        "segment_start": 127,
+        "selected_gt": 19,
+        "sign": "Boese"
+      },
+      {
+        "class": "~0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 48,
+        "prediction_meshes": 48,
+        "segment_end": 245,
+        "segment_start": 151,
+        "selected_gt": 48,
+        "sign": "BroetchenAufschneiden"
+      },
+      {
+        "class": "0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 13,
+        "prediction_meshes": 13,
+        "segment_end": 195,
+        "segment_start": 171,
+        "selected_gt": 13,
+        "sign": "Dort"
+      },
+      {
+        "class": "0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 23,
+        "prediction_meshes": 23,
+        "segment_end": 200,
+        "segment_start": 156,
+        "selected_gt": 23,
+        "sign": "Duenn"
+      },
+      {
+        "class": "~0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 21,
+        "prediction_meshes": 21,
+        "segment_end": 182,
+        "segment_start": 142,
+        "selected_gt": 21,
+        "sign": "Einkaufen"
+      },
+      {
+        "class": "~0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 31,
+        "prediction_meshes": 31,
+        "segment_end": 221,
+        "segment_start": 161,
+        "selected_gt": 31,
+        "sign": "Einnehmen"
+      },
+      {
+        "class": "~0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 34,
+        "prediction_meshes": 34,
+        "segment_end": 206,
+        "segment_start": 140,
+        "selected_gt": 34,
+        "sign": "EinstellenJob"
+      },
+      {
+        "class": "~0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 30,
+        "prediction_meshes": 30,
+        "segment_end": 240,
+        "segment_start": 182,
+        "selected_gt": 30,
+        "sign": "EisGefroren"
+      },
+      {
+        "class": "~0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 23,
+        "prediction_meshes": 23,
+        "segment_end": 180,
+        "segment_start": 136,
+        "selected_gt": 23,
+        "sign": "Empathie"
+      },
+      {
+        "class": "~0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 31,
+        "prediction_meshes": 31,
+        "segment_end": 189,
+        "segment_start": 129,
+        "selected_gt": 31,
+        "sign": "Entschuldigung"
+      },
+      {
+        "class": "~0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 28,
+        "prediction_meshes": 28,
+        "segment_end": 195,
+        "segment_start": 141,
+        "selected_gt": 28,
+        "sign": "FestellenDiagnose"
+      },
+      {
+        "class": "0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 25,
+        "prediction_meshes": 25,
+        "segment_end": 201,
+        "segment_start": 153,
+        "selected_gt": 25,
+        "sign": "Frech"
+      },
+      {
+        "class": "~0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 19,
+        "prediction_meshes": 19,
+        "segment_end": 188,
+        "segment_start": 152,
+        "selected_gt": 19,
+        "sign": "Frieren"
+      },
+      {
+        "class": "~0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 26,
+        "prediction_meshes": 26,
+        "segment_end": 187,
+        "segment_start": 137,
+        "selected_gt": 26,
+        "sign": "Frisch"
+      },
+      {
+        "class": "~0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 30,
+        "prediction_meshes": 30,
+        "segment_end": 184,
+        "segment_start": 126,
+        "selected_gt": 30,
+        "sign": "Froh"
+      },
+      {
+        "class": "~0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 18,
+        "prediction_meshes": 18,
+        "segment_end": 138,
+        "segment_start": 104,
+        "selected_gt": 18,
+        "sign": "Glas"
+      },
+      {
+        "class": "~0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 16,
+        "prediction_meshes": 16,
+        "segment_end": 152,
+        "segment_start": 122,
+        "selected_gt": 16,
+        "sign": "IdiomPffIgnorieren"
+      },
+      {
+        "class": "0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 40,
+        "prediction_meshes": 40,
+        "segment_end": 240,
+        "segment_start": 162,
+        "selected_gt": 40,
+        "sign": "Jahr"
+      },
+      {
+        "class": "0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 16,
+        "prediction_meshes": 16,
+        "segment_end": 152,
+        "segment_start": 122,
+        "selected_gt": 16,
+        "sign": "Klar"
+      },
+      {
+        "class": "~0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 46,
+        "prediction_meshes": 46,
+        "segment_end": 225,
+        "segment_start": 135,
+        "selected_gt": 46,
+        "sign": "Kochen"
+      },
+      {
+        "class": "~0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 31,
+        "prediction_meshes": 31,
+        "segment_end": 213,
+        "segment_start": 153,
+        "selected_gt": 31,
+        "sign": "Lesen"
+      },
+      {
+        "class": "0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 14,
+        "prediction_meshes": 14,
+        "segment_end": 168,
+        "segment_start": 142,
+        "selected_gt": 14,
+        "sign": "LiebBitte"
+      },
+      {
+        "class": "0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 17,
+        "prediction_meshes": 17,
+        "segment_end": 147,
+        "segment_start": 115,
+        "selected_gt": 17,
+        "sign": "Luegen"
+      },
+      {
+        "class": "0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 15,
+        "prediction_meshes": 15,
+        "segment_end": 144,
+        "segment_start": 116,
+        "selected_gt": 15,
+        "sign": "Muell"
+      },
+      {
+        "class": "0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 24,
+        "prediction_meshes": 24,
+        "segment_end": 184,
+        "segment_start": 138,
+        "selected_gt": 24,
+        "sign": "Mutter"
+      },
+      {
+        "class": "~0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 44,
+        "prediction_meshes": 44,
+        "segment_end": 199,
+        "segment_start": 113,
+        "selected_gt": 44,
+        "sign": "Naehen"
+      },
+      {
+        "class": "~0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 39,
+        "prediction_meshes": 39,
+        "segment_end": 194,
+        "segment_start": 118,
+        "selected_gt": 39,
+        "sign": "Nebel"
+      },
+      {
+        "class": "~0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 13,
+        "prediction_meshes": 13,
+        "segment_end": 132,
+        "segment_start": 108,
+        "selected_gt": 13,
+        "sign": "Neu"
+      },
+      {
+        "class": "~0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 31,
+        "prediction_meshes": 31,
+        "segment_end": 259,
+        "segment_start": 199,
+        "selected_gt": 31,
+        "sign": "Operieren"
+      },
+      {
+        "class": "~0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 39,
+        "prediction_meshes": 39,
+        "segment_end": 188,
+        "segment_start": 112,
+        "selected_gt": 39,
+        "sign": "Regen"
+      },
+      {
+        "class": "0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 22,
+        "prediction_meshes": 22,
+        "segment_end": 189,
+        "segment_start": 147,
+        "selected_gt": 22,
+        "sign": "SauerWuetend"
+      },
+      {
+        "class": "~0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 43,
+        "prediction_meshes": 43,
+        "segment_end": 243,
+        "segment_start": 159,
+        "selected_gt": 43,
+        "sign": "Schnee"
+      },
+      {
+        "class": "~0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 44,
+        "prediction_meshes": 44,
+        "segment_end": 207,
+        "segment_start": 121,
+        "selected_gt": 44,
+        "sign": "Schreiben"
+      },
+      {
+        "class": "~0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 25,
+        "prediction_meshes": 25,
+        "segment_end": 186,
+        "segment_start": 138,
+        "selected_gt": 25,
+        "sign": "Schwach"
+      },
+      {
+        "class": "~0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 21,
+        "prediction_meshes": 21,
+        "segment_end": 197,
+        "segment_start": 157,
+        "selected_gt": 21,
+        "sign": "Schwer"
+      },
+      {
+        "class": "0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 25,
+        "prediction_meshes": 25,
+        "segment_end": 196,
+        "segment_start": 148,
+        "selected_gt": 25,
+        "sign": "Sonne"
+      },
+      {
+        "class": "0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 26,
+        "prediction_meshes": 26,
+        "segment_end": 194,
+        "segment_start": 144,
+        "selected_gt": 26,
+        "sign": "Sorry"
+      },
+      {
+        "class": "~0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 29,
+        "prediction_meshes": 29,
+        "segment_end": 189,
+        "segment_start": 133,
+        "selected_gt": 29,
+        "sign": "SparenSparsam"
+      },
+      {
+        "class": "~0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 20,
+        "prediction_meshes": 20,
+        "segment_end": 163,
+        "segment_start": 125,
+        "selected_gt": 20,
+        "sign": "Spezial"
+      },
+      {
+        "class": "~0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 13,
+        "prediction_meshes": 13,
+        "segment_end": 167,
+        "segment_start": 143,
+        "selected_gt": 13,
+        "sign": "Tisch"
+      },
+      {
+        "class": "~0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 28,
+        "prediction_meshes": 28,
+        "segment_end": 186,
+        "segment_start": 132,
+        "selected_gt": 28,
+        "sign": "Treffen"
+      },
+      {
+        "class": "0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 27,
+        "prediction_meshes": 27,
+        "segment_end": 203,
+        "segment_start": 151,
+        "selected_gt": 27,
+        "sign": "Vater"
+      },
+      {
+        "class": "~0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 41,
+        "prediction_meshes": 41,
+        "segment_end": 222,
+        "segment_start": 142,
+        "selected_gt": 41,
+        "sign": "Verschieden"
+      },
+      {
+        "class": "~0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 12,
+        "prediction_meshes": 12,
+        "segment_end": 169,
+        "segment_start": 147,
+        "selected_gt": 12,
+        "sign": "VorsichtPassAuf"
+      },
+      {
+        "class": "~0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 29,
+        "prediction_meshes": 29,
+        "segment_end": 187,
+        "segment_start": 131,
+        "selected_gt": 29,
+        "sign": "Waschen"
+      },
+      {
+        "class": "~0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 14,
+        "prediction_meshes": 14,
+        "segment_end": 160,
+        "segment_start": 134,
+        "selected_gt": 14,
+        "sign": "Widerspruch"
+      },
+      {
+        "class": "~0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 30,
+        "prediction_meshes": 30,
+        "segment_end": 184,
+        "segment_start": 126,
+        "selected_gt": 30,
+        "sign": "Ziel"
+      },
+      {
+        "class": "~0",
+        "extra_prediction_meshes": 0,
+        "missing_prediction_pairs": 0,
+        "ordinal_pairs": 22,
+        "prediction_meshes": 22,
+        "segment_end": 161,
+        "segment_start": 119,
+        "selected_gt": 22,
+        "sign": "reparieren"
+      }
+    ],
+    "prediction_mesh_total": 1493,
+    "prediction_method": "method_hamer",
+    "prediction_root": "/home/haipd/DexAvatar/outputs/method_hamer",
+    "prediction_root_exists": true,
+    "right_hand_pair_count": 1493,
+    "right_hand_sign_count": 57,
+    "segment_path": "data/evaluation_from_author/segment.json",
+    "selected_gt_total": 1493,
+    "sign_count": 57,
+    "signs_path": "data/evaluation_from_author/signs.txt",
+    "two_hand_sign_count": 42
+  },
+  "git": {
+    "branch": "probes/diagnostics",
+    "head": "42561b21f79249e6ea5a34d2d52185dd4d0270d6",
+    "origin": "https://github.com/Hieuvu4438/DexAvatar.git",
+    "status_porcelain": [
+      "M sapiens",
+      "?? docs/dexavatar_diagnosis/E1E3_PROBE_AGENT_PROMPT.md",
+      "?? probes/"
+    ]
+  },
+  "ground_truth": {
+    "exists": true,
+    "file_types": {
+      ".obj": 4152
+    },
+    "has_parameter_files": false,
+    "representation": "meshes-only",
+    "root": "/home/haipd/DexAvatar/data/smplx_gt",
+    "sign_count": 57
+  },
+  "phase": "Phase 0 asset audit",
+  "predictions": {
+    "exists": true,
+    "methods": [
+      {
+        "mesh_count": 8,
+        "name": "exp1_paper_nlf",
+        "result_pickle_count": 8,
+        "sample": {
+          "fields": {
+            "K": {
+              "dtype": "float64",
+              "shape": [
+                3,
+                3
+              ]
+            },
+            "betas": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "body_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                63
+              ]
+            },
+            "body_pose_fore": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "body_pose_op": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                18
+              ]
+            },
+            "expression": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "global_orient": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "jaw_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "left_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "leye_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "reye_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "right_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "transl": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            }
+          },
+          "path": "outputs/exp1_paper_nlf/Glas/smplifyx/results/low_104.pkl",
+          "required_fields": {
+            "betas": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "body_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                63
+              ]
+            },
+            "expression": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "global_orient": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "left_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "right_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "transl": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            }
+          }
+        },
+        "sample_load_error": null,
+        "signs_with_meshes": 1,
+        "signs_with_results": 1
+      },
+      {
+        "mesh_count": 35,
+        "name": "exp2_base_nlf",
+        "result_pickle_count": 35,
+        "sample": {
+          "fields": {
+            "K": {
+              "dtype": "float64",
+              "shape": [
+                3,
+                3
+              ]
+            },
+            "betas": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "body_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                63
+              ]
+            },
+            "body_pose_fore": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "body_pose_op": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                18
+              ]
+            },
+            "expression": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "global_orient": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "jaw_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "left_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "leye_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "reye_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "right_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "transl": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            }
+          },
+          "path": "outputs/exp2_base_nlf/Ablehnen/smplifyx/results/low_149.pkl",
+          "required_fields": {
+            "betas": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "body_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                63
+              ]
+            },
+            "expression": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "global_orient": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "left_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "right_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "transl": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            }
+          }
+        },
+        "sample_load_error": null,
+        "signs_with_meshes": 3,
+        "signs_with_results": 3
+      },
+      {
+        "mesh_count": 1450,
+        "name": "method_biomech",
+        "result_pickle_count": 1450,
+        "sample": {
+          "fields": {
+            "K": {
+              "dtype": "float64",
+              "shape": [
+                3,
+                3
+              ]
+            },
+            "betas": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "body_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                63
+              ]
+            },
+            "body_pose_fore": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "body_pose_op": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                18
+              ]
+            },
+            "expression": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "global_orient": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "jaw_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "left_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "leye_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "reye_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "right_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "transl": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            }
+          },
+          "path": "outputs/method_biomech/Ablehnen/smplifyx/results/low_149.pkl",
+          "required_fields": {
+            "betas": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "body_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                63
+              ]
+            },
+            "expression": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "global_orient": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "left_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "right_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "transl": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            }
+          }
+        },
+        "sample_load_error": null,
+        "signs_with_meshes": 57,
+        "signs_with_results": 57
+      },
+      {
+        "mesh_count": 0,
+        "name": "method_biomech_paper",
+        "result_pickle_count": 0,
+        "sample": null,
+        "sample_load_error": null,
+        "signs_with_meshes": 0,
+        "signs_with_results": 0
+      },
+      {
+        "mesh_count": 1439,
+        "name": "method_direct",
+        "result_pickle_count": 1439,
+        "sample": {
+          "fields": {
+            "K": {
+              "dtype": "float64",
+              "shape": [
+                3,
+                3
+              ]
+            },
+            "betas": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "body_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                63
+              ]
+            },
+            "body_pose_fore": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "body_pose_op": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                18
+              ]
+            },
+            "expression": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "global_orient": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "jaw_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "left_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "leye_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "reye_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "right_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "transl": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            }
+          },
+          "path": "outputs/method_direct/Ablehnen/smplifyx/results/low_149.pkl",
+          "required_fields": {
+            "betas": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "body_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                63
+              ]
+            },
+            "expression": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "global_orient": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "left_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "right_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "transl": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            }
+          }
+        },
+        "sample_load_error": null,
+        "signs_with_meshes": 57,
+        "signs_with_results": 57
+      },
+      {
+        "mesh_count": 1450,
+        "name": "method_ensemble",
+        "result_pickle_count": 1450,
+        "sample": {
+          "fields": {
+            "K": {
+              "dtype": "float64",
+              "shape": [
+                3,
+                3
+              ]
+            },
+            "betas": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "body_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                63
+              ]
+            },
+            "body_pose_fore": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "body_pose_op": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                18
+              ]
+            },
+            "expression": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "global_orient": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "jaw_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "left_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "leye_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "reye_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "right_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "transl": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            }
+          },
+          "path": "outputs/method_ensemble/Ablehnen/smplifyx/results/low_149.pkl",
+          "required_fields": {
+            "betas": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "body_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                63
+              ]
+            },
+            "expression": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "global_orient": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "left_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "right_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "transl": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            }
+          }
+        },
+        "sample_load_error": null,
+        "signs_with_meshes": 57,
+        "signs_with_results": 57
+      },
+      {
+        "mesh_count": 1493,
+        "name": "method_hamer",
+        "result_pickle_count": 1493,
+        "sample": {
+          "fields": {
+            "K": {
+              "dtype": "float64",
+              "shape": [
+                3,
+                3
+              ]
+            },
+            "betas": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "body_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                63
+              ]
+            },
+            "body_pose_fore": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "body_pose_op": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                18
+              ]
+            },
+            "expression": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "global_orient": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "jaw_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "left_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "leye_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "reye_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "right_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "transl": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            }
+          },
+          "path": "outputs/method_hamer/Ablehnen/smplifyx/results/low_149.pkl",
+          "required_fields": {
+            "betas": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "body_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                63
+              ]
+            },
+            "expression": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "global_orient": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "left_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "right_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "transl": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            }
+          }
+        },
+        "sample_load_error": null,
+        "signs_with_meshes": 57,
+        "signs_with_results": 57
+      },
+      {
+        "mesh_count": 1450,
+        "name": "method_hand2d",
+        "result_pickle_count": 1450,
+        "sample": {
+          "fields": {
+            "K": {
+              "dtype": "float64",
+              "shape": [
+                3,
+                3
+              ]
+            },
+            "betas": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "body_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                63
+              ]
+            },
+            "body_pose_fore": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "body_pose_op": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                18
+              ]
+            },
+            "expression": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "global_orient": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "jaw_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "left_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "leye_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "reye_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "right_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "transl": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            }
+          },
+          "path": "outputs/method_hand2d/Ablehnen/smplifyx/results/low_149.pkl",
+          "required_fields": {
+            "betas": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "body_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                63
+              ]
+            },
+            "expression": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "global_orient": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "left_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "right_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "transl": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            }
+          }
+        },
+        "sample_load_error": null,
+        "signs_with_meshes": 57,
+        "signs_with_results": 57
+      },
+      {
+        "mesh_count": 1445,
+        "name": "method_nlf_dposerx_hposer",
+        "result_pickle_count": 1445,
+        "sample": {
+          "fields": {
+            "K": {
+              "dtype": "float64",
+              "shape": [
+                3,
+                3
+              ]
+            },
+            "betas": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "body_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                63
+              ]
+            },
+            "body_pose_fore": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "body_pose_op": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                18
+              ]
+            },
+            "expression": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "global_orient": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "jaw_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "left_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "leye_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "reye_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "right_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "transl": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            }
+          },
+          "path": "outputs/method_nlf_dposerx_hposer/Ablehnen/smplifyx/results/low_149.pkl",
+          "required_fields": {
+            "betas": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "body_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                63
+              ]
+            },
+            "expression": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "global_orient": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "left_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "right_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "transl": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            }
+          }
+        },
+        "sample_load_error": null,
+        "signs_with_meshes": 57,
+        "signs_with_results": 57
+      },
+      {
+        "mesh_count": 338,
+        "name": "method_nlf_dposerx_sign",
+        "result_pickle_count": 338,
+        "sample": {
+          "fields": {
+            "K": {
+              "dtype": "float64",
+              "shape": [
+                3,
+                3
+              ]
+            },
+            "betas": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "body_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                63
+              ]
+            },
+            "body_pose_fore": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "body_pose_op": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                18
+              ]
+            },
+            "expression": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "global_orient": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "jaw_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "left_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "leye_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "reye_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "right_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "transl": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            }
+          },
+          "path": "outputs/method_nlf_dposerx_sign/Ablehnen/smplifyx/results/low_149.pkl",
+          "required_fields": {
+            "betas": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "body_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                63
+              ]
+            },
+            "expression": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "global_orient": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "left_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "right_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "transl": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            }
+          }
+        },
+        "sample_load_error": null,
+        "signs_with_meshes": 14,
+        "signs_with_results": 14
+      },
+      {
+        "mesh_count": 53,
+        "name": "method_nlf_dposerx_sign_v2",
+        "result_pickle_count": 57,
+        "sample": {
+          "fields": {
+            "K": {
+              "dtype": "float64",
+              "shape": [
+                3,
+                3
+              ]
+            },
+            "betas": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "body_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                63
+              ]
+            },
+            "body_pose_fore": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "body_pose_op": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                18
+              ]
+            },
+            "expression": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "global_orient": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "jaw_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "left_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "leye_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "reye_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "right_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "transl": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            }
+          },
+          "path": "outputs/method_nlf_dposerx_sign_v2/Ablehnen/smplifyx/results/low_149.pkl",
+          "required_fields": {
+            "betas": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "body_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                63
+              ]
+            },
+            "expression": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "global_orient": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "left_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "right_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "transl": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            }
+          }
+        },
+        "sample_load_error": null,
+        "signs_with_meshes": 3,
+        "signs_with_results": 3
+      },
+      {
+        "mesh_count": 312,
+        "name": "method_nlf_vqvae_dposerx",
+        "result_pickle_count": 63,
+        "sample": {
+          "fields": {
+            "K": {
+              "dtype": "float64",
+              "shape": [
+                3,
+                3
+              ]
+            },
+            "betas": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "body_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                63
+              ]
+            },
+            "body_pose_fore": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "body_pose_op": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                18
+              ]
+            },
+            "expression": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "global_orient": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "jaw_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "left_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "leye_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "reye_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "right_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "transl": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            }
+          },
+          "path": "outputs/method_nlf_vqvae_dposerx/Ablehnen/smplifyx/results/low_149.pkl",
+          "required_fields": {
+            "betas": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "body_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                63
+              ]
+            },
+            "expression": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "global_orient": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "left_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "right_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "transl": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            }
+          }
+        },
+        "sample_load_error": null,
+        "signs_with_meshes": 57,
+        "signs_with_results": 4
+      },
+      {
+        "mesh_count": 1450,
+        "name": "method_nlf_wilor",
+        "result_pickle_count": 1450,
+        "sample": {
+          "fields": {
+            "K": {
+              "dtype": "float64",
+              "shape": [
+                3,
+                3
+              ]
+            },
+            "betas": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "body_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                63
+              ]
+            },
+            "body_pose_fore": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "body_pose_op": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                18
+              ]
+            },
+            "expression": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "global_orient": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "jaw_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "left_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "leye_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "reye_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "right_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "transl": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            }
+          },
+          "path": "outputs/method_nlf_wilor/Ablehnen/smplifyx/results/low_149.pkl",
+          "required_fields": {
+            "betas": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "body_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                63
+              ]
+            },
+            "expression": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "global_orient": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "left_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "right_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "transl": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            }
+          }
+        },
+        "sample_load_error": null,
+        "signs_with_meshes": 57,
+        "signs_with_results": 57
+      },
+      {
+        "mesh_count": 0,
+        "name": "output",
+        "result_pickle_count": 0,
+        "sample": null,
+        "sample_load_error": null,
+        "signs_with_meshes": 0,
+        "signs_with_results": 0
+      },
+      {
+        "mesh_count": 1429,
+        "name": "output_baseline",
+        "result_pickle_count": 1429,
+        "sample": {
+          "fields": {
+            "K": {
+              "dtype": "float64",
+              "shape": [
+                3,
+                3
+              ]
+            },
+            "betas": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "body_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                63
+              ]
+            },
+            "body_pose_fore": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "body_pose_op": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                18
+              ]
+            },
+            "expression": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "global_orient": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "jaw_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "left_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "leye_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "reye_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "right_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "transl": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            }
+          },
+          "path": "outputs/output_baseline/Ablehnen/smplifyx/results/low_149.pkl",
+          "required_fields": {
+            "betas": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "body_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                63
+              ]
+            },
+            "expression": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "global_orient": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "left_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "right_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "transl": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            }
+          }
+        },
+        "sample_load_error": null,
+        "signs_with_meshes": 56,
+        "signs_with_results": 56
+      },
+      {
+        "mesh_count": 14,
+        "name": "output_test_baseline",
+        "result_pickle_count": 14,
+        "sample": {
+          "fields": {
+            "K": {
+              "dtype": "float64",
+              "shape": [
+                3,
+                3
+              ]
+            },
+            "betas": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "body_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                63
+              ]
+            },
+            "body_pose_fore": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "body_pose_op": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                18
+              ]
+            },
+            "expression": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "global_orient": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "jaw_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "left_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "leye_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "reye_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "right_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "transl": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            }
+          },
+          "path": "outputs/output_test_baseline/Ablehnen/smplifyx/results/low_149.pkl",
+          "required_fields": {
+            "betas": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "body_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                63
+              ]
+            },
+            "expression": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "global_orient": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "left_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "right_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "transl": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            }
+          }
+        },
+        "sample_load_error": null,
+        "signs_with_meshes": 1,
+        "signs_with_results": 1
+      },
+      {
+        "mesh_count": 1450,
+        "name": "output_wilor",
+        "result_pickle_count": 1450,
+        "sample": {
+          "fields": {
+            "K": {
+              "dtype": "float64",
+              "shape": [
+                3,
+                3
+              ]
+            },
+            "betas": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "body_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                63
+              ]
+            },
+            "body_pose_fore": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "body_pose_op": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                18
+              ]
+            },
+            "expression": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "global_orient": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "jaw_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "left_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "leye_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "reye_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "right_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "transl": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            }
+          },
+          "path": "outputs/output_wilor/Ablehnen/smplifyx/results/low_149.pkl",
+          "required_fields": {
+            "betas": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "body_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                63
+              ]
+            },
+            "expression": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "global_orient": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "left_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "right_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "transl": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            }
+          }
+        },
+        "sample_load_error": null,
+        "signs_with_meshes": 57,
+        "signs_with_results": 57
+      },
+      {
+        "mesh_count": 31,
+        "name": "output_wilor_hand2d",
+        "result_pickle_count": 31,
+        "sample": {
+          "fields": {
+            "K": {
+              "dtype": "float64",
+              "shape": [
+                3,
+                3
+              ]
+            },
+            "betas": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "body_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                63
+              ]
+            },
+            "body_pose_fore": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "body_pose_op": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                18
+              ]
+            },
+            "expression": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "global_orient": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "jaw_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "left_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "leye_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "reye_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "right_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "transl": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            }
+          },
+          "path": "outputs/output_wilor_hand2d/Akzeptieren/smplifyx/results/low_124.pkl",
+          "required_fields": {
+            "betas": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "body_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                63
+              ]
+            },
+            "expression": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                10
+              ]
+            },
+            "global_orient": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            },
+            "left_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "right_hand_pose": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                45
+              ]
+            },
+            "transl": {
+              "dtype": "float32",
+              "shape": [
+                1,
+                3
+              ]
+            }
+          }
+        },
+        "sample_load_error": null,
+        "signs_with_meshes": 1,
+        "signs_with_results": 1
+      },
+      {
+        "mesh_count": 0,
+        "name": "output_wilor_temporal",
+        "result_pickle_count": 0,
+        "sample": null,
+        "sample_load_error": null,
+        "signs_with_meshes": 0,
+        "signs_with_results": 0
+      },
+      {
+        "mesh_count": 0,
+        "name": "shared",
+        "result_pickle_count": 0,
+        "sample": null,
+        "sample_load_error": null,
+        "signs_with_meshes": 0,
+        "signs_with_results": 0
+      }
+    ],
+    "root": "/home/haipd/DexAvatar/outputs"
+  },
+  "rectifier": {
+    "assessment": "A reusable GT hand-pose rectifier requires an implementation that transforms 15-joint poses with per-joint bend/splay/twist limits and MANO/SMPL-X axis alignment. Generic camera rectification and scalar hand-pose penalties do not qualify.",
+    "related_code": [
+      {
+        "matches": [
+          {
+            "line": 11,
+            "text": "python eval_mpvpe_regions.py --methods biomech hand2d --output_csv results/mpvpe_comparison.csv"
+          },
+          {
+            "line": 331,
+            "text": "ap.add_argument(\"--methods\", nargs=\"+\", default=[\"method_biomech\", \"method_hand2d\"],"
+          }
+        ],
+        "path": "evaluation/eval_mpvpe_regions.py"
+      },
+      {
+        "matches": [
+          {
+            "line": 8,
+            "text": "--methods method_biomech method_hand2d method_hamer output_wilor \\"
+          },
+          {
+            "line": 9,
+            "text": "--method_names \"DexAvatar-Biomech\" \"DexAvatar-Hand2D\" \"DexAvatar-HaMeR\" \"DexAvatar-WiLoR\" \\"
+          }
+        ],
+        "path": "evaluation/eval_mpvpe_common_frames.py"
+      },
+      {
+        "matches": [
+          {
+            "line": 6,
+            "text": "(temporal, hand2d, ensemble, biomech) continue to work unchanged)."
+          }
+        ],
+        "path": "methods/run_dexavatar_wilor_vqvae_dposerx.py"
+      },
+      {
+        "matches": [
+          {
+            "line": 1015,
+            "text": "'use_hand2d_supervision', 'use_sign_biomechanics',"
+          }
+        ],
+        "path": "dexavatar_fitting/smplifyx/fit_single_frame.py"
+      }
+    ],
+    "reusable_candidates": [],
+    "reusable_rectifier_found": false
+  },
+  "region_masks": {
+    "LHand": {
+      "max": 5394,
+      "min": 4595,
+      "sha256": "e5abe70b6574de25470475091e8008314a5b90127eb48c3e63bfa0adf8c04dcf",
+      "size": 778
+    },
+    "RHand": {
+      "max": 8128,
+      "min": 7331,
+      "sha256": "e5abe70b6574de25470475091e8008314a5b90127eb48c3e63bfa0adf8c04dcf",
+      "size": 778
+    },
+    "UBody(-F)": {
+      "max": 10474,
+      "min": 0,
+      "sha256": "39e3108e1c2ffb3afd08c3a9eafa24d1db9a432bee5fa50db843e5d627087cf6",
+      "size": 7279
+    },
+    "mano_path": "data/evaluation_from_author/data/data/MANO_SMPLX_vertex_ids.pkl",
+    "root": "/home/haipd/DexAvatar/data/evaluation_from_author/data/data",
+    "ubody_minus_face_path": "data/evaluation_from_author/data/data/sgnify_part_segm_above_pelvis_joint/upper_body_minus_face.npy"
+  },
+  "repo": "/home/haipd/DexAvatar",
+  "runtime": {
+    "all_required_assets_present": true,
+    "canonical_launcher": "scripts/exp1_paper_nlf_fit.sh",
+    "measured": false,
+    "reason": "Phase 0 does not run an upstream launcher that writes outside probes/. A probe-owned output redirect is not part of the audit-only phase.",
+    "required_assets": {
+      "config": {
+        "exists": true,
+        "path": "/home/haipd/DexAvatar/dexavatar_fitting/cfg_files/fit_smplx_vposer_x_paper.yaml"
+      },
+      "frames": {
+        "exists": true,
+        "path": "/home/haipd/DexAvatar/data/frames"
+      },
+      "inputs": {
+        "exists": true,
+        "path": "/home/haipd/DexAvatar/outputs/method_nlf_wilor"
+      },
+      "launcher": {
+        "exists": true,
+        "path": "/home/haipd/DexAvatar/scripts/exp1_paper_nlf_fit.sh"
+      },
+      "models": {
+        "exists": true,
+        "path": "/home/haipd/DexAvatar/SMPLer-X/common/utils/human_model_files"
+      }
+    }
+  },
+  "schema_version": 1,
+  "smplx_models": {
+    "evaluator_behavior": "loads neutral NPZ J_regressor directly; does not instantiate SMPL-X",
+    "models": [
+      {
+        "arrays": {
+          "J_regressor": {
+            "dtype": "float32",
+            "shape": [
+              55,
+              10475
+            ]
+          },
+          "hands_componentsl": {
+            "dtype": "float32",
+            "shape": [
+              45,
+              45
+            ]
+          },
+          "hands_componentsr": {
+            "dtype": "float32",
+            "shape": [
+              45,
+              45
+            ]
+          },
+          "posedirs": {
+            "dtype": "float32",
+            "shape": [
+              10475,
+              3,
+              486
+            ]
+          },
+          "shapedirs": {
+            "dtype": "float64",
+            "shape": [
+              10475,
+              3,
+              400
+            ]
+          },
+          "v_template": {
+            "dtype": "float32",
+            "shape": [
+              10475,
+              3
+            ]
+          },
+          "weights": {
+            "dtype": "float32",
+            "shape": [
+              10475,
+              55
+            ]
+          }
+        },
+        "loadable": true,
+        "path": "LHM-plusplus/pretrained_models/huggingface/models--3DAIGC--LHMPP-Prior/snapshots/b683c8f68bede4f318b0bb539730b8e6711d30a0/human_model_files/smplx/SMPLX_FEMALE.npz",
+        "sha256": "b2a3686c9d6d218ff6822fba411c607a3c8125a70af340f384ce68bebecabe0e",
+        "size_bytes": 108794146
+      },
+      {
+        "arrays": {
+          "J_regressor": {
+            "dtype": "float32",
+            "shape": [
+              55,
+              10475
+            ]
+          },
+          "hands_componentsl": {
+            "dtype": "float32",
+            "shape": [
+              45,
+              45
+            ]
+          },
+          "hands_componentsr": {
+            "dtype": "float32",
+            "shape": [
+              45,
+              45
+            ]
+          },
+          "posedirs": {
+            "dtype": "float32",
+            "shape": [
+              10475,
+              3,
+              486
+            ]
+          },
+          "shapedirs": {
+            "dtype": "float64",
+            "shape": [
+              10475,
+              3,
+              400
+            ]
+          },
+          "v_template": {
+            "dtype": "float32",
+            "shape": [
+              10475,
+              3
+            ]
+          },
+          "weights": {
+            "dtype": "float32",
+            "shape": [
+              10475,
+              55
+            ]
+          }
+        },
+        "loadable": true,
+        "path": "LHM-plusplus/pretrained_models/huggingface/models--3DAIGC--LHMPP-Prior/snapshots/b683c8f68bede4f318b0bb539730b8e6711d30a0/human_model_files/smplx/SMPLX_MALE.npz",
+        "sha256": "ab318e3f37d2bfaae26abf4e6fab445c2a610e1d63714794d60379cc263bc2a5",
+        "size_bytes": 108753445
+      },
+      {
+        "arrays": {
+          "J_regressor": {
+            "dtype": "float32",
+            "shape": [
+              55,
+              10475
+            ]
+          },
+          "hands_componentsl": {
+            "dtype": "float32",
+            "shape": [
+              45,
+              45
+            ]
+          },
+          "hands_componentsr": {
+            "dtype": "float32",
+            "shape": [
+              45,
+              45
+            ]
+          },
+          "posedirs": {
+            "dtype": "float32",
+            "shape": [
+              10475,
+              3,
+              486
+            ]
+          },
+          "shapedirs": {
+            "dtype": "float64",
+            "shape": [
+              10475,
+              3,
+              400
+            ]
+          },
+          "v_template": {
+            "dtype": "float32",
+            "shape": [
+              10475,
+              3
+            ]
+          },
+          "weights": {
+            "dtype": "float32",
+            "shape": [
+              10475,
+              55
+            ]
+          }
+        },
+        "loadable": true,
+        "path": "LHM-plusplus/pretrained_models/huggingface/models--3DAIGC--LHMPP-Prior/snapshots/b683c8f68bede4f318b0bb539730b8e6711d30a0/human_model_files/smplx/SMPLX_NEUTRAL.npz",
+        "sha256": "376021446ddc86e99acacd795182bbef903e61d33b76b9d8b359c2b0865bd992",
+        "size_bytes": 108752058
+      },
+      {
+        "arrays": {
+          "J_regressor": {
+            "dtype": "float32",
+            "shape": [
+              55,
+              10475
+            ]
+          },
+          "hands_componentsl": {
+            "dtype": "float32",
+            "shape": [
+              45,
+              45
+            ]
+          },
+          "hands_componentsr": {
+            "dtype": "float32",
+            "shape": [
+              45,
+              45
+            ]
+          },
+          "posedirs": {
+            "dtype": "float32",
+            "shape": [
+              10475,
+              3,
+              486
+            ]
+          },
+          "shapedirs": {
+            "dtype": "float64",
+            "shape": [
+              10475,
+              3,
+              400
+            ]
+          },
+          "v_template": {
+            "dtype": "float32",
+            "shape": [
+              10475,
+              3
+            ]
+          },
+          "weights": {
+            "dtype": "float32",
+            "shape": [
+              10475,
+              55
+            ]
+          }
+        },
+        "loadable": true,
+        "path": "SMPLer-X/common/utils/human_model_files/smplx/SMPLX_FEMALE.npz",
+        "sha256": "b2a3686c9d6d218ff6822fba411c607a3c8125a70af340f384ce68bebecabe0e",
+        "size_bytes": 108794146
+      },
+      {
+        "arrays": {
+          "J_regressor": {
+            "dtype": "float32",
+            "shape": [
+              55,
+              10475
+            ]
+          },
+          "hands_componentsl": {
+            "dtype": "float32",
+            "shape": [
+              45,
+              45
+            ]
+          },
+          "hands_componentsr": {
+            "dtype": "float32",
+            "shape": [
+              45,
+              45
+            ]
+          },
+          "posedirs": {
+            "dtype": "float32",
+            "shape": [
+              10475,
+              3,
+              486
+            ]
+          },
+          "shapedirs": {
+            "dtype": "float64",
+            "shape": [
+              10475,
+              3,
+              400
+            ]
+          },
+          "v_template": {
+            "dtype": "float32",
+            "shape": [
+              10475,
+              3
+            ]
+          },
+          "weights": {
+            "dtype": "float32",
+            "shape": [
+              10475,
+              55
+            ]
+          }
+        },
+        "loadable": true,
+        "path": "SMPLer-X/common/utils/human_model_files/smplx/SMPLX_MALE.npz",
+        "sha256": "ab318e3f37d2bfaae26abf4e6fab445c2a610e1d63714794d60379cc263bc2a5",
+        "size_bytes": 108753445
+      },
+      {
+        "arrays": {
+          "J_regressor": {
+            "dtype": "float32",
+            "shape": [
+              55,
+              10475
+            ]
+          },
+          "hands_componentsl": {
+            "dtype": "float32",
+            "shape": [
+              45,
+              45
+            ]
+          },
+          "hands_componentsr": {
+            "dtype": "float32",
+            "shape": [
+              45,
+              45
+            ]
+          },
+          "posedirs": {
+            "dtype": "float32",
+            "shape": [
+              10475,
+              3,
+              486
+            ]
+          },
+          "shapedirs": {
+            "dtype": "float64",
+            "shape": [
+              10475,
+              3,
+              400
+            ]
+          },
+          "v_template": {
+            "dtype": "float32",
+            "shape": [
+              10475,
+              3
+            ]
+          },
+          "weights": {
+            "dtype": "float32",
+            "shape": [
+              10475,
+              55
+            ]
+          }
+        },
+        "loadable": true,
+        "path": "SMPLer-X/common/utils/human_model_files/smplx/SMPLX_NEUTRAL.npz",
+        "sha256": "376021446ddc86e99acacd795182bbef903e61d33b76b9d8b359c2b0865bd992",
+        "size_bytes": 108752058
+      },
+      {
+        "keys": [
+          "J_regressor",
+          "dynamic_lmk_bary_coords",
+          "dynamic_lmk_faces_idx",
+          "f",
+          "ft",
+          "hands_coeffsl",
+          "hands_coeffsr",
+          "hands_componentsl",
+          "hands_componentsr",
+          "hands_meanl",
+          "hands_meanr",
+          "joint2num",
+          "kintree_table",
+          "lmk_bary_coords",
+          "lmk_faces_idx",
+          "part2num",
+          "posedirs",
+          "shapedirs",
+          "v_template",
+          "vt",
+          "weights"
+        ],
+        "loadable": true,
+        "path": "SMPLer-X/common/utils/human_model_files/smplx/SMPLX_NEUTRAL.pkl",
+        "sha256": "381c808965deb4f5e845f8c3eddb0cd69930cc72e5774ce4f34c4ce3cf058361",
+        "size_bytes": 544173380
+      },
+      {
+        "arrays": {
+          "J_regressor": {
+            "dtype": "float32",
+            "shape": [
+              55,
+              10475
+            ]
+          },
+          "hands_componentsl": {
+            "dtype": "float32",
+            "shape": [
+              45,
+              45
+            ]
+          },
+          "hands_componentsr": {
+            "dtype": "float32",
+            "shape": [
+              45,
+              45
+            ]
+          },
+          "posedirs": {
+            "dtype": "float32",
+            "shape": [
+              10475,
+              3,
+              486
+            ]
+          },
+          "shapedirs": {
+            "dtype": "float64",
+            "shape": [
+              10475,
+              3,
+              400
+            ]
+          },
+          "v_template": {
+            "dtype": "float32",
+            "shape": [
+              10475,
+              3
+            ]
+          },
+          "weights": {
+            "dtype": "float32",
+            "shape": [
+              10475,
+              55
+            ]
+          }
+        },
+        "loadable": true,
+        "path": "data/ARCTIC/body_models/smplx/SMPLX_FEMALE.npz",
+        "sha256": "b2a3686c9d6d218ff6822fba411c607a3c8125a70af340f384ce68bebecabe0e",
+        "size_bytes": 108794146
+      },
+      {
+        "arrays": {
+          "J_regressor": {
+            "dtype": "float32",
+            "shape": [
+              55,
+              10475
+            ]
+          },
+          "hands_componentsl": {
+            "dtype": "float32",
+            "shape": [
+              45,
+              45
+            ]
+          },
+          "hands_componentsr": {
+            "dtype": "float32",
+            "shape": [
+              45,
+              45
+            ]
+          },
+          "posedirs": {
+            "dtype": "float32",
+            "shape": [
+              10475,
+              3,
+              486
+            ]
+          },
+          "shapedirs": {
+            "dtype": "float64",
+            "shape": [
+              10475,
+              3,
+              400
+            ]
+          },
+          "v_template": {
+            "dtype": "float32",
+            "shape": [
+              10475,
+              3
+            ]
+          },
+          "weights": {
+            "dtype": "float32",
+            "shape": [
+              10475,
+              55
+            ]
+          }
+        },
+        "loadable": true,
+        "path": "data/ARCTIC/body_models/smplx/SMPLX_MALE.npz",
+        "sha256": "ab318e3f37d2bfaae26abf4e6fab445c2a610e1d63714794d60379cc263bc2a5",
+        "size_bytes": 108753445
+      },
+      {
+        "arrays": {
+          "J_regressor": {
+            "dtype": "float32",
+            "shape": [
+              55,
+              10475
+            ]
+          },
+          "hands_componentsl": {
+            "dtype": "float32",
+            "shape": [
+              45,
+              45
+            ]
+          },
+          "hands_componentsr": {
+            "dtype": "float32",
+            "shape": [
+              45,
+              45
+            ]
+          },
+          "posedirs": {
+            "dtype": "float32",
+            "shape": [
+              10475,
+              3,
+              486
+            ]
+          },
+          "shapedirs": {
+            "dtype": "float64",
+            "shape": [
+              10475,
+              3,
+              400
+            ]
+          },
+          "v_template": {
+            "dtype": "float32",
+            "shape": [
+              10475,
+              3
+            ]
+          },
+          "weights": {
+            "dtype": "float32",
+            "shape": [
+              10475,
+              55
+            ]
+          }
+        },
+        "loadable": true,
+        "path": "data/ARCTIC/body_models/smplx/SMPLX_NEUTRAL.npz",
+        "sha256": "376021446ddc86e99acacd795182bbef903e61d33b76b9d8b359c2b0865bd992",
+        "size_bytes": 108752058
+      },
+      {
+        "keys": [
+          "J_regressor",
+          "dynamic_lmk_bary_coords",
+          "dynamic_lmk_faces_idx",
+          "f",
+          "ft",
+          "hands_coeffsl",
+          "hands_coeffsr",
+          "hands_componentsl",
+          "hands_componentsr",
+          "hands_meanl",
+          "hands_meanr",
+          "joint2num",
+          "kintree_table",
+          "lmk_bary_coords",
+          "lmk_faces_idx",
+          "part2num",
+          "posedirs",
+          "shapedirs",
+          "v_template",
+          "vt",
+          "weights"
+        ],
+        "loadable": true,
+        "path": "data/ARCTIC/body_models/smplx/SMPLX_NEUTRAL.pkl",
+        "sha256": "381c808965deb4f5e845f8c3eddb0cd69930cc72e5774ce4f34c4ce3cf058361",
+        "size_bytes": 544173380
+      },
+      {
+        "arrays": {
+          "J_regressor": {
+            "dtype": "float32",
+            "shape": [
+              55,
+              10475
+            ]
+          },
+          "hands_componentsl": {
+            "dtype": "float32",
+            "shape": [
+              45,
+              45
+            ]
+          },
+          "hands_componentsr": {
+            "dtype": "float32",
+            "shape": [
+              45,
+              45
+            ]
+          },
+          "posedirs": {
+            "dtype": "float32",
+            "shape": [
+              10475,
+              3,
+              486
+            ]
+          },
+          "shapedirs": {
+            "dtype": "float64",
+            "shape": [
+              10475,
+              3,
+              400
+            ]
+          },
+          "v_template": {
+            "dtype": "float32",
+            "shape": [
+              10475,
+              3
+            ]
+          },
+          "weights": {
+            "dtype": "float32",
+            "shape": [
+              10475,
+              55
+            ]
+          }
+        },
+        "loadable": true,
+        "path": "data/evaluation_from_author/data/data/SMPLX_NEUTRAL.npz",
+        "sha256": "376021446ddc86e99acacd795182bbef903e61d33b76b9d8b359c2b0865bd992",
+        "size_bytes": 108752058
+      },
+      {
+        "keys": [
+          "J_regressor",
+          "dynamic_lmk_bary_coords",
+          "dynamic_lmk_faces_idx",
+          "f",
+          "ft",
+          "hands_coeffsl",
+          "hands_coeffsr",
+          "hands_componentsl",
+          "hands_componentsr",
+          "hands_meanl",
+          "hands_meanr",
+          "joint2num",
+          "kintree_table",
+          "lmk_bary_coords",
+          "lmk_faces_idx",
+          "part2num",
+          "posedirs",
+          "shapedirs",
+          "v_template",
+          "vt",
+          "weights"
+        ],
+        "loadable": true,
+        "path": "evaluation/SMPLer-X/common/utils/human_model_files/smplx/SMPLX_NEUTRAL.pkl",
+        "sha256": "381c808965deb4f5e845f8c3eddb0cd69930cc72e5774ce4f34c4ce3cf058361",
+        "size_bytes": 544173380
+      }
+    ],
+    "paper_config_relevant_lines": [
+      "gender: \"neutral\"",
+      "use_pca: True",
+      "flat_hand_mean: False",
+      "num_pca_comps: 12"
+    ]
+  },
+  "started_utc": "2026-07-22T02:29:25.525620+00:00"
+}
