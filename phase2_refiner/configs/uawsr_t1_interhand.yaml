@@ -1,9 +1,9 @@
 seed: 42
-output_dir: outputs/phase2_training/uawsr_u0
+output_dir: outputs/phase2_training/t1_interhand_seed42
 
 data:
-  train_glob: cache/phase2/v2/splits/train.json
-  val_glob: cache/phase2/v2/splits/val.json
+  train_glob: cache/phase2/interhand_t1_v1/splits/train.json
+  val_glob: cache/phase2/interhand_t1_v1/splits/val.json
 
 model:
   input_dim: 43
@@ -20,11 +20,11 @@ model:
 
 loss:
   rotation_weight: 1.0
-  vertex_weight: 0.25
-  joint_weight: 0.5
-  fingertip_weight: 0.5
-  palm_weight: 0.1
-  observation_weight: 0.1
+  vertex_weight: 0.0
+  joint_weight: 0.25
+  fingertip_weight: 0.25
+  palm_weight: 0.05
+  observation_weight: 0.05
   velocity_weight: 0.25
   acceleration_weight: 0.1
   anchor_weight: 0.05
@@ -33,7 +33,7 @@ loss:
 
 training:
   batch_size: 8
-  gradient_accumulation: 4
+  gradient_accumulation: 2
   workers: 0
   bucket_by_length: true
   learning_rate: 0.0002
@@ -42,11 +42,11 @@ training:
   gradient_clip: 1.0
   precision: bf16
   ema_decay: 0.999
-  max_steps: 100000
-  log_every: 20
-  validate_every: 500
-  checkpoint_every: 2000
-  early_stopping_patience: 20
+  max_steps: 5000
+  log_every: 10
+  validate_every: 250
+  checkpoint_every: 500
+  early_stopping_patience: 12
   uncertainty_only_steps: 0
 
 corruption:
@@ -55,15 +55,24 @@ corruption:
   max_duration: 16
   max_rotation_degrees: 35.0
   modes:
-    - upper_body
     - left_hand
     - right_hand
     - both_hands
     - finger_chain
-    - wrist_attachment
     - keypoint_dropout
     - hand_swap
     - crop_truncation
+
+validation_corruption:
+  probability: 1.0
+  min_duration: 4
+  max_duration: 16
+  max_rotation_degrees: 35.0
+  modes:
+    - left_hand
+    - right_hand
+    - both_hands
+    - finger_chain
 
 geometry:
   enabled: false

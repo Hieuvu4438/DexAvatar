@@ -10,6 +10,8 @@ from pathlib import Path
 
 import numpy as np
 
+from phase2_refiner.provenance import sha256_file
+
 
 REGIONS = ("ubody", "lhand", "rhand")
 
@@ -116,6 +118,11 @@ def evaluate(
         manifest_rows = list(csv.DictReader(handle))
     if not manifest_rows:
         raise ValueError("Evaluation manifest is empty")
+    manifest_ids = [
+        (row["sign"], Path(row["prediction_path"]).name) for row in manifest_rows
+    ]
+    if len(manifest_ids) != len(set(manifest_ids)):
+        raise ValueError("Evaluation manifest contains duplicate sign/frame rows")
     with (assets_root / "MANO_SMPLX_vertex_ids.pkl").open("rb") as handle:
         import pickle
 
@@ -168,6 +175,7 @@ def evaluate(
             if not np.array_equal(baseline_faces, target_faces):
                 raise ValueError(f"Topology mismatch: {baseline_path} vs {gt_path}")
         left_evaluated = row["left_evaluated"].lower() == "true"
+        right_evaluated = row.get("right_evaluated", "true").lower() == "true"
         effective_upper = (
             upper_ids if left_evaluated else np.setdiff1d(upper_ids, left_ids)
         )
@@ -175,6 +183,11 @@ def evaluate(
         frame = {"sign": sign, "frame": Path(row["prediction_path"]).stem}
         for region, indices in regions.items():
             if region == "lhand" and not left_evaluated:
+                frame[f"prediction_{region}"] = ""
+                frame[f"baseline_{region}"] = ""
+                frame[f"vertices_{region}"] = ""
+                continue
+            if region == "rhand" and not right_evaluated:
                 frame[f"prediction_{region}"] = ""
                 frame[f"baseline_{region}"] = ""
                 frame[f"vertices_{region}"] = ""
@@ -217,6 +230,7 @@ def evaluate(
         "frames": len(frame_rows),
         "signs": len(grouped),
         "manifest": str(manifest_path.resolve()),
+        "manifest_sha256": sha256_file(manifest_path),
         "prediction_root": str(prediction_root.resolve()),
         "baseline_root": str(baseline_root.resolve()) if baseline_root else None,
         "prediction": {},
@@ -234,6 +248,28 @@ def evaluate(
             )
             summary["paired_bootstrap"][region] = _bootstrap_difference(
                 per_sign, region, bootstrap_samples, seed
+            )
+            differences = np.asarray(
+                [
+                    float(row[f"prediction_{region}"])
+                    - float(row[f"baseline_{region}"])
+                    for row in per_sign
+                    if row[f"prediction_{region}"] != ""
+                    and row[f"baseline_{region}"] != ""
+                ],
+                dtype=np.float64,
+            )
+            summary["paired_bootstrap"][region].update(
+                {
+                    "median_delta_mm": (
+                        float(np.median(differences)) if len(differences) else None
+                    ),
+                    "worst_decile_delta_mm": (
+                        float(np.quantile(differences, 0.9))
+                        if len(differences)
+                        else None
+                    ),
+                }
             )
 
     output_dir.mkdir(parents=True, exist_ok=True)

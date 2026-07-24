@@ -56,7 +56,10 @@ def matrix_to_quaternion(matrix: torch.Tensor) -> torch.Tensor:
                 ),
                 dim=-1,
             ),
-            min=0.0,
+            # A zero radicand occurs in three unselected quaternion branches
+            # even for a perfectly valid rotation.  sqrt'(0) is infinite and
+            # can poison differentiable SMPL-X decoding through gather.
+            min=1e-12,
         )
     )
     candidates = torch.stack(
@@ -81,10 +84,11 @@ def quaternion_to_axis_angle(quaternion: torch.Tensor) -> torch.Tensor:
     quaternion = F.normalize(quaternion, dim=-1)
     quaternion = torch.where(quaternion[..., :1] < 0.0, -quaternion, quaternion)
     vector = quaternion[..., 1:]
-    sin_half = torch.linalg.vector_norm(vector, dim=-1, keepdim=True)
+    sin_half_squared = vector.square().sum(dim=-1, keepdim=True)
+    sin_half = torch.sqrt(sin_half_squared.clamp_min(1e-12))
     angle = 2.0 * torch.atan2(sin_half, quaternion[..., :1].clamp_min(1e-12))
     scale = torch.where(
-        sin_half > 1e-8,
+        sin_half_squared > 1e-12,
         angle / sin_half,
         2.0 + angle * angle / 12.0,
     )
@@ -135,7 +139,10 @@ def matrix_to_rotation_6d(matrix: torch.Tensor) -> torch.Tensor:
 
 def geodesic_distance(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
     """Shortest angular distance between rotation matrices, in radians."""
-    relative = a @ b.transpose(-1, -2)
+    # BF16 rounds near-identity traces aggressively.  Compute the loss in
+    # float32 and make the exact-identity branch constant so the derivative of
+    # ||skew(R)|| at zero cannot produce NaN gradients.
+    relative = a.float() @ b.float().transpose(-1, -2)
     cosine = (relative.diagonal(dim1=-2, dim2=-1).sum(-1) - 1.0) * 0.5
     skew_vector = torch.stack(
         (
@@ -145,8 +152,10 @@ def geodesic_distance(a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         ),
         dim=-1,
     )
-    sine = 0.5 * torch.linalg.vector_norm(skew_vector, dim=-1)
-    return torch.atan2(sine, cosine.clamp(-1.0, 1.0))
+    skew_squared = skew_vector.square().sum(dim=-1)
+    sine = 0.5 * torch.sqrt(skew_squared.clamp_min(1e-12))
+    angle = torch.atan2(sine, cosine.clamp(-1.0, 1.0))
+    return torch.where(skew_squared > 1e-12, angle, torch.zeros_like(angle))
 
 
 def bound_rotation_vector(

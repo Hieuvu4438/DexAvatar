@@ -53,6 +53,15 @@ def calibration_metrics(error: np.ndarray, log_variance: np.ndarray) -> dict:
     monotonic = all(
         risks[index + 1] <= risks[index] + 1e-12 for index in range(len(risks) - 1)
     )
+    quantile_edges = np.quantile(uncertainty, np.linspace(0.0, 1.0, 11))
+    calibration_gaps = []
+    for low, high in zip(quantile_edges[:-1], quantile_edges[1:]):
+        selected = (uncertainty >= low) & (uncertainty <= high)
+        if selected.any():
+            calibration_gaps.append(
+                abs(float(uncertainty[selected].mean() - error[selected].mean()))
+            )
+    expected_calibration_error = float(np.mean(calibration_gaps))
     return {
         "observations": int(len(error)),
         "log_variance_offset": float(np.log(variance_scale)),
@@ -60,9 +69,22 @@ def calibration_metrics(error: np.ndarray, log_variance: np.ndarray) -> dict:
         "worst_decile_auc": auc,
         "risk_coverage": risk_coverage,
         "risk_monotonic": monotonic,
+        "expected_calibration_error": expected_calibration_error,
         "nll_before": nll_before,
         "nll_after": nll_after,
     }
+
+
+def calibration_gate(metrics: dict, group: str = "all") -> dict:
+    auc_threshold = 0.75 if "hand" in group.lower() else 0.70
+    checks = {
+        "spearman_at_least_0.35": metrics["spearman"] >= 0.35,
+        f"worst_decile_auc_at_least_{auc_threshold:.2f}": metrics["worst_decile_auc"]
+        >= auc_threshold,
+        "risk_monotonic": bool(metrics["risk_monotonic"]),
+        "calibrated_nll_improves": metrics["nll_after"] < metrics["nll_before"],
+    }
+    return {"passed": all(checks.values()), "checks": checks}
 
 
 def parse_args() -> argparse.Namespace:
@@ -87,15 +109,24 @@ def main() -> None:
             raise ValueError("Residual NPZ must contain error and log_variance")
         error = data["error"]
         log_variance = data["log_variance"]
-        report = {"all": calibration_metrics(error, log_variance)}
+        all_metrics = calibration_metrics(error, log_variance)
+        report = {"all": all_metrics, "gate": calibration_gate(all_metrics)}
         if "group" in data:
             groups = data["group"]
-            report["groups"] = {
+            group_metrics = {
                 str(group): calibration_metrics(
                     error[groups == group], log_variance[groups == group]
                 )
                 for group in np.unique(groups)
             }
+            report["groups"] = group_metrics
+            report["group_gates"] = {
+                group: calibration_gate(metrics, group)
+                for group, metrics in group_metrics.items()
+            }
+            report["gate"]["passed"] = report["gate"]["passed"] and all(
+                gate["passed"] for gate in report["group_gates"].values()
+            )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with args.output.open("w", encoding="utf-8") as handle:
         json.dump(report, handle, indent=2, sort_keys=True)

@@ -92,10 +92,17 @@ def render_result_directory(
     mesh_dir: str | Path,
     model_folder: str | Path,
     device: str | torch.device = "cpu",
+    overwrite: bool = False,
 ) -> int:
     device = torch.device(device)
     model = create_smplx_model(model_folder, device)
     result_paths = sorted(Path(result_dir).glob("*.pkl"), key=_frame_number)
+    targets = [Path(mesh_dir) / f"{path.stem}.obj" for path in result_paths]
+    existing = [path for path in targets if path.exists()]
+    if existing and not overwrite:
+        raise FileExistsError(
+            f"Refusing to overwrite {len(existing)} meshes; first: {existing[0]}"
+        )
     count = 0
     for result_path in result_paths:
         with result_path.open("rb") as handle:
@@ -113,6 +120,7 @@ def render_source_anchored_directory(
     source_paths: list[str] | np.ndarray,
     model_folder: str | Path,
     device: str | torch.device = "cpu",
+    overwrite: bool = False,
 ) -> int:
     """Apply Phase 2 model-space vertex deltas to the existing baseline meshes.
 
@@ -123,6 +131,12 @@ def render_source_anchored_directory(
     device = torch.device(device)
     model = None
     result_paths = sorted(Path(result_dir).glob("*.pkl"), key=_frame_number)
+    targets = [Path(mesh_dir) / f"{path.stem}.obj" for path in result_paths]
+    existing = [path for path in targets if path.exists()]
+    if existing and not overwrite:
+        raise FileExistsError(
+            f"Refusing to overwrite {len(existing)} meshes; first: {existing[0]}"
+        )
     source_by_name = {Path(path).stem: Path(path) for path in source_paths}
     count = 0
     for result_path in result_paths:

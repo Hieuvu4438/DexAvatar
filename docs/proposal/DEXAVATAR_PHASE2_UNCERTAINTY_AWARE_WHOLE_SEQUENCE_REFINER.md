@@ -972,11 +972,20 @@ The implementation was intentionally added as the isolated `phase2_refiner/` pac
 |---|---|
 | `phase2_refiner/__init__.py` | package/version entry point |
 | `phase2_refiner/config.py` | YAML configuration loading |
-| `phase2_refiner/data/cache_schema.py` | validated, versioned, non-pickle NPZ clip contract |
+| `phase2_refiner/data/cache_schema.py` | backward-compatible schema-v2 NPZ contract with timing, hashes, coordinate transforms, masked 2D/3D geometry, reliability, and optional targets |
 | `phase2_refiner/data/build_observation_cache.py` | read-only conversion of existing result/Sapiens/HaMeR-WiLoR artifacts into per-sign caches |
+| `phase2_refiner/data/build_sequence_index.py` | explicit source-/signer-disjoint train/validation/test/calibration manifests |
+| `phase2_refiner/data/providers.py` | provider-neutral interfaces for later external observation and target datasets |
 | `phase2_refiner/data/dataset.py` | padded/windowed whole-sequence loading, feature construction, and batching |
 | `phase2_refiner/data/corruptions.py` | contiguous body/left-hand/right-hand dropout and SO(3) perturbation |
 | `phase2_refiner/geometry/rotations.py` | differentiable axis-angle, matrix, 6D, quaternion, geodesic, bounded residual, and composition operations |
+| `phase2_refiner/geometry/coordinates.py` | validated homogeneous transforms and coordinate round trips |
+| `phase2_refiner/geometry/palm.py` | fixed hand ordering, fingertips, palm centers, and side-consistent normals |
+| `phase2_refiner/geometry/smplx_decode.py` | differentiable sequence decoding hook for geometry/vertex supervision |
+| `phase2_refiner/models/embeddings.py` | joint/group/time/reliability token embeddings |
+| `phase2_refiner/models/reliability.py` | fixed U0 and learned rotation/2D/3D U1 reliability |
+| `phase2_refiner/models/heads.py` | identity-safe rotation, gate, and joint-position heads |
+| `phase2_refiner/models/pretrained.py` | audited compatible spatial-prior initialization hook |
 | `phase2_refiner/models/spatial_temporal_refiner.py` | 51-joint factorized spatial/temporal/group Transformer with bidirectional or causal mode |
 | `phase2_refiner/losses/sequence.py` | rotation, target-velocity, target-acceleration, reliable anchor, and heteroscedastic losses |
 | `phase2_refiner/train.py` | AdamW training, burst curriculum, gradient accumulation/clipping, validation, and checkpointing |
@@ -1006,7 +1015,7 @@ The implementation was intentionally added as the isolated `phase2_refiner/` pac
 | Check | Result |
 |---|---|
 | Python compilation | all `phase2_refiner` modules compile |
-| Automated tests | **13 passed** |
+| Automated tests | **19 passed** after schema-v2/design-alignment changes |
 | Rotation matrix/6D/axis-angle numerical round trip | maximum matrix error below `5e-7` in the standalone audit |
 | One-sign cache | Ablehnen: 14 frames, `(14, 51, 3)` pose state, `(14, 51, 8)` observation state |
 | Full local cache | **57 signs and 1,493 frames**, matching the audited `method_hamer` manifest population |
@@ -1079,7 +1088,7 @@ Phase 2 implementation is complete as an **isolated, non-destructive executable 
 | Validation item | Final result |
 |---|---|
 | Static checks | `ruff check phase2_refiner`: passed; Python compilation: passed |
-| Automated tests | **13 passed** |
+| Automated tests | **19 passed** |
 | Locked cache coverage | **57 signs, 1,493 frames** |
 | Identity output | **1,493/1,493** PKLs; maximum parameter difference **0.0** |
 | Identity safety | **0** body/left/right group fallbacks |
@@ -1095,3 +1104,638 @@ The strict evaluation uses the audited local 1,493-frame manifest. Its score mus
 - **Implementation integrity: GO.** The identity path reproduces the baseline exactly and legacy artifacts were not overwritten.
 - **Training/research claim: NO-GO.** Do not report a Phase 2 quality result yet: G0 protocol reconciliation, G1 stronger-initializer selection, and G2 sequence-supervision data are still required.
 - **U1 uncertainty: NO-GO.** Calibration is implemented but requires a held-out real residual dataset before it can be enabled.
+
+---
+
+## 22. Proposal-alignment implementation revision — 24 July 2026
+
+A second code review compared `phase2_refiner/` line by line with this build plan and the Phase 2 stage of `DEXAVATAR_METHOD_SOTA_ASTAR_PROPOSAL.md`. The implementation was revised to remove engineering mismatches that do not depend on acquiring an external dataset.
+
+### 22.1 Corrected design mismatches
+
+- Cache schema v2 now records frame numbers, timestamps, FPS, image sizes, image/source hashes, coordinate transforms, shared shape, explicit 2D/3D validity, torso/wrist-local geometry, palm normals, deterministic U0 reliability, optional target joints, and provider provenance. Schema-v1 smoke caches remain readable.
+- Cache construction can consume a locked CSV schedule and fails on missing initializer frames instead of silently enumerating only available result PKLs. Caches are append-only and reject `--overwrite`.
+- An explicit split-index command rejects source or signer overlap between train, validation, test, and calibration partitions. It does not invent scientific splits when metadata are unavailable.
+- Later dataset/expert integrations use neutral `ObservationProvider` and `TargetProvider` contracts. No dataset-specific dependency was added in this revision.
+- Per-joint tokens increased from 28 to 43 dimensions and now include explicit validity, fixed reliability, torso geometry, wrist-local geometry, palm context, and normalized frame-gap timing in addition to rotation and 2D features.
+- The refiner now uses learned relative temporal bias, reliability-weighted spatial/temporal/group evidence, separate learned rotation and 2D/3D observation variances, auxiliary joint positions, and derived palm normals. Zero residual remains an exact pose identity.
+- Synthetic corruption now includes upper-body, one-hand, both-hand, finger-chain, wrist-attachment, keypoint-loss, crop-truncation, and handedness-swap bursts while retaining the configured 35% clean batches.
+- The loss interface now covers rotation, balanced regional vertices, joints, fingertips, palm normals, observation likelihood, target velocity/acceleration with transition weighting, reliable anchoring, soft biomechanics, and heteroscedastic uncertainty. Geometry terms activate when a later provider supplies their valid targets.
+- Training now supports BF16, EMA, no weight decay on norm/bias/embedding tensors, early stopping, periodic recovery checkpoints, secure full-state resume, optimizer/scheduler/RNG recovery, and audited optional spatial-prior initialization. U1 supports an uncertainty-only warm-up stage.
+- U1 inference requires a held-out calibration report that passed the calibration gate. Variance calibration is applied before reliability weighting, and calibration/config/checkpoint/cache hashes are written into the run manifest.
+- Inference performs output preflight, rejects writes into frozen initializer PKLs, rejects stale result files, verifies exact output frame IDs, uses checkpoint-configured safety bounds, stores group fallback masks, and makes mesh overwrite behavior explicit.
+- Evaluation now rejects duplicate manifest rows, respects both hand-evaluation flags, records the manifest hash, and reports median and worst-decile per-sign deltas in addition to clustered bootstrap intervals.
+
+### 22.2 Validation after revision
+
+| Check | Result |
+|---|---|
+| Formatting/static analysis | `ruff format` clean; `ruff check` passed |
+| Automated tests | **19 passed** |
+| Python compilation | all Phase 2 modules passed |
+| Real initializer cache-v2 smoke | Ablehnen: 14 frames, `(14, 51, 43)` tokens, valid timing/hash/transform fields |
+| Identity compatibility | 14/14 PKLs; maximum parameter difference from `method_hamer`: **0.0** |
+| Training/checkpoint smoke | one BF16/EMA optimizer update, best/last full-state checkpoints, and secure `weights_only=True` inference passed |
+| Resume smoke | optimizer/scheduler/model/EMA and CPU/CUDA/data-loader RNG restoration passed |
+| Checkpoint inference | 14/14 outputs with provenance and diagnostics emitted |
+
+### 22.3 Boundary intentionally left for later providers
+
+The code is now ready to receive external sequence data, but the provider must still supply licensed targets, source/signer IDs, metric-compatible 3D joints, coordinate transforms, target-quality masks, and—where available—vertex or palm supervision. DPoser-X transfer also requires a checkpoint-specific key/representation adapter before the neutral compatible-loader hook can accept it.
+
+Therefore this revision changes the **engineering alignment** status to **GO**, while G0–G2 and full scientific training remain governed by the existing Go/No-Go gates. SGNify and author-evaluation artifacts remain forbidden as training targets.
+
+---
+
+## 23. Local-data integration, ultimate execution plan, and live T1 run — 24 July 2026
+
+The newly supplied local datasets were inspected at the array/annotation-schema
+level before training. This changes G2 from “provider unavailable” to an
+explicit, measured partial-data decision; it does **not** make the full Phase 2
+data gate pass.
+
+### 23.1 Audited role of each local source
+
+| Local source | Audited contents | Authorized Phase 2 role | Training restriction |
+|---|---|---|---|
+| `data/InterHand2.6M/annotations/train` | 18,718 MANO-annotated frames before sequence-length filtering; pose `(48)`, shape `(10)`, translation `(3)`, multi-view metadata, and 42 world joints | Tier B hand-articulation and interacting-hand T1 pretraining | official train only; body and wrists explicitly unsupervised |
+| `data/InterHand2.6M/annotations/val` | 2,736 MANO-annotated frames | source-disjoint official validation for Tier B | checkpoint validation only |
+| `data/InterHand2.6M/annotations/test` | official test annotations | later untouched test | never read by the cache builder or training run |
+| `data/signbposer_data/train` | 1,449 body poses with shape `(63)` plus per-pose source/index metadata and sample weights | body-only spatial corruption warm-up | no temporal claims: the supplied records have no sequence identity or ordering |
+| `outputs/shared/<sign>` and existing method outputs | 57 isolated signs and frozen Phase 1/baseline artifacts | read-only initializer construction, inference, and Lane-L comparison | never used as clean training targets; current signs are benchmark-facing |
+| `data/smplx_gt` and `data/evaluation_from_author` | SGNify/local benchmark ground truth and evaluation assets | strict evaluation only | prohibited from train, validation, calibration, and checkpoint selection |
+
+The InterHand adapter uses MANO articulation order `index, middle, pinky,
+ring, thumb`, each MCP→PIP→DIP. World joints are converted from millimetres to
+wrist-local metres. MANO global hand orientation is not silently treated as an
+SMPL-X body wrist target; it remains outside the supervised 15-joint hand
+mask. MANO shape is retained as provenance but is not mislabeled as SMPL-X
+betas.
+
+### 23.2 New implementation completed
+
+| File | Responsibility completed in this revision |
+|---|---|
+| `phase2_refiner/data/build_interhand_cache.py` | streaming reader for the near-GB COCO files, deterministic sequence/camera metadata selection, official split preservation, non-overlapping clips, MANO/joint conversion, hands-only masks, provenance, append-only output, and disk-space preflight |
+| `phase2_refiner/data/build_signbposer_cache.py` | one-frame body-only pose-bank adapter that explicitly refuses to invent temporal continuity |
+| `phase2_refiner/data/audit_training_cache.py` | cache/schema validation, split-overlap and forbidden-source scan, target-coverage statistics, and executable G2/T1 Go/No-Go report |
+| `phase2_refiner/data/cache_schema.py` | backward-compatible `target_rotation_valid[T,51]` contract |
+| `phase2_refiner/data/dataset.py` | padded partial-target batches and correct torso/wrist-local joint observation assembly |
+| `phase2_refiner/data/corruptions.py` | corrupt only regions/frames with valid targets; prevent unsupervised-region corruption from becoming a false task |
+| `phase2_refiner/losses/sequence.py` | partial-target mask applied to rotation, motion, anchor, biomechanics, and uncertainty terms |
+| `phase2_refiner/geometry/rotations.py` and `losses/geometry.py` | FP32, exact-identity-safe angular losses with finite gradients under BF16 |
+| `phase2_refiner/train.py` | target-aware corruption, deterministic corrupted validation, injected/residual error and recovery reporting, clean validation, and immediate non-finite loss/gradient abort |
+| `phase2_refiner/evaluate_t1_recovery.py` | deterministic post-training 4/8/16-frame recovery report; refuses to pass G3 from a rotation-only proxy without decoded regional vertex preservation |
+| `phase2_refiner/configs/uawsr_t1_interhand.yaml` | frozen 5,000-step Tier-B T1 feasibility configuration |
+
+Existing DexAvatar methods, baseline folders, evaluator code, and Phase 1 output
+files were not edited. Cache creation wrote only new paths under
+`cache/phase2/`; training writes only new `outputs/phase2_training/` paths.
+
+### 23.3 Materialized cache and measured gates
+
+The append-only caches are:
+
+- `cache/phase2/interhand_t1_v1`: **1,148 train clips / 16,096 frames** and
+  **47 validation clips / 2,736 frames**, occupying about 38 MB;
+- `cache/phase2/signbposer_spatial_v1`: **1,449 body-only one-frame samples**,
+  occupying about 18 MB; and
+- `cache/phase2/interhand_t1_v1/readiness_report.json`: immutable readiness
+  measurements and manifest hashes.
+
+| Gate item | Measured result | Decision |
+|---|---:|---|
+| train/validation clip-ID overlap | 0 | GO |
+| forbidden `smplx_gt` / author-evaluation source hits | 0 | GO |
+| official split mismatch | 0 | GO |
+| InterHand train clips / frames | 1,148 / 16,096 | below 10,000 clips and 250,000 frames: NO-GO for G2 |
+| train clips with at least 16 frames | 148 / 1,148 = 12.89% | below 80%: NO-GO for G2 |
+| complete body + both-hand target frames | 0% | below 70%: NO-GO for G2 |
+| left/right hand target frames | 10,481 / 10,663 | GO for hand-only T1 feasibility |
+
+Therefore:
+
+- **G2 main/full Phase 2 training: NO-GO.** A full end-to-end quality claim is
+  forbidden with the currently available data.
+- **T1 Tier-B synthetic hand-corruption feasibility: GO.** This is the only
+  scientifically authorized training run started now.
+- **SignBPoser temporal pretraining: NO-GO.** It may initialize body spatial
+  behavior, but its 1,449 shuffled poses cannot train whole-sequence dynamics.
+
+### 23.4 Ultimate staged execution plan
+
+1. **D0 — immutable data contracts.** Keep official InterHand train/val/test
+   roles; version every cache; record licenses, hashes, source/signer/video IDs,
+   units, joint order, coordinate transforms, and target masks. Require the
+   forbidden-source and split-disjoint audits to pass on every rebuild.
+2. **T0 — identity/numerical contracts.** Require exact zero-residual parameter
+   identity, padding invariance, finite FP32/BF16 gradients, mesh round-trip
+   below `0.01 mm`, and an immediate abort on any non-finite value.
+3. **S0 — optional body spatial warm-up.** Corrupt individual SignBPoser body
+   poses with one-frame SO(3) noise and supervise only the 12 refined body
+   joints. Transfer compatible spatial weights only if held-out body-pose
+   recovery improves and clean identity is preserved. Never call this sequence
+   training.
+4. **T1-B — InterHand synthetic recovery.** Train U0 on official InterHand
+   train clips; validate on the official val clips with deterministic 4–16
+   frame hand/finger rotation bursts. Checkpoint selection uses corrupted
+   validation total, while clean validation is reported separately.
+5. **G3 decision.** GO only when injected error recovery reaches at least 30%
+   for 4/8/16-frame cases and clean-region regression stays below 2%. Otherwise
+   stop, inspect mappings/corruption scales, and do not add uncertainty.
+6. **Acquire Tier A/C for G2.** Add licensed, ordered complete sign SMPL-X
+   sequences and run the exact frozen Phase 1 experts over their RGB frames.
+   Require ≥10,000 source-distinct sign clips or ≥250,000 valid frames, ≥80%
+   clips of length ≥16, ≥70% complete body/two-hand fields, disjoint signers and
+   videos, and a 100-sequence target-quality audit below 10% catastrophic error.
+7. **T2 — real expert residual learning.** Mix 50% exact-expert residual, 25%
+   synthetic burst, and 25% clean batches; balance source and one-/two-hand
+   content at clip level. GO requires ≥3% external-validation improvement, no
+   region worse by >1%, and ≥8% on the frozen hard subset.
+8. **T3 — sign adaptation.** Fine-tune on source-disjoint sign sequences at a
+   lower learning rate while retaining 20–30% generic high-quality hand data.
+   Reject the adaptation if transition error or any regional criterion regresses.
+9. **T4 — uncertainty.** Train U1 only after deterministic T2/T3 passes. Fit
+   variance scaling on a disjoint calibration partition; retain U0 unless all
+   NLL/ranking/risk-coverage gates pass.
+10. **T5 and Lane L.** Run optional 10–20-step sequence optimization only after
+    its frozen external ablation passes. Then infer on the exact A1 manifest,
+    apply groupwise fallback, render source-anchored meshes, and evaluate all
+    regions with identical full coverage and three seeds. G6/G7 remain the final
+    acceptance gates.
+
+### 23.5 Training launch and live status
+
+The first attempt was deliberately preserved at
+`logs/phase2/t1_interhand_seed42_20260724.txt`. It exposed NaN gradients by
+step 10 and was stopped; no checkpoint from that run is valid. The cause was
+the derivative of zero-norm angular errors under BF16 identity targets. After
+the numerical fix and finite-value guards, **21 automated tests pass**.
+
+A 25-step real-cache preflight in tmux completed with finite training,
+validation, and checkpoints:
+
+- tmux session: `phase2_t1_preflight_run2_20260724` (completed);
+- log: `logs/phase2/t1_interhand_preflight_run2_20260724.txt`;
+- output: `outputs/phase2_training/t1_interhand_preflight_run2`;
+- corrupted validation injected/residual error: `0.312508 / 0.312511 rad`;
+- recovery before meaningful training: approximately `0%`, as expected; and
+- clean validation rotation error: approximately `1.18e-5 rad`.
+
+The authorized 5,000-step T1 run is now active:
+
+- tmux session: `phase2_t1_interhand_run2_20260724`;
+- command/config: `phase2_refiner/configs/uawsr_t1_interhand.yaml` with output
+  override `outputs/phase2_training/t1_interhand_seed42_run2`;
+- append-only text log:
+  `logs/phase2/t1_interhand_seed42_run2_20260724.txt`; and
+- launch verification: finite through the first step-250 validation with about
+  3.9 GB GPU memory allocated; corrupted validation improved from approximately
+  `0%` recovery at the 25-step preflight to **1.06%** at step 250, while clean
+  rotation error remained approximately `5.51e-4 rad`. This is progress, not a
+  G3 pass.
+
+Monitor without attaching:
+
+```bash
+tail -f logs/phase2/t1_interhand_seed42_run2_20260724.txt
+tmux capture-pane -pt phase2_t1_interhand_run2_20260724:0 -S -100
+```
+
+The run is a **live feasibility experiment, not a completed accuracy result**.
+Its G3 decision must be appended only after the final checkpoint and the
+predeclared 4/8/16-frame recovery evaluation complete.
+
+---
+
+## 24. Completed T1 metrics — 24 July 2026
+
+The seed-42 InterHand Tier-B feasibility run completed all **5,000 optimizer
+steps** without a non-finite loss or gradient after the identity-gradient fix.
+It wrote `last.pt`, periodic 500-step recovery checkpoints, and the best
+validation checkpoint. The tmux training session exited normally.
+
+### 24.1 Checkpoint selection and aggregate validation
+
+The predeclared corrupted-validation total selected step **4,000** as best:
+
+| Metric | Step-4,000 best | Step-5,000 last |
+|---|---:|---:|
+| corrupted validation total | **0.062359** | 0.062665 |
+| injected rotation error | 0.312508 rad | 0.312508 rad |
+| residual rotation error | **0.151483 rad** | 0.152361 rad |
+| aggregate recovery | **51.53%** | 51.25% |
+| corrupted rotation loss | **0.020548 rad** | 0.020669 rad |
+| corrupted velocity loss | **0.149738** | 0.150927 |
+| corrupted acceleration loss | **0.039898** | 0.040159 |
+| clean rotation error | — | **1.616e-5 rad** |
+| clean total | — | **0.000344** |
+
+Checkpoint hashes:
+
+- best step-4,000 SHA-256:
+  `f3b4ea84b54d1d042200a068ccace78544bc8acb026442113ec145097259aca1`;
+- last step-5,000 SHA-256:
+  `49fc4d50dfcf319e855c94d69a761a59d1529b1330cbd706ea4c40ac3c6d6a74`.
+
+### 24.2 Exact 4/8/16-frame EMA recovery evaluation
+
+`phase2_refiner.evaluate_t1_recovery` evaluated the best EMA checkpoint on the
+complete official InterHand validation cache with fixed corruption seeds.
+
+| Burst duration | Injected error | Residual error | Recovery | 30% rotation gate |
+|---:|---:|---:|---:|---|
+| 4 frames | 0.307224 rad | 0.150729 rad | **50.94%** | GO |
+| 8 frames | 0.307798 rad | 0.151754 rad | **50.70%** | GO |
+| 16 frames | 0.305799 rad | 0.156842 rad | **48.71%** | GO |
+
+Clean-input metrics for the same best EMA checkpoint were:
+
+- rotation: `9.662e-6 rad`;
+- velocity: `2.426e-4`;
+- acceleration: `3.869e-5`;
+- joint/fingertip errors in the wrist-local auxiliary representation:
+  `2.956e-5 / 2.845e-5 m`;
+- clean total: `0.000269`.
+
+The machine-readable report is
+`outputs/phase2_training/t1_interhand_seed42_run2/t1_recovery.json`, with
+SHA-256
+`d16bba48cc4bc01182df7e5e1420d29c3431d8c8125539415211d4122c4ec5a6`.
+The complete text logs are:
+
+- `logs/phase2/t1_interhand_seed42_run2_20260724.txt`; and
+- `logs/phase2/t1_interhand_seed42_recovery_20260724.txt`.
+
+### 24.3 Final Go/No-Go interpretation
+
+- **T1 rotation-recovery proxy: GO.** Every fixed duration exceeds the required
+  30% reduction, including the hardest 16-frame burst.
+- **Numerical and clean-identity behavior: GO.** Training finished without NaN
+  after the fix, and clean rotation drift is approximately `9.7e-6 rad`.
+- **G3 as defined in the proposal: PENDING / NO-GO for progression.** The formal
+  gate requires decoded regional vertex-error recovery and less than 2% clean
+  regional vertex regression. The current Tier-B target is partial MANO
+  articulation with no complete SMPL-X body/wrist target, so a rotation-only
+  proxy cannot honestly close the full gate.
+- **G2/full end-to-end Phase 2: NO-GO.** This run does not replace the missing
+  complete source-disjoint sign corpus, real exact-expert residual pairs, or
+  the three-seed requirement. It must not be reported as final DexAvatar
+  benchmark accuracy.
+
+The correct next action is to preserve this checkpoint as a Tier-B hand
+initialization candidate, add complete Tier-A/C sign sequences, run the exact
+Phase 1 experts on those sequences, and then repeat T1/T2 with decoded regional
+vertex gates and three fixed seeds.
+
+---
+
+## 25. Formal G3 remediation and expanded-data rerun — 24 July 2026
+
+This section records the requested implementation and rerun for the remaining
+formal G3 and G2 decisions. It supersedes any interpretation based only on the
+rotation proxy in Section 24.
+
+### 25.1 InterHand decoded-vertex result
+
+`phase2_refiner.evaluate_t1_vertices` decoded the best InterHand EMA checkpoint
+through the local SMPL-X model and measured the 778-vertex MANO-compatible hand
+regions in millimetres.
+
+| Burst | Left injected → residual | Left recovery | Right injected → residual | Right recovery |
+|---:|---:|---:|---:|---:|
+| 4 | 8.5195 → 6.1668 mm | **27.62%** | 9.0993 → 5.5590 mm | **38.91%** |
+| 8 | 7.3305 → 5.2198 mm | **28.79%** | 7.8371 → 5.0559 mm | **35.49%** |
+| 16 | 8.1066 → 5.9960 mm | **26.04%** | 9.1771 → 6.3045 mm | **31.30%** |
+
+Clean mean vertex drift is `0.01981 mm` for the left hand and `0.01922 mm`
+for the right hand, only about `0.21–0.27%` of the corresponding injected
+errors. Thus clean preservation passes, the right hand passes 30% at every
+duration, and the left hand fails 30% at every duration. **Formal G3 remains
+NO-GO; the rotation-only proxy had hidden this regional asymmetry.**
+
+The machine-readable report is
+`outputs/phase2_training/t1_interhand_seed42_run2/t1_vertex_recovery.json`
+(SHA-256
+`21e4cc19a26aa09f6b3f32f6e9ee92f2aca76e7141084c81ef8f8965295a5c27`).
+
+### 25.2 Newly audited complete local source
+
+The local `data/ARCTIC/downloads/raw_seqs.zip` archive is valid and contains
+301 ordered SMPL-X sequences / 218,273 frames over nine available subjects.
+Each sequence supplies `(T,63)` body pose, both `(T,45)` hands, root
+orientation, translation, and face rotations. The new adapter reads directly
+from the ZIP and never extracts or reads SGNify targets.
+
+The source-disjoint cache assignment is:
+
+- train subjects `s01,s02,s04,s05,s06,s07`: 201 source sequences,
+  **2,351 clips / 146,781 retained frames**;
+- validation subject `s08`: 42 source sequences,
+  **511 clips / 31,822 retained frames**; and
+- subjects `s09,s10`: untouched for later test use.
+
+All materialized clips are at least 16 frames and all retained frames contain
+complete body and both-hand pose targets. The cache occupies about 285 MB and
+has zero forbidden-source hits. Its readiness report remains **G2 NO-GO**
+because 2,351 clips / 146,781 training frames are below the proposal's volume
+threshold and ARCTIC is generic hand-object motion, not source-disjoint sign
+language motion.
+
+### 25.3 Remediation implementation
+
+New or revised components are:
+
+- `phase2_refiner/data/build_arctic_cache.py`: append-only ZIP reader,
+  sequence-preserving chunks, explicit subject split, complete 51-joint
+  targets, and generic-domain provenance;
+- `phase2_refiner/evaluate_t1_vertices.py`: exact 4/8/16-frame decoded regional
+  vertex recovery, clean-to-injected preservation ratios, missing-region
+  detection, and strict G3 decision;
+- `phase2_refiner/configs/uawsr_t1_arctic_geometry.yaml`: complete body/two-hand
+  corruption and differentiable balanced regional vertex training;
+- `phase2_refiner/geometry/rotations.py`: finite-gradient
+  matrix→quaternion→axis-angle conversion for SMPL-X decoding;
+- `phase2_refiner/train.py`: frozen decoder weights, no-gradient target decode,
+  finite-gradient guards, and reproducible batch/accumulation overrides; and
+- `phase2_refiner/tests/test_rotations.py`: decoder-gradient regression test.
+
+The first geometry preflight exposed a non-finite conversion gradient and was
+stopped before an optimizer update. After the fix, **22 tests pass** and both
+batch-1 and batch-8 GPU geometry preflights completed with finite loss,
+gradients, and checkpoints.
+
+### 25.4 Active complete-region rerun
+
+The best InterHand EMA checkpoint initializes a complete 51-joint ARCTIC T1
+run with balanced upper-body/left-hand/right-hand SMPL-X vertex loss. The
+authorized run is active with:
+
+- tmux session: `phase2_t1_arctic_geometry_seed42_20260724`;
+- config: `phase2_refiner/configs/uawsr_t1_arctic_geometry.yaml`;
+- output: `outputs/phase2_training/t1_arctic_geometry_seed42`;
+- text log: `logs/phase2/t1_arctic_geometry_seed42_20260724.txt`;
+- optimizer batch: 8 complete 64-frame clips, accumulation 1;
+- launch state: finite through step 30; and
+- GPU state during training: approximately 29 GB allocated in total and 100%
+  utilization on the 49 GB RTX 5880 Ada.
+
+This run can close generic complete-region G3 if the exact decoded regional
+evaluation passes. It cannot, regardless of GPU memory, turn generic ARCTIC
+motion into the missing sign-specific Tier-A/C corpus; therefore full G2 stays
+NO-GO until that data is provided or a separately licensed local sign corpus
+passes the same executable audit.
+
+---
+
+## 26. Completed ARCTIC T1 run and formal G3 decision — 24 July 2026
+
+Section 25.4 is no longer an active-run placeholder. The authorized complete
+body/two-hand geometry run finished all **5,000 optimizer steps** without a
+non-finite loss, gradient abort, traceback, or out-of-memory failure. It used
+the subject-disjoint ARCTIC cache, EMA weights, BF16 training, effective batch
+8, accumulation 1, and the best InterHand checkpoint as a compatible spatial
+initialization. Existing DexAvatar methods and the `sapiens` submodule were not
+modified by the run.
+
+### 26.1 Training result
+
+The final step is also the best validation checkpoint:
+
+| Item | Step 500 | Best step 5,000 |
+|---|---:|---:|
+| fixed validation injected rotation error | 0.304090 rad | 0.304090 rad |
+| residual rotation error | 0.140643 rad | **0.087226 rad** |
+| recovery | 53.75% | **71.32%** |
+| balanced decoded vertex loss | 4.398 mm | **2.310 mm** |
+| total validation loss | 0.022852 | **0.012971** |
+
+Checkpoint:
+`outputs/phase2_training/t1_arctic_geometry_seed42/best.pt`, step 5,000,
+EMA, SHA-256
+`29f081b96b942e9651484a0f52155b2ab28d6ce2dff65ac3bfd1b0a3f9bfa9c2`.
+The resolved configuration records the effective CLI overrides and immutable
+train/validation manifest hashes.
+
+### 26.2 Exact fixed-duration FP32 rotation result
+
+Formal post-training evaluation uses FP32 even though training used BF16. This
+prevents reduced-precision rotation-matrix quantization from being counted as
+model-induced clean regression.
+
+| Burst | Injected | Residual | Recovery | 30% proxy gate |
+|---:|---:|---:|---:|:---:|
+| 4 frames | 0.302967 rad | 0.074240 rad | **75.50%** | GO |
+| 8 frames | 0.305548 rad | 0.080485 rad | **73.66%** | GO |
+| 16 frames | 0.305432 rad | 0.100833 rad | **66.99%** | GO |
+
+Clean rotation error is `2.633e-6 rad`. The machine-readable report is
+`outputs/phase2_training/t1_arctic_geometry_seed42/t1_recovery_fp32.json`
+(SHA-256
+`789457d971378ca0f320138165894a02651014ae77fa8152fc3eadf8cf16cd44`).
+
+### 26.3 Exact decoded regional vertex result
+
+The formal evaluator decodes SMPL-X and measures 7,279 upper-body vertices and
+778 vertices for each hand. All three regions have complete targets and
+non-empty corrupted-frame populations at every duration.
+
+| Burst | Upper body injected → residual (recovery) | Left hand injected → residual (recovery) | Right hand injected → residual (recovery) |
+|---:|---:|---:|---:|
+| 4 | 101.6667 → 20.9825 mm (**79.36%**) | 11.6372 → 3.2522 mm (**72.05%**) | 11.6602 → 3.1141 mm (**73.29%**) |
+| 8 | 92.3241 → 19.8518 mm (**78.50%**) | 12.0146 → 3.1989 mm (**73.38%**) | 12.6043 → 3.3114 mm (**73.73%**) |
+| 16 | 91.9098 → 21.1719 mm (**76.96%**) | 12.2632 → 4.1272 mm (**66.34%**) | 11.3235 → 3.6046 mm (**68.17%**) |
+
+Clean mean vertex drift is **0.001656 mm** for upper body, **0.002696 mm**
+for left hand, and **0.001681 mm** for right hand. Depending on duration, these
+are only `0.0016–0.0018%`, `0.0220–0.0232%`, and `0.0133–0.0148%` of injected
+error, respectively, all far below the 2% limit.
+
+**Formal generic complete-region G3: GO.** Every 4/8/16-frame regional
+recovery is above 30%, every clean-to-injected ratio is below 2%, and upper
+body plus both hands are available. This supersedes the InterHand-only G3
+NO-GO in Section 25.1; it does not supersede the separate sign-domain G2 gate.
+
+Machine-readable report:
+`outputs/phase2_training/t1_arctic_geometry_seed42/t1_vertex_recovery_fp32.json`
+(SHA-256
+`db6ab28db7a10bb9b484baadff21e44314c7bb7cde2591bd7b9c5f3521e8d55d`).
+
+### 26.4 G2 and full Phase 2 decision
+
+The rerun materially closes G3, but **G2/full sign-language Phase 2 remains
+NO-GO**. The executable audit now requires threshold volume to be explicitly
+sign-domain rather than allowing a large generic corpus to pass accidentally.
+The current result is:
+
+| G2 check | Result |
+|---|---:|
+| integrity/leakage exclusion | GO |
+| clips at least 16 frames | 100%, GO |
+| complete body and both hands | 100%, GO |
+| total train volume | 2,351 clips / 146,781 frames, NO-GO |
+| sign-domain train volume | **0 clips / 0 frames, NO-GO** |
+
+`cache/phase2/arctic_t1_v1/readiness_report.json` has SHA-256
+`7c985da12653f26cd130850171179d2bead45c9216f29e3e9fd49d9f6c116e2f`.
+Consequently, no observation-to-clean Tier-C run, uncertainty calibration, or
+locked sign benchmark claim was fabricated. Full Phase 2 can start only after
+an ordered, licensed, source-/signer-disjoint sign corpus reaches at least
+10,000 clips or 250,000 frames and passes the same completeness and leakage
+audit.
+
+### 26.5 Files and reproducibility evidence completed in this rerun
+
+- `phase2_refiner/configs/uawsr_t1_arctic_geometry.yaml`: complete-region T1
+  model, corruption, geometry, and training recipe;
+- `phase2_refiner/data/build_arctic_cache.py`: non-destructive ARCTIC ZIP
+  adapter and subject split;
+- `phase2_refiner/data/audit_training_cache.py`: motion-domain accounting and
+  explicit sign-domain G2 volume gate;
+- `phase2_refiner/evaluate_t1_recovery.py`: deterministic 4/8/16 rotation
+  proxy with exact FP32 formal mode;
+- `phase2_refiner/evaluate_t1_vertices.py`: deterministic decoded upper-body
+  and both-hand G3 evaluation with exact FP32 formal mode;
+- `phase2_refiner/geometry/rotations.py`, `phase2_refiner/train.py`, and
+  `phase2_refiner/tests/test_rotations.py`: finite decoder gradients, frozen
+  target geometry, reproducible effective-batch overrides, and regression
+  coverage; and
+- `phase2_refiner/README.md`: current cache, audit, training, and evaluation
+  commands plus the sign-domain and FP32 gate contracts.
+
+Logs are append-only at
+`logs/phase2/t1_arctic_geometry_seed42_20260724.txt` and
+`logs/phase2/t1_arctic_formal_eval_20260724.txt`. Final verification after the
+implementation and reports: `ruff check phase2_refiner` passed, `ruff format
+--check phase2_refiner` passed, all **22 tests passed**, `compileall` passed,
+and `git diff --check` passed.
+
+---
+
+## 27. How2Sign sign-domain Phase 2 run — launched 24 July 2026
+
+The newly supplied How2Sign and PHOENIX assets were audited before starting a
+new training claim. How2Sign was selected because it provides **31,047 paired
+official-train clips / 5,053,093 ordered 2D-pose frames**, 97.85% of clips have
+at least 16 frames, and its 2,192 train source videos have zero overlap with
+the 115 official dev source videos. PHOENIX is not used for this run because
+the local extraction currently contains only 822 aggregated body-only poses
+and a sparse three-frame-per-clip teacher staging; it cannot supervise a
+complete body/two-hand whole-sequence refiner.
+
+The How2Sign pose files contain 133-point 2D tracks rather than SMPL-X target
+rotations. Therefore they are not falsely treated as clean 3D labels. The new
+resumable teacher stage decodes source videos directly in memory, uses the
+provided whole-body tracks for deterministic signer crops, and runs the frozen
+SMPLer-X H32 model to produce ordered complete body/left-hand/right-hand
+pseudo-3D targets. It never copies source frames, reads the official test
+split, or reads SGNify targets.
+
+Preflight measurements were:
+
+| FP32 teacher batch | Clips per call | Peak GPU allocation | Throughput | Result |
+|---:|---:|---:|---:|:---:|
+| 32 frames | 1 | 6.63 GiB | 0.365 clips/s | finite |
+| 128 frames | 4 | 8.91 GiB | 0.600 clips/s | finite |
+| 256 frames | 8 | **15.13 GiB** | **0.652 clips/s preflight; about 0.84 clips/s sustained** | selected |
+| 512 frames | 16 | 27.58 GiB | 0.606 clips/s | finite but slower |
+
+The installed MMCV ROIAlign rejects mixed FP16/FP32 inputs, so unsafe AMP was
+not used. The selected 256-frame FP32 call is faster than the 512-frame call
+and reaches 100% GPU utilization while retaining more than 30 GiB physical
+headroom.
+
+The active extraction target is 11,000 official-train clips and 1,200
+source-disjoint dev clips, each with 32 uniformly sampled ordered frames. This
+provides a failure buffer above both G2 volume thresholds. Compact projected
+teacher storage is below 1 GiB, important because the workspace filesystem had
+only about 29 GiB free at launch.
+
+New implementation for this run:
+
+- `phase2_refiner/data/extract_how2sign_teacher.py`: deterministic official
+  split selection, in-memory video decode, track-derived crop, batched frozen
+  H32 inference, atomic per-clip output, resume, failure log, and GPU/ETA log;
+- `phase2_refiner/data/build_how2sign_cache.py`: COCO-WholeBody-to-51-token
+  observation mapping, complete pseudo-SMPL-X targets, automated catastrophic
+  target filter, exact 11-character source-video grouping, append-only cache,
+  and a roughly 20% ARCTIC retention mixture;
+- `phase2_refiner/data/audit_training_cache.py`: train/dev source-group overlap,
+  motion-domain volume, target-type accounting, and pseudo-target quality
+  gates;
+- `phase2_refiner/configs/uawsr_t1_how2sign_geometry.yaml`: lower-rate
+  ARCTIC-initialized sign adaptation with full regional geometry loss; and
+- `phase2_refiner/scripts/run_how2sign_phase2_after_teacher.sh`: automatic
+  cache, strict G2, GPU batch preflight, 5,000-step training, and exact FP32
+  rotation/decoded-vertex evaluation after teacher extraction.
+
+Active sessions and logs:
+
+- teacher session: `phase2_how2sign_teacher_v1_20260724`;
+- downstream train/eval session: `phase2_how2sign_train_eval_v1_20260724`;
+- teacher log: `logs/phase2/how2sign_teacher_v1_20260724.txt`; and
+- pipeline/training log: `logs/phase2/how2sign_phase2_pipeline_20260724.txt`.
+
+At the recorded launch checkpoint, extraction had reached 288/11,000 train
+clips with zero failures. Static verification after implementation reports
+`ruff check` passed, `compileall` passed, `git diff --check` passed, and all
+**25 tests passed**. Scientific G2/G3 results will be appended only from the
+completed cache, checkpoint, and formal machine-readable reports.
+
+### 27.1 Extraction acceleration restart — 24 July 2026
+
+The original extractor was stopped at an atomic boundary with **776/11,000**
+train clips complete and zero failed/corrupt outputs. Those files and the
+deterministic `selection.json` were preserved; the accelerated process resumed
+the identical selection at clip 777 rather than overwriting prior work.
+
+`extract_how2sign_teacher.py` now uses five independent OpenCV decoders with
+OpenCV's nested threading disabled. It also keeps exactly one clip group
+prefetched: CPU workers decode and crop the next group while SMPLer-X processes
+the current group on the GPU. The one-group bound avoids unbounded host-memory
+growth, and per-clip compressed NPZ writes remain temporary-file-plus-atomic-
+rename operations.
+
+The final stable setting is 20 clips / 640 frames per FP32 teacher call, five
+decode workers, and one prefetched group. Larger single calls were rejected by
+measurement rather than deployed: 768, 992, and 1,024 frames failed in the
+SMPLer-X box-head deconvolution with `CUDNN_STATUS_NOT_SUPPORTED`; the 1,024
+case reached 34,896 MiB before failure. The selected overlapped configuration
+instead occupies **34,798 MiB VRAM** at steady state while PyTorch reports
+21.57 GiB peak live tensor allocation. Decode windows measured approximately
+421–496% CPU, including a 469% snapshot on the resumed production job.
+
+The three-group preflight completed 60/60 clips with zero failures at **1.224
+clips/s**. On the resumed production run, the rolling rate reached **1.453
+clips/s at 956/11,000**, versus 0.833 clips/s before the pause: about **74.4%
+higher throughput**. The reported train-extraction ETA consequently fell from
+3.41 hours to 1.92 hours at that checkpoint. The downstream cache, strict G2,
+training, and formal-evaluation watcher was paused during the extractor swap
+and resumed only after the replacement teacher tmux session was confirmed
+alive. No training metric is claimed from this extraction optimization.
+
+### 27.2 SIGKILL recovery and host-memory-safe restart
+
+The batch-640 process was later externally killed after atomically completing
+**1,416/11,000** train clips. There was no Python, CUDA, decode, or output
+exception and no partial NPZ remained. Kernel OOM records are not readable by
+this account, but the contemporaneous evidence indicates host-memory pressure:
+the extractor held about 14 GiB RSS, all 8 GiB swap was consumed, and other
+machine workloads held several additional GiB. This is recorded as a runtime
+interruption, not a model failure and not a completed extraction result.
+
+The downstream watcher previously used disappearance of the teacher tmux
+session as its completion condition. It consequently attempted cache building
+at 1,416 clips and correctly failed the cache's 10,000-clip minimum. The watcher
+now gates exclusively on the exact atomic output counts (11,000 train and
+1,200 validation). If the teacher session vanishes early it logs `stalled` and
+keeps waiting; it can no longer advance to cache/training on a truncated
+teacher set.
+
+A shared-machine preflight of the replacement setting—384 frames / 12 clips,
+four decoders, and one prefetched group—completed 24/24 clips with zero
+failures at 0.882 clips/s, 21.36 GiB peak live GPU allocation, and about 11.7
+GiB peak RSS. Both tmux sessions were recreated and extraction resumed from
+clip 1,417 without rewriting the existing deterministic outputs. This reduces
+host-memory pressure and accepts lower throughput as the required stability
+tradeoff while other machine workloads remain active.

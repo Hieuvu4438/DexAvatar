@@ -119,4 +119,6 @@ data/_tmp/
 data/evaluation_from_author/
 logs/
 scratch/
+cache/phase2/
+data/phase2_*
 

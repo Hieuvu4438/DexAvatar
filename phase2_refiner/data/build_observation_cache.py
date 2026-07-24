@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import hashlib
 import json
 import pickle
@@ -253,6 +254,8 @@ def build_clip(
     sapiens: dict[str, Any],
     hamer: dict[str, Any],
     target_dir: Path | None,
+    fps: float,
+    provenance: dict[str, Any] | None = None,
 ) -> CacheClip:
     poses, targets, frame_names, source_paths = [], [], [], []
     globals_, translations, jaws, leyes, reyes, expressions, betas = (
@@ -265,6 +268,7 @@ def build_clip(
         [],
     )
     observations, points_2d, point_valid = [], [], []
+    frame_numbers, image_sizes, frame_hashes, source_hashes = [], [], [], []
 
     for result_path in sorted(result_files, key=_frame_number):
         name = result_path.stem
@@ -276,6 +280,8 @@ def build_clip(
         image = cv2.imread(str(image_path)) if image_path.exists() else None
         height, width = image.shape[:2] if image is not None else (1, 1)
         sapiens_points, sapiens_conf = _sapiens_frame(sapiens, sign, name)
+        if image is None:
+            sapiens_conf = np.zeros_like(sapiens_conf)
         token_points, token_conf = _token_2d_and_conf(sapiens_points, sapiens_conf)
         token_points[:, 0] = token_points[:, 0] / max(width, 1) * 2.0 - 1.0
         token_points[:, 1] = token_points[:, 1] / max(height, 1) * 2.0 - 1.0
@@ -301,7 +307,11 @@ def build_clip(
         points_2d.append(token_points)
         point_valid.append(valid)
         frame_names.append(name)
+        frame_numbers.append(_frame_number(result_path))
+        image_sizes.append((height, width))
+        frame_hashes.append(_sha256(image_path) if image_path.exists() else "")
         source_paths.append(str(result_path.resolve()))
+        source_hashes.append(_sha256(result_path))
         betas.append(_array(params.get("betas"), 10))
         globals_.append(_array(params.get("global_orient"), 3))
         translations.append(_array(params.get("transl"), 3))
@@ -344,17 +354,82 @@ def build_clip(
         expression=np.stack(expressions).astype(np.float32),
         source_paths=np.asarray(source_paths),
         target_axis_angle=np.stack(targets).astype(np.float32) if targets else None,
+        frame_numbers=np.asarray(frame_numbers, dtype=np.int64),
+        timestamps=np.asarray(frame_numbers, dtype=np.float64) / fps,
+        fps=fps,
+        image_size=np.asarray(image_sizes, dtype=np.int32),
+        frame_sha256=np.asarray(frame_hashes),
+        source_sha256=np.asarray(source_hashes),
+        metadata_json=json.dumps(
+            {
+                "coordinate_policy": {
+                    "keypoints_2d": "normalized_image_-1_to_1",
+                    "rotations": "smplx_local_axis_angle",
+                    "torso_positions": "unavailable_explicitly_masked",
+                    "wrist_local_positions": "unavailable_explicitly_masked",
+                },
+                "source": "frozen_initializer",
+                "provenance": provenance or {},
+            },
+            sort_keys=True,
+        ),
     )
+
+
+def _scheduled_result_files(
+    manifest_path: Path, sign: str, result_dir: Path
+) -> list[Path]:
+    """Resolve a locked frame schedule and fail rather than silently truncate."""
+    with manifest_path.open("r", encoding="utf-8") as handle:
+        rows = [row for row in csv.DictReader(handle) if row.get("sign") == sign]
+    names = []
+    for row in rows:
+        source = row.get("prediction_path") or row.get("frame") or row.get("frame_name")
+        if not source:
+            raise ValueError("Schedule manifest needs prediction_path/frame/frame_name")
+        names.append(Path(source).stem)
+    if len(names) != len(set(names)):
+        raise ValueError(f"Duplicate scheduled frame for {sign}")
+    paths = [result_dir / f"{name}.pkl" for name in names]
+    missing = [path for path in paths if not path.exists()]
+    if missing:
+        raise FileNotFoundError(
+            f"Initializer coverage failure for {sign}: {len(missing)} missing; first {missing[0]}"
+        )
+    return paths
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--frames-root", type=Path, default=Path("data/frames"))
-    parser.add_argument("--initializer-root", type=Path, required=True)
+    parser.add_argument(
+        "--frames-root",
+        "--frames",
+        dest="frames_root",
+        type=Path,
+        default=Path("data/frames"),
+    )
+    parser.add_argument(
+        "--initializer-root",
+        "--initializer",
+        dest="initializer_root",
+        type=Path,
+        required=True,
+    )
     parser.add_argument("--initializer-subdir", default="smplifyx/results")
     parser.add_argument("--target-root", type=Path)
     parser.add_argument("--target-subdir", default="smplifyx/results")
-    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--output", "--out", dest="output", type=Path, required=True)
+    parser.add_argument(
+        "--frame-manifest",
+        type=Path,
+        help="Optional locked CSV schedule; missing initializer frames are fatal",
+    )
+    parser.add_argument("--fps", type=float, default=25.0)
+    parser.add_argument(
+        "--provenance-json",
+        type=Path,
+        help="License, expert checkpoint/config hashes, source, and units metadata",
+    )
     parser.add_argument("--sign", action="append", help="Limit to one or more signs")
     parser.add_argument("--overwrite", action="store_true")
     return parser.parse_args()
@@ -362,8 +437,31 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> None:
     args = parse_args()
+    if args.fps <= 0:
+        raise ValueError("--fps must be positive")
+    if args.overwrite:
+        raise ValueError(
+            "Phase 2 caches are append-only; choose a new versioned --output directory"
+        )
+    provenance = {}
+    if args.provenance_json:
+        with args.provenance_json.open("r", encoding="utf-8") as handle:
+            provenance = json.load(handle)
+        if not isinstance(provenance, dict):
+            raise ValueError("--provenance-json must contain a JSON object")
     initializer_root = args.initializer_root.resolve()
+    if args.target_root:
+        target_text = str(args.target_root.resolve()).lower()
+        forbidden = ("smplx_gt", "evaluation_from_author", "sgnify")
+        if any(token in target_text for token in forbidden):
+            raise ValueError(
+                "SGNify/evaluation artifacts are evaluation-only and cannot be training targets"
+            )
     output_root = args.output.resolve()
+    if output_root.exists() and any(output_root.iterdir()):
+        raise FileExistsError(
+            f"Cache directory is not empty; choose a new version: {output_root}"
+        )
     output_root.mkdir(parents=True, exist_ok=True)
     signs = sorted(path.name for path in initializer_root.iterdir() if path.is_dir())
     if args.sign:
@@ -377,11 +475,26 @@ def main() -> None:
         "initializer_root": str(initializer_root),
         "initializer_subdir": args.initializer_subdir,
         "target_root": str(args.target_root.resolve()) if args.target_root else None,
+        "frame_manifest": (
+            str(args.frame_manifest.resolve()) if args.frame_manifest else None
+        ),
+        "frame_manifest_sha256": (
+            _sha256(args.frame_manifest) if args.frame_manifest else None
+        ),
+        "fps": args.fps,
+        "provenance": provenance,
+        "provenance_sha256": (
+            _sha256(args.provenance_json) if args.provenance_json else None
+        ),
         "clips": [],
     }
     for sign in signs:
         result_dir = initializer_root / sign / args.initializer_subdir
-        result_files = list(result_dir.glob("*.pkl"))
+        result_files = (
+            _scheduled_result_files(args.frame_manifest, sign, result_dir)
+            if args.frame_manifest
+            else list(result_dir.glob("*.pkl"))
+        )
         if not result_files:
             continue
         sapiens_path = initializer_root / sign / "sapiens.pkl"
@@ -389,13 +502,22 @@ def main() -> None:
         sapiens = _load_pickle(sapiens_path) if sapiens_path.exists() else {}
         hamer = _load_pickle(hamer_path) if hamer_path.exists() else {}
         target_dir = (
-            args.target_root / sign / args.target_subdir if args.target_root else None
+            args.target_root.resolve() / sign / args.target_subdir
+            if args.target_root
+            else None
         )
         clip = build_clip(
-            sign, result_files, args.frames_root, sapiens, hamer, target_dir
+            sign,
+            result_files,
+            args.frames_root.resolve(),
+            sapiens,
+            hamer,
+            target_dir,
+            args.fps,
+            provenance,
         )
         cache_path = output_root / "clips" / f"{sign}.npz"
-        if cache_path.exists() and not args.overwrite:
+        if cache_path.exists():
             raise FileExistsError(f"Refusing to overwrite existing cache: {cache_path}")
         save_cache_clip(cache_path, clip)
         manifest["clips"].append(
@@ -409,9 +531,7 @@ def main() -> None:
         )
         print(f"[cache] {sign}: {len(clip.frame_names)} frames -> {cache_path}")
     manifest_path = output_root / "manifest.json"
-    with manifest_path.open(
-        "x" if not args.overwrite else "w", encoding="utf-8"
-    ) as handle:
+    with manifest_path.open("x", encoding="utf-8") as handle:
         json.dump(manifest, handle, indent=2, sort_keys=True)
         handle.write("\n")
     print(f"[cache] wrote {len(manifest['clips'])} clips -> {manifest_path}")

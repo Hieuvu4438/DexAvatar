@@ -11,7 +11,7 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from phase2_refiner.config import load_config
+from phase2_refiner.config import load_config, validate_config
 from phase2_refiner.data.cache_schema import load_cache_clip
 from phase2_refiner.data.dataset import features_from_clip
 from phase2_refiner.geometry.rotations import (
@@ -21,6 +21,7 @@ from phase2_refiner.geometry.rotations import (
     quaternion_to_matrix,
 )
 from phase2_refiner.models import WholeSequenceRefiner
+from phase2_refiner.provenance import run_provenance, sha256_file
 from phase2_refiner.render import render_source_anchored_directory
 
 
@@ -33,7 +34,10 @@ def _sha256(path: Path) -> str:
 
 
 def _load_model(
-    config: dict, checkpoint: Path | None, device: torch.device
+    config: dict,
+    checkpoint: Path | None,
+    device: torch.device,
+    use_ema: bool = True,
 ) -> WholeSequenceRefiner:
     model_config = config.get("model", {})
     checkpoint_data = None
@@ -42,7 +46,8 @@ def _load_model(
         model_config = checkpoint_data.get("model_config", model_config)
     model = WholeSequenceRefiner(**model_config).to(device)
     if checkpoint_data is not None:
-        model.load_state_dict(checkpoint_data["model"], strict=True)
+        state = checkpoint_data.get("ema_model") if use_ema else None
+        model.load_state_dict(state or checkpoint_data["model"], strict=True)
     return model.eval()
 
 
@@ -68,6 +73,7 @@ def _predict_sequence(
     initial_matrix: torch.Tensor,
     refine_mask: torch.Tensor,
     device: torch.device,
+    uncertainty_offset: float = 0.0,
 ) -> dict[str, torch.Tensor]:
     length = len(features)
     window = model.max_frames
@@ -84,6 +90,8 @@ def _predict_sequence(
     delta_sum = torch.zeros(length, 51, 3, device=device)
     gate_sum = torch.zeros(length, 51, 1, device=device)
     variance_sum = torch.zeros(length, 51, 1, device=device)
+    position_sum = torch.zeros(length, 51, 3, device=device)
+    reliability_sum = torch.zeros(length, 51, device=device)
     has_variance = False
     for start in starts:
         end = min(start + window, length)
@@ -95,6 +103,7 @@ def _predict_sequence(
             padded_matrix[None].to(device),
             frame_valid[None].to(device),
             refine_mask[None].to(device),
+            uncertainty_offset=uncertainty_offset,
         )
         current_length = end - start
         weights = torch.hann_window(
@@ -113,9 +122,15 @@ def _predict_sequence(
         quaternion_sum[start:end] += quaternion * weights
         delta_sum[start:end] += prediction["raw_delta"][0, :current_length] * weights
         gate_sum[start:end] += prediction["gate"][0, :current_length] * weights
+        position_sum[start:end] += (
+            prediction["joint_position"][0, :current_length] * weights
+        )
+        reliability_sum[start:end] += prediction["reliability"][
+            0, :current_length
+        ] * weights.squeeze(-1)
         if "log_variance" in prediction:
             variance_sum[start:end] += (
-                prediction["log_variance"][0, :current_length] * weights
+                prediction["log_variance"][0, :current_length].exp() * weights
             )
             has_variance = True
         weight_sum[start:end] += weights
@@ -123,9 +138,11 @@ def _predict_sequence(
         "matrix": quaternion_to_matrix(quaternion_sum / weight_sum),
         "raw_delta": delta_sum / weight_sum,
         "gate": gate_sum / weight_sum,
+        "joint_position": position_sum / weight_sum,
+        "reliability": reliability_sum / weight_sum.squeeze(-1),
     }
     if has_variance:
-        result["log_variance"] = variance_sum / weight_sum
+        result["log_variance"] = (variance_sum / weight_sum).clamp_min(1e-8).log()
     return result
 
 
@@ -152,6 +169,7 @@ def _apply_safety_fallback(
     initial: torch.Tensor,
     body_limit_degrees: float = 25.0,
     hand_limit_degrees: float = 35.0,
+    log_variance: torch.Tensor | None = None,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     """Replace invalid body/hand group frames with their frozen initializer."""
     output = output.clone()
@@ -170,6 +188,13 @@ def _apply_safety_fallback(
         invalid = (~finite[:, start:end]).any(dim=-1) | (
             angular[:, start:end] > limit + 1e-3
         ).any(dim=-1)
+        if log_variance is not None:
+            uncertainty_invalid = (~torch.isfinite(log_variance[:, start:end])).any(
+                dim=(-1, -2)
+            ) | (
+                (log_variance[:, start:end] < -8.0) | (log_variance[:, start:end] > 6.0)
+            ).any(dim=(-1, -2))
+            invalid = invalid | uncertainty_invalid
         fallback[:, group_idx] = invalid
         output[:, start:end] = torch.where(
             invalid[:, None, None, None],
@@ -186,6 +211,7 @@ def infer_clip(
     model: WholeSequenceRefiner,
     device: torch.device,
     overwrite: bool,
+    uncertainty_offset: float = 0.0,
 ) -> dict:
     clip = load_cache_clip(cache_path)
     features, initial_matrix = features_from_clip(clip)
@@ -195,10 +221,17 @@ def infer_clip(
         initial_matrix,
         torch.from_numpy(clip.refine_mask),
         device,
+        uncertainty_offset,
     )
     length = len(clip.frame_names)
+    body_limit = float(torch.rad2deg(model.max_angles[:21].max()).cpu())
+    hand_limit = float(torch.rad2deg(model.max_angles[21:].max()).cpu())
     output_matrix, fallback = _apply_safety_fallback(
-        prediction["matrix"], initial_matrix
+        prediction["matrix"],
+        initial_matrix,
+        body_limit,
+        hand_limit,
+        prediction.get("log_variance"),
     )
     delta = prediction["raw_delta"]
     gate = prediction["gate"]
@@ -213,23 +246,53 @@ def infer_clip(
 
     result_dir = output_root / clip.clip_id / "smplifyx" / "results"
     diagnostics_dir = output_root / clip.clip_id / "phase2_diagnostics"
+    planned_results = [result_dir / f"{name}.pkl" for name in clip.frame_names]
+    stale_results = set(result_dir.glob("*.pkl")) - set(planned_results)
+    if stale_results:
+        raise RuntimeError(
+            f"Output contains stale result PKLs; first: {sorted(stale_results)[0]}"
+        )
+    source_resolved = {Path(path).resolve() for path in clip.source_paths}
+    collision = [path for path in planned_results if path.resolve() in source_resolved]
+    if collision:
+        raise ValueError(f"Output would overwrite frozen initializer: {collision[0]}")
+    diagnostics_path = diagnostics_dir / "sequence.npz"
+    summary_path = diagnostics_dir / "summary.json"
+    existing = [
+        path
+        for path in (*planned_results, diagnostics_path, summary_path)
+        if path.exists()
+    ]
+    if existing and not overwrite:
+        raise FileExistsError(
+            f"Refusing to overwrite {len(existing)} outputs; first: {existing[0]}"
+        )
     result_dir.mkdir(parents=True, exist_ok=True)
     diagnostics_dir.mkdir(parents=True, exist_ok=True)
     for index, frame_name in enumerate(clip.frame_names):
         result_path = result_dir / f"{frame_name}.pkl"
-        if result_path.exists() and not overwrite:
-            raise FileExistsError(f"Refusing to overwrite: {result_path}")
         with result_path.open("wb") as handle:
             pickle.dump(
                 _standard_result(clip, index, output_axis_angle[index]),
                 handle,
                 protocol=2,
             )
+    written_names = {path.stem for path in result_dir.glob("*.pkl")}
+    expected_names = set(clip.frame_names.astype(str))
+    if written_names != expected_names:
+        missing = sorted(expected_names - written_names)
+        extra = sorted(written_names - expected_names)
+        raise RuntimeError(
+            f"Output coverage mismatch for {clip.clip_id}: missing={missing[:1]}, extra={extra[:1]}"
+        )
     np.savez_compressed(
-        diagnostics_dir / "sequence.npz",
+        diagnostics_path,
         frame_names=clip.frame_names,
         delta_rotvec=delta.cpu().numpy(),
         gate=gate.cpu().numpy(),
+        reliability=prediction["reliability"].cpu().numpy(),
+        fallback_mask=fallback.cpu().numpy(),
+        joint_position=prediction["joint_position"].cpu().numpy(),
         log_variance=(
             prediction["log_variance"].cpu().numpy()
             if "log_variance" in prediction
@@ -249,7 +312,7 @@ def infer_clip(
         "mean_gate": float(gate.mean()),
         "fallback_group_frames": int(fallback.sum()),
     }
-    with (diagnostics_dir / "summary.json").open("w", encoding="utf-8") as handle:
+    with summary_path.open("w", encoding="utf-8") as handle:
         json.dump(summary, handle, indent=2, sort_keys=True)
         handle.write("\n")
     return summary
@@ -258,9 +321,21 @@ def infer_clip(
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, required=True)
-    parser.add_argument("--cache-root", type=Path, required=True)
+    parser.add_argument(
+        "--cache-root", "--cache", dest="cache_root", type=Path, required=True
+    )
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--checkpoint", type=Path)
+    parser.add_argument(
+        "--calibration",
+        type=Path,
+        help="Held-out calibration JSON produced by phase2_refiner.calibrate",
+    )
+    parser.add_argument(
+        "--raw-weights",
+        action="store_true",
+        help="Use raw rather than EMA checkpoint weights",
+    )
     parser.add_argument(
         "--identity", action="store_true", help="Allow zero-head identity model"
     )
@@ -285,8 +360,18 @@ def main() -> None:
             "Provide --checkpoint, or explicitly use --identity for a smoke test"
         )
     config = load_config(args.config)
+    validate_config(config)
     device = torch.device(args.device)
-    model = _load_model(config, args.checkpoint, device)
+    model = _load_model(config, args.checkpoint, device, use_ema=not args.raw_weights)
+    if model.predict_uncertainty and args.calibration is None and not args.identity:
+        raise ValueError("U1 inference requires a held-out --calibration report")
+    uncertainty_offset = 0.0
+    if args.calibration is not None:
+        with args.calibration.open("r", encoding="utf-8") as handle:
+            calibration = json.load(handle)
+        if not calibration.get("gate", {}).get("passed", False):
+            raise ValueError("Calibration report did not pass the U1 gate")
+        uncertainty_offset = float(calibration["all"]["log_variance_offset"])
     cache_paths = sorted((args.cache_root / "clips").glob("*.npz"))
     if args.sign:
         requested = set(args.sign)
@@ -294,9 +379,19 @@ def main() -> None:
     if not cache_paths:
         raise ValueError("No matching cache clips")
     output_root = args.output.resolve()
+    run_manifest_path = output_root / "run_manifest.json"
+    if run_manifest_path.exists() and not args.overwrite:
+        raise FileExistsError(f"Refusing to overwrite: {run_manifest_path}")
     summaries = []
     for cache_path in cache_paths:
-        summary = infer_clip(cache_path, output_root, model, device, args.overwrite)
+        summary = infer_clip(
+            cache_path,
+            output_root,
+            model,
+            device,
+            args.overwrite,
+            uncertainty_offset,
+        )
         if args.render:
             sign_root = output_root / summary["clip_id"] / "smplifyx"
             clip = load_cache_clip(cache_path)
@@ -306,17 +401,36 @@ def main() -> None:
                 clip.source_paths,
                 args.model_folder,
                 device,
+                overwrite=args.overwrite,
             )
         summaries.append(summary)
         print(f"[infer] {summary['clip_id']}: {summary['frames']} frames")
     run_manifest = {
         "config": str(args.config.resolve()),
         "checkpoint": str(args.checkpoint.resolve()) if args.checkpoint else None,
+        "checkpoint_sha256": sha256_file(args.checkpoint) if args.checkpoint else None,
+        "calibration": str(args.calibration.resolve()) if args.calibration else None,
+        "calibration_sha256": (
+            sha256_file(args.calibration) if args.calibration else None
+        ),
+        "uncertainty_offset": uncertainty_offset,
+        "cache_manifest": (
+            str((args.cache_root / "manifest.json").resolve())
+            if (args.cache_root / "manifest.json").exists()
+            else None
+        ),
+        "cache_manifest_sha256": (
+            sha256_file(args.cache_root / "manifest.json")
+            if (args.cache_root / "manifest.json").exists()
+            else None
+        ),
+        "weights": "raw" if args.raw_weights else "ema",
         "identity": bool(args.identity),
+        "provenance": run_provenance(args.config, int(config.get("seed", 42))),
         "clips": summaries,
     }
     output_root.mkdir(parents=True, exist_ok=True)
-    with (output_root / "run_manifest.json").open("w", encoding="utf-8") as handle:
+    with run_manifest_path.open("w", encoding="utf-8") as handle:
         json.dump(run_manifest, handle, indent=2, sort_keys=True)
         handle.write("\n")
 
