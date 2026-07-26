@@ -44,6 +44,23 @@ DEFAULT_MODES = (
 )
 
 
+def refresh_rotation_features(
+    features: torch.Tensor, initial_matrix: torch.Tensor
+) -> torch.Tensor:
+    """Keep rotation, velocity, and acceleration tokens consistent with a pose."""
+    features = features.clone()
+    rot6d = matrix_to_rotation_6d(initial_matrix)
+    features[..., ROTATION_6D] = rot6d
+    features[..., ROTATION_VELOCITY] = 0.0
+    features[..., ROTATION_ACCELERATION] = 0.0
+    features[:, 1:, :, ROTATION_VELOCITY] = rot6d[:, 1:] - rot6d[:, :-1]
+    features[:, 2:, :, ROTATION_ACCELERATION] = (
+        features[:, 2:, :, ROTATION_VELOCITY]
+        - features[:, 1:-1, :, ROTATION_VELOCITY]
+    )
+    return features
+
+
 def _random_rotation_vectors(
     shape: tuple[int, ...], max_degrees: float, device: torch.device, dtype: torch.dtype
 ) -> torch.Tensor:
@@ -196,12 +213,66 @@ def apply_burst_corruption(
                 supervised[..., None, None], corrupted, current
             )
 
-    rot6d = matrix_to_rotation_6d(initial_matrix)
-    features[..., ROTATION_6D] = rot6d
-    features[..., ROTATION_VELOCITY] = 0.0
-    features[..., ROTATION_ACCELERATION] = 0.0
-    features[:, 1:, :, ROTATION_VELOCITY] = rot6d[:, 1:] - rot6d[:, :-1]
-    features[:, 2:, :, ROTATION_ACCELERATION] = (
-        features[:, 2:, :, ROTATION_VELOCITY] - features[:, 1:-1, :, ROTATION_VELOCITY]
-    )
+    features = refresh_rotation_features(features, initial_matrix)
     return features, initial_matrix, corruption_mask
+
+
+def apply_residual_mixture(
+    features: torch.Tensor,
+    initial_matrix: torch.Tensor,
+    target_matrix: torch.Tensor,
+    frame_valid: torch.Tensor,
+    target_rotation_valid: torch.Tensor,
+    *,
+    real_fraction: float = 0.50,
+    synthetic_fraction: float = 0.25,
+    clean_fraction: float = 0.25,
+    corruption: dict | None = None,
+) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    """Construct the proposal's T2 real/synthetic/clean sample mixture.
+
+    Mode IDs are 0=real expert residual, 1=synthetic burst from the clean
+    target, and 2=clean identity. Invalid target joints retain the real
+    initializer and cannot be synthetically corrupted.
+    """
+    fractions = torch.tensor(
+        [real_fraction, synthetic_fraction, clean_fraction],
+        dtype=torch.float64,
+    )
+    if (fractions < 0).any() or abs(float(fractions.sum()) - 1.0) > 1e-8:
+        raise ValueError("T2 residual-mixture fractions must be non-negative and sum to 1")
+    batch_size = features.shape[0]
+    modes = torch.multinomial(
+        fractions.to(device=features.device, dtype=torch.float32),
+        batch_size,
+        replacement=True,
+    )
+    output_features = features.clone()
+    output_matrix = initial_matrix.clone()
+    target_or_initial = torch.where(
+        target_rotation_valid[..., None, None], target_matrix, initial_matrix
+    )
+
+    clean_or_synthetic = modes != 0
+    if clean_or_synthetic.any():
+        output_matrix[clean_or_synthetic] = target_or_initial[clean_or_synthetic]
+        output_features[clean_or_synthetic] = refresh_rotation_features(
+            output_features[clean_or_synthetic], output_matrix[clean_or_synthetic]
+        )
+
+    corruption_mask = torch.zeros_like(target_rotation_valid)
+    synthetic = modes == 1
+    if synthetic.any():
+        settings = dict(corruption or {})
+        settings["probability"] = 1.0
+        synthetic_features, synthetic_matrix, synthetic_mask = apply_burst_corruption(
+            output_features[synthetic],
+            output_matrix[synthetic],
+            frame_valid[synthetic],
+            target_rotation_valid=target_rotation_valid[synthetic],
+            **settings,
+        )
+        output_features[synthetic] = synthetic_features
+        output_matrix[synthetic] = synthetic_matrix
+        corruption_mask[synthetic] = synthetic_mask
+    return output_features, output_matrix, corruption_mask, modes

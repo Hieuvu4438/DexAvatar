@@ -75,15 +75,41 @@ def calibration_metrics(error: np.ndarray, log_variance: np.ndarray) -> dict:
     }
 
 
-def calibration_gate(metrics: dict, group: str = "all") -> dict:
+def calibrated_nll(error: np.ndarray, log_variance: np.ndarray) -> float:
+    """Return scalar-calibrated Gaussian NLL for a fair U0/U1 comparison."""
+    return float(calibration_metrics(error, log_variance)["nll_after"])
+
+
+def calibration_gate(
+    metrics: dict,
+    group: str = "all",
+    *,
+    u0_nll: float | None = None,
+    reconstruction: dict | None = None,
+    valid_real_residual: bool = False,
+) -> dict:
     auc_threshold = 0.75 if "hand" in group.lower() else 0.70
     checks = {
         "spearman_at_least_0.35": metrics["spearman"] >= 0.35,
         f"worst_decile_auc_at_least_{auc_threshold:.2f}": metrics["worst_decile_auc"]
         >= auc_threshold,
         "risk_monotonic": bool(metrics["risk_monotonic"]),
-        "calibrated_nll_improves": metrics["nll_after"] < metrics["nll_before"],
+        "self_calibration_improves_nll": metrics["nll_after"] < metrics["nll_before"],
+        "u1_nll_better_than_detector_u0": u0_nll is not None
+        and metrics["nll_after"] < u0_nll,
+        "source_and_signer_disjoint_real_residual": valid_real_residual,
     }
+    if reconstruction is not None:
+        checks["corrupt_reconstruction_improves_u0"] = (
+            reconstruction["u1_corrupt"] < reconstruction["u0_corrupt"]
+        )
+        checks["clean_regression_at_most_1pct"] = (
+            reconstruction["u1_clean"]
+            <= reconstruction["u0_clean"] * 1.01 + 1e-12
+        )
+    else:
+        checks["corrupt_reconstruction_improves_u0"] = False
+        checks["clean_regression_at_most_1pct"] = False
     return {"passed": all(checks.values()), "checks": checks}
 
 
@@ -109,8 +135,49 @@ def main() -> None:
             raise ValueError("Residual NPZ must contain error and log_variance")
         error = data["error"]
         log_variance = data["log_variance"]
+        required = {
+            "u0_log_variance",
+            "u1_corrupt_error",
+            "u0_corrupt_error",
+            "u1_clean_error",
+            "u0_clean_error",
+            "source_kind",
+            "split_disjoint_verified",
+        }
+        missing = sorted(required - set(data.files))
+        valid_real_residual = False
+        if not missing:
+            valid_real_residual = (
+                str(data["source_kind"].item()) == "real_residual"
+                and bool(data["split_disjoint_verified"].item())
+            )
+
+        def reconstruction(selected) -> dict:
+            return {
+                key: float(np.mean(data[f"{key}_error"][selected]))
+                for key in ("u1_corrupt", "u0_corrupt", "u1_clean", "u0_clean")
+            }
+
         all_metrics = calibration_metrics(error, log_variance)
-        report = {"all": all_metrics, "gate": calibration_gate(all_metrics)}
+        u0_nll = (
+            calibrated_nll(data["u0_corrupt_error"], data["u0_log_variance"])
+            if not missing
+            else None
+        )
+        all_reconstruction = reconstruction(np.ones(error.shape, dtype=bool)) if not missing else None
+        report = {
+            "all": all_metrics,
+            "u0_calibrated_nll": u0_nll,
+            "reconstruction": all_reconstruction,
+            "valid_real_residual": valid_real_residual,
+            "missing_gate_fields": missing,
+            "gate": calibration_gate(
+                all_metrics,
+                u0_nll=u0_nll,
+                reconstruction=all_reconstruction,
+                valid_real_residual=valid_real_residual,
+            ),
+        }
         if "group" in data:
             groups = data["group"]
             group_metrics = {
@@ -120,10 +187,27 @@ def main() -> None:
                 for group in np.unique(groups)
             }
             report["groups"] = group_metrics
-            report["group_gates"] = {
-                group: calibration_gate(metrics, group)
-                for group, metrics in group_metrics.items()
-            }
+            report["group_gates"] = {}
+            report["group_reconstruction"] = {}
+            for group, metrics in group_metrics.items():
+                selected = groups == group
+                group_reconstruction = reconstruction(selected) if not missing else None
+                group_u0_nll = (
+                    calibrated_nll(
+                        data["u0_corrupt_error"][selected],
+                        data["u0_log_variance"][selected],
+                    )
+                    if not missing
+                    else None
+                )
+                report["group_reconstruction"][group] = group_reconstruction
+                report["group_gates"][group] = calibration_gate(
+                    metrics,
+                    group,
+                    u0_nll=group_u0_nll,
+                    reconstruction=group_reconstruction,
+                    valid_real_residual=valid_real_residual,
+                )
             report["gate"]["passed"] = report["gate"]["passed"] and all(
                 gate["passed"] for gate in report["group_gates"].values()
             )

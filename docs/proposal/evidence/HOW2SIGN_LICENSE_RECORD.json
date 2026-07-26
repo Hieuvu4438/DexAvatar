@@ -1,0 +1,15 @@
+{
+  "accessed_on": "2026-07-26",
+  "dataset": "How2Sign",
+  "license": "Creative Commons Attribution-NonCommercial 4.0 International",
+  "license_url": "https://creativecommons.org/licenses/by-nc/4.0/",
+  "official_source": "https://how2sign.github.io/",
+  "permitted_scope": "Research use with attribution; non-commercial use only",
+  "required_actions": [
+    "Credit the How2Sign authors and cite the CVPR 2021 paper",
+    "Link to the CC BY-NC 4.0 license",
+    "Indicate changes made to the source material",
+    "Do not use the material for commercial purposes"
+  ],
+  "status": "GO only for non-commercial research within the stated terms"
+}

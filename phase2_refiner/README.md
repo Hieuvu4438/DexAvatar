@@ -20,6 +20,8 @@ It never imports training targets from SGNify evaluation artifacts. Existing Dex
 - BF16, EMA, no-decay norm/bias groups, gradient accumulation/clipping, early stopping, periodic recovery, complete optimizer/scheduler/RNG checkpoints, safe resume, and optional compatible spatial-prior initialization;
 - whole-clip/sliding-window inference with quaternion hemisphere blending, calibrated uncertainty, groupwise fallback, exact coverage checks, checkpoint/cache hashes, standard PKLs, and source-anchored meshes; and
 - strict common-manifest regional TR-V2V with topology/coverage/stale-output checks and sign-clustered statistics.
+- executable 50/25/25 T2 residual mixing, fail-closed independent-target audits,
+  matched U0/U1 calibration export, and an exact eight-condition G6 decision.
 
 Dataset-specific readers, licensed targets, DPoser-X state translation, and external target-quality filters intentionally remain provider additions. The neutral contracts are in `phase2_refiner/data/providers.py` and `phase2_refiner/models/pretrained.py`.
 
@@ -175,6 +177,38 @@ python -m phase2_refiner.train \
 
 ## 5. Calibrate and run U1
 
+T2 must use independently produced targets. Audit them before training; an
+identity/pseudo-teacher cache cannot pass this command:
+
+```bash
+python -m phase2_refiner.data.audit_real_residual_cache \
+  --train-manifest cache/phase2/t2_real_v1/splits/train.json \
+  --val-manifest cache/phase2/t2_real_v1/splits/val.json \
+  --calibration-manifest cache/phase2/t2_real_v1/splits/calibration.json \
+  --output cache/phase2/t2_real_v1/real_residual_audit.json
+
+python -m phase2_refiner.train \
+  --config phase2_refiner/configs/uawsr_t2_real_residual.yaml \
+  --spatial-init outputs/phase2_training/t1_how2sign_geometry_seed42/best.pt
+```
+
+The T2 config implements the proposal's 50% untouched real residual, 25%
+synthetic burst from the target, and 25% clean identity mixture.
+
+Train U1 only after T2/G4 passes, then export matched errors against U0 on the
+same disjoint calibration split:
+
+```bash
+python -m phase2_refiner.evaluate_uncertainty \
+  --manifest cache/phase2/t2_real_v1/splits/calibration.json \
+  --u1-config phase2_refiner/configs/uawsr_u1_real_residual.yaml \
+  --u1-checkpoint outputs/<u1_experiment>/best.pt \
+  --u0-config phase2_refiner/configs/uawsr_t2_real_residual.yaml \
+  --u0-checkpoint outputs/<t2_experiment>/best.pt \
+  --real-residual-audit cache/phase2/t2_real_v1/real_residual_audit.json \
+  --output outputs/<u1_experiment>/calibration_residuals.npz
+```
+
 ```bash
 python -m phase2_refiner.calibrate \
   --residuals outputs/<u1_experiment>/calibration_residuals.npz \
@@ -199,6 +233,19 @@ python -m phase2_refiner.evaluate \
   --baseline outputs/<phase1_method> \
   --output outputs/<phase2_method>/evaluation
 ```
+
+For incomplete Phase-1 candidates, create a full-coverage symlink view without
+copying or modifying either source method:
+
+```bash
+python -m phase2_refiner.data.build_locked_fallback_view \
+  --manifest probes/results/phase0/frame_manifest.csv \
+  --primary outputs/<candidate> --fallback outputs/method_hamer \
+  --output outputs/phase2_gates/g1_views/<candidate>
+```
+
+`phase2_refiner.gates --g6 ...` rejects fewer than three seeds and evaluates
+all numerical G6 requirements, including hard/clean subsets and fallback rate.
 
 ## Validation
 

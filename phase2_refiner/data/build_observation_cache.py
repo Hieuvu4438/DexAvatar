@@ -370,6 +370,20 @@ def build_clip(
                 },
                 "source": "frozen_initializer",
                 "provenance": provenance or {},
+                **{
+                    key: value
+                    for key, value in (provenance or {}).items()
+                    if key
+                    in {
+                        "initializer_expert",
+                        "target_provider",
+                        "target_type",
+                        "source_group",
+                        "motion_domain",
+                        "official_split",
+                        "license_record",
+                    }
+                },
             },
             sort_keys=True,
         ),
@@ -451,6 +465,10 @@ def main() -> None:
             raise ValueError("--provenance-json must contain a JSON object")
     initializer_root = args.initializer_root.resolve()
     if args.target_root:
+        if args.target_root.resolve() == initializer_root:
+            raise ValueError(
+                "Initializer and target roots are identical; this is not a real residual pair"
+            )
         target_text = str(args.target_root.resolve()).lower()
         forbidden = ("smplx_gt", "evaluation_from_author", "sgnify")
         if any(token in target_text for token in forbidden):

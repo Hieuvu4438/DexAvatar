@@ -1739,3 +1739,320 @@ GiB peak RSS. Both tmux sessions were recreated and extraction resumed from
 clip 1,417 without rewriting the existing deterministic outputs. This reduces
 host-memory pressure and accepts lower throughput as the required stability
 tradeoff while other machine workloads remain active.
+
+---
+
+## 28. Completed How2Sign T1 run and current Phase 2 decision — 26 July 2026
+
+The resumed pipeline completed teacher extraction, cache construction, the
+automated readiness audit, 5,000 training steps, and both formal FP32 T1
+evaluations on 25 July 2026. No Phase 2 process remains active.
+
+This result must be named accurately: it is a **deterministic T1 synthetic-
+corruption recovery model trained on sign-domain pseudo-target sequences**. It
+is not yet the complete uncertainty-aware observation-to-clean Phase 2 model.
+The resolved configuration has `predict_uncertainty: false`,
+`uncertainty_weight: 0.0`, and `observation_weight: 0.0`.
+
+### 28.1 Completed data and training artifacts
+
+| Item | Completed result |
+|---|---:|
+| How2Sign teacher train set | 11,000 clips / 352,000 ordered frames |
+| How2Sign teacher validation set | 1,200 clips / 38,400 ordered frames |
+| train / validation source groups | 2,130 / 114 |
+| train-validation clip or source-group overlap | 0 / 0 |
+| complete body and both-hand targets | 100% |
+| automated catastrophic-target failures | 0 / 11,000 train; 0 / 1,200 validation |
+| optimization | 5,000 steps, batch 48, BF16, seed 42, EMA |
+| final fixed-validation rotation recovery | 72.28% |
+| final fixed-validation residual rotation error | 0.084592 rad |
+
+The automated readiness report says `GO: full Phase 2 training` for its
+implemented checks. That report establishes volume, length, completeness,
+split integrity, and the automated catastrophic-frame screen. It does **not**
+by itself prove the separate Section 8.2 requirements for a recorded dataset
+license and a human visual audit of 100 randomly sampled pseudo-target
+sequences; those two evidence items remain open.
+
+### 28.2 Formal FP32 synthetic rotation recovery
+
+| Corruption burst | Injected error | Residual error | Recovery | 30% T1 threshold |
+|---:|---:|---:|---:|:---:|
+| 4 frames | 0.305079 rad | 0.081961 rad | **73.13%** | GO |
+| 8 frames | 0.305644 rad | 0.082710 rad | **72.94%** | GO |
+| 16 frames | 0.305359 rad | 0.086519 rad | **71.67%** | GO |
+
+Clean rotation error is `1.0661e-5 rad`. The rotation-only report intentionally
+leaves G3 pending until decoded regional geometry is checked; the following
+formal vertex report supplies that required evidence.
+
+### 28.3 Formal FP32 decoded regional vertex recovery
+
+| Burst | Upper body injected → residual (recovery) | Left hand injected → residual (recovery) | Right hand injected → residual (recovery) |
+|---:|---:|---:|---:|
+| 4 | 86.4102 → 18.0603 mm (**79.10%**) | 12.0199 → 5.6508 mm (**52.99%**) | 11.8223 → 6.0529 mm (**48.80%**) |
+| 8 | 90.5142 → 19.0841 mm (**78.92%**) | 11.9027 → 5.7665 mm (**51.55%**) | 11.7596 → 6.0595 mm (**48.47%**) |
+| 16 | 83.1817 → 18.6267 mm (**77.61%**) | 12.1194 → 6.1771 mm (**49.03%**) | 12.2049 → 6.6317 mm (**45.66%**) |
+
+Clean decoded drift is **0.000652 mm** for upper body, **0.001713 mm**
+for left hand, and **0.001259 mm** for right hand. Every regional recovery is
+above 30%, all three regions are present, and every clean-to-injected ratio is
+far below 2%. Therefore **formal G3 is GO**.
+
+### 28.4 Master gate status after the completed run
+
+| Gate | Current decision | Evidence or blocker |
+|---|:---:|---|
+| G0 evaluator and coverage lock | PENDING | A0 and a selected A1 still lack one immutable, full-coverage Lane L contract; the 1,493-versus-2,872 protocol discrepancy remains unresolved. |
+| G1 Phase 1 initializer quality | PENDING | No final full-coverage A1 has been selected and cleared on the common manifest. |
+| G2 data readiness | CONDITIONAL GO | Executable checks pass at 11,000 sign clips / 352,000 frames with no split overlap; dataset-license evidence and the required manual 100-sequence audit are not recorded. |
+| G3 synthetic recoverability | **GO** | All 4/8/16-frame upper-body and two-hand recoveries exceed 30%, with clean drift below 2%. |
+| G4 real validation value | NO-GO / NOT RUN | No exact-frozen-expert Tier-C real-residual experiment has shown ≥3% external weighted gain, ≤1% per-region regression, and ≥8% hard-subset gain. |
+| G5 uncertainty validity | NO-GO / NOT RUN | U1 is disabled; no Spearman, AUROC, risk-coverage, NLL, or U1-versus-U0 reconstruction result exists. |
+| G6 locked local benchmark | NO-GO / NOT RUN | No full-coverage A1-versus-refiner Lane L PKL/mesh evaluation, clustered CI, hard-subset result, fallback rate, or three-seed result exists. |
+| G7 official comparison | NO-GO | The official/local protocol discrepancy is unresolved, so comparison with `30.13 / 13.53 / 13.08` remains prohibited. |
+
+**Decision:** this run is **GO to proceed from T1 to T2 real-residual
+learning**. It is **NO-GO for claiming that full uncertainty-aware Phase 2 is
+complete, accepted, better than the selected Phase 1 initializer, or better
+than the published DexAvatar result**. No executed quantitative gate failed;
+the full decision is blocked by required stages and evaluations that have not
+yet been run. The next mandatory work is G0/G1 manifest lock, strict completion
+of the two remaining G2 evidence items, T2/G4, then U1/G5, followed by the
+three-seed Lane L G6 evaluation.
+
+### 28.5 Reproducibility artifacts
+
+- checkpoint: `outputs/phase2_training/t1_how2sign_geometry_seed42/best.pt`,
+  SHA-256 `c86a95a7e900dda02a8f8ebc1bbe0ef36c656e4186ec4ef24507da65286b1b9e`;
+- resolved configuration:
+  `outputs/phase2_training/t1_how2sign_geometry_seed42/resolved_config.json`,
+  SHA-256 `f34c091eebe630e0def86d1d60883c8c963d4be5580e070f7990168632ce80b5`;
+- rotation report:
+  `outputs/phase2_training/t1_how2sign_geometry_seed42/t1_recovery_fp32.json`,
+  SHA-256 `a873190e9779e77bf87225d031caec21f9476756b2caf2a9c1700f9a1d9f6fa3`;
+- decoded-vertex report:
+  `outputs/phase2_training/t1_how2sign_geometry_seed42/t1_vertex_recovery_fp32.json`,
+  SHA-256 `d93566febfedf8b95c823bf3bdb1c89d164938eaeee7fc257d45b56d13cbccec`;
+- readiness report: `cache/phase2/how2sign_t1_v1/readiness_report.json`,
+  SHA-256 `d383210d9d2806c89d308f9b69b5891af32f46b8c7cf0acd3ab87a0a76e4add5`;
+  and
+- append-only pipeline log:
+  `logs/phase2/how2sign_phase2_pipeline_20260724.txt`, SHA-256
+  `ca5ecb71ff0392d1b87a80a9ceb6433eb0d7082ab7a73443d7ed4531d4fde119`.
+
+---
+
+## 29. Gate-remediation implementation and executed Lane-L diagnosis — 26 July 2026
+
+This section records the root-cause investigation, code remediation, and the
+newly executed Go/No-Go experiments. It supersedes the G0/G1/G6 status in
+Section 28.4. It does not supersede the formal G3 result in Section 28.
+
+### 29.1 Root causes found
+
+1. **No real residual exists in the current How2Sign cache.** All 11,000 train
+   and 1,200 validation clips use `init_axis_angle == target_axis_angle`. The
+   targets and initializers are both the same SMPLer-X H32 pseudo-teacher pose.
+   This is correct for T1 synthetic corruption, but it cannot train or validate
+   T2 observation-to-clean correction.
+2. **The trainer did not implement the specified T2 batch composition.** It
+   applied stochastic corruption to one cache stream, rather than explicitly
+   sampling 50% real residual, 25% synthetic-from-clean, and 25% clean identity
+   examples.
+3. **The original U1 calibration command could self-pass.** It compared NLL
+   before and after scalar scaling of U1 itself. It did not require a matched
+   detector-confidence U0 comparator, real source-/signer-disjoint provenance,
+   corrupted reconstruction gain, or the per-region clean-regression limit.
+4. **No executable G4/G6 decision existed.** Regional summaries and CIs were
+   produced, but the full conjunction of the proposal thresholds was not
+   machine enforced. In particular, one seed could be mistaken for a
+   reproducibility result.
+5. **The stronger Phase-1 candidates were incomplete.** Most contain 1,450 of
+   the locked 1,493 frames. Comparing their native populations would change the
+   benchmark rather than compare methods.
+6. **The T1 model learned controlled recovery, not correction of natural A1
+   errors.** On clean Lane L it behaves almost as identity. This explains why
+   G3 is strong while the new G6 diagnostic has only 0.089% balanced gain.
+
+The first and sixth causes are data/scientific blockers, not GPU-capacity
+problems. More GPU memory cannot create independent targets or real frozen-
+expert residuals.
+
+### 29.2 Code remediation
+
+The following additions are isolated under `phase2_refiner` and do not modify
+the legacy DexAvatar methods or their outputs:
+
+- `data/build_locked_fallback_view.py`: creates an exact full-coverage symlink
+  view, selecting a primary frame only when its PKL and mesh both exist and
+  otherwise selecting both artifacts from A0; records every choice and hash;
+- `data/corruptions.py` and `train.py`: implement the explicit T2 50/25/25
+  real/synthetic/clean mixture and keep rotation, velocity, and acceleration
+  features consistent after replacing an initializer with a clean target;
+- `data/audit_real_residual_cache.py`: fail-closed audit requiring independent
+  target type, distinct initializer/target providers, source groups, and a
+  measurable real-residual population;
+- `data/build_observation_cache.py`: rejects identical initializer/target roots
+  and propagates required real-residual provenance fields;
+- `evaluate_uncertainty.py` and `calibrate.py`: export matched U0/U1 clean and
+  corrupted residuals, require a passing real-residual audit, compare calibrated
+  U1 NLL with detector-confidence U0, and enforce reconstruction conditions per
+  region;
+- `evaluate_lane_diagnostics.py`: freezes and evaluates the Lane-L observation-
+  difficulty subset, low-uncertainty clean subset, and group-frame fallbacks;
+- `gates.py`: machine-enforces G4 and every numerical G6 condition and refuses
+  to pass reproducibility with fewer than exactly three seeds;
+- `configs/uawsr_t2_real_residual.yaml` and
+  `configs/uawsr_u1_real_residual.yaml`: proposal-aligned T2 and U1 starting
+  configurations; and
+- `data/build_manual_audit_queue.py`: deterministic, source-group-stratified
+  100-sequence human review queue.
+
+`README.md` now documents the enforced T2, U1, A1-lock, and gate commands.
+The validation result after these changes is **31 tests passed**, Python
+`compileall` passed, and `git diff --check` passed.
+
+### 29.3 G0/G1 locked initializer sweep
+
+The immutable Lane-L manifest contains 1,493 frames and 57 signs, SHA-256
+`ed76c077aeb9ece61eb860183bfad6e4aeef9a236a27238c313903414996fd2c`.
+Every incomplete candidate was evaluated as a non-destructive hybrid: use its
+1,450 available frames and A0 for the 43 missing frames. Thus every row below
+uses the identical manifest, topology, units, regional masks, and alignment.
+
+| Candidate | Upper-body change | Left-hand change | Right-hand change | Equal-region relative gain | Decision |
+|---|---:|---:|---:|---:|:---:|
+| Biomech + A0 fallback | −0.279 mm | −0.744 mm | −0.777 mm | 4.143% | valid |
+| Direct + A0 fallback | +0.363 mm | −0.764 mm | −0.805 mm | 3.547% | reject: upper-body regression |
+| **Ensemble + A0 fallback** | **−0.373 mm** | **−0.749 mm** | **−0.814 mm** | **4.353%** | **selected A1** |
+| Hand2D + A0 fallback | −0.336 mm | −0.808 mm | −0.764 mm | 4.329% | valid, lower balanced score |
+| NLF-WiLoR + A0 fallback | +4.246 mm | +6.592 mm | +4.774 mm | −33.230% | reject |
+| WiLoR + A0 fallback | −0.286 mm | −0.763 mm | −0.813 mm | 4.290% | valid, lower balanced score |
+
+The locked A0 metrics are `29.907413 / 13.573462 / 12.927137 mm`. The selected
+A1 metrics are **`29.534720 / 12.824893 / 12.112852 mm`**. Its sign-clustered
+95% delta intervals are `[-0.612, -0.176]`, `[-1.108, -0.525]`, and
+`[-1.076, -0.574] mm`; all three exclude zero in the improving direction.
+The view has 1,450 ensemble frames and 43 atomic A0 fallbacks (2.8801%), with
+1,493/1,493 PKLs and meshes. SMPL-X topology makes the wrist/forearm surface
+connected, while the upper-body and both-hand errors all improve.
+
+Therefore **Lane-L G0 is GO and G1 is GO**, with
+`method_ensemble + method_hamer fallback` frozen as A1. The separate official
+population question remains in G7: the local strict A0 is numerically close to
+`30.13 / 13.53 / 13.08`, but the 1,493-versus-2,872 frame discrepancy has not
+been independently reconciled.
+
+### 29.4 G2 evidence update
+
+The official How2Sign project page records the dataset as CC BY-NC 4.0. The
+machine-readable record is
+`docs/proposal/evidence/HOW2SIGN_LICENSE_RECORD.json`, SHA-256
+`bdaf1c2d5fd05f998845b6faf46b067fe4b3551dc2ecb810655b89a752c21cd1`.
+It is a GO only for non-commercial research with attribution, a license link,
+and disclosure of changes.
+
+The deterministic manual-review queue now exists at
+`outputs/phase2_gates/g2/how2sign_manual_audit_100.csv`, SHA-256
+`d1245eaf302d5cd9ddff5267e65be33f0eaef519e82ac2e0e7b77992eb5548bc`.
+It contains 100 clips from 100 distinct source groups. All judgment cells are
+still `PENDING`; no human reviewer name or decision was fabricated. Therefore
+**G2 remains CONDITIONAL GO**, with exactly one remaining evidence action: a
+named reviewer must complete the 100-sequence visual audit and observe fewer
+than 10 catastrophic failures.
+
+### 29.5 Formal T2/G4 residual audit
+
+The new fail-closed audit was executed over all existing How2Sign caches:
+
+| Split | Clips / frames | Measurable real residual frames | Independent target type | Distinct provider provenance |
+|---|---:|---:|:---:|:---:|
+| train | 11,000 / 352,000 | **0 (0.0%)** | fail on 11,000 | fail on 11,000 |
+| validation | 1,200 / 38,400 | **0 (0.0%)** | fail on 1,200 | fail on 1,200 |
+
+Artifact:
+`outputs/phase2_gates/g4/how2sign_real_residual_audit.json`, SHA-256
+`290aced40884b1efee1637e221a6405d6fc1cc2b3f47ff1066cd4f7e62336fa4`.
+
+This formally establishes **G4 NO-GO** with the current data. Starting T2 on
+these pairs would train the model to reproduce its own teacher and would not
+be a legitimate attempt at the proposal gate. Consequently U1 training was
+not launched: the ordered strategy explicitly forbids T4 before deterministic
+T2 passes G4. **G5 remains NO-GO / correctly not run.**
+
+### 29.6 Executed GPU Lane-L diagnostic
+
+The seed-42 T1 checkpoint was run on the selected A1 cache, rendered into 1,493
+source-anchored meshes on GPU, and evaluated against A1. The run used a tmux
+session and the append-only log
+`outputs/phase2_gates/logs/lane_l_seed42_infer_render.txt`, SHA-256
+`8721d84559ff5b7796d48b7ab5ccc03c66bc218af1032aa34f0fd1978af6fbfc`.
+The renderer reached approximately 95% GPU utilization; CPU work was bounded
+to four cores.
+
+| Region | Selected A1 | T1 refiner | Pooled change | Sign-mean delta 95% CI |
+|---|---:|---:|---:|---:|
+| Upper body | 29.534720 | 29.531215 | −0.003505 mm | [−0.008547, +0.000361] |
+| Left hand | 12.824893 | 12.812379 | −0.012514 mm | [−0.033478, +0.003990] |
+| Right hand | 12.112852 | 12.093706 | −0.019146 mm | [−0.036076, +0.012084] |
+
+The equal-region relative gain is only **0.0892%**, versus the 3% gate. Zero
+regions improve with a clustered CI excluding zero. Safety fallback is good:
+0/4,479 group-frames (0%). In the frozen v1 difficulty subset, left/right hand
+gains are 2.985% and 4.408%, both below 8%; the available A1 cache has no body
+frames satisfying that predeclared hard definition. Clean hand regressions are
+approximately 0.00020% and 0.00035%, but there is likewise no eligible clean
+body subset under the frozen definition.
+
+| G6 condition | Seed-42 diagnostic |
+|---|:---:|
+| identical 1,493-frame coverage | GO |
+| no region worse by >0.20 mm | GO |
+| two regions improve with CI excluding zero | **NO-GO (0 regions)** |
+| equal-region gain ≥3% | **NO-GO (0.0892%)** |
+| hard subset gain ≥8% | **NO-GO** |
+| clean regression <1% in every region | **NO-GO: body subset unavailable** |
+| safety fallback <1% | GO (0%) |
+| three seeds, regional SD <0.20 mm | **NO-GO: one seed only** |
+
+The executable decision is **G6 NO-GO**. Training two more T1 seeds would not
+repair the already failed effect-size, significance, and hard-subset checks,
+so the Go/No-Go strategy stops that expensive branch rather than consuming GPU
+time for a result that cannot pass.
+
+### 29.7 Current master decision
+
+| Gate | Decision after remediation | Reason |
+|---|:---:|---|
+| G0 Lane-L evaluator/coverage lock | **GO** | immutable 1,493-frame A0/A1 contract, hashes, topology, masks, and complete coverage recorded |
+| G1 initializer quality | **GO** | selected hybrid A1 improves all regions with all clustered CIs below zero |
+| G2 data readiness | CONDITIONAL GO | volume/integrity/license recorded; named 100-sequence human audit pending |
+| G3 synthetic recoverability | **GO** | formal 4/8/16-frame rotation and decoded-regional recovery passed |
+| G4 real validation value | **NO-GO** | current cache contains zero real residual frames and no independent target/provider pairing |
+| G5 uncertainty validity | **NO-GO / not run** | ordered gate prohibits U1 before G4; fail-closed tooling is now ready |
+| G6 locked local benchmark | **NO-GO** | 0.0892% gain, 0 significant regions, hard subset below threshold, one seed |
+| G7 official comparison | **NO-GO** | 1,493-versus-2,872 protocol population remains unresolved |
+
+**Final decision: full Phase 2 is not GO.** The implementation is now aligned
+and the locally executable strategy was completed, but the experiment honestly
+fails G4 and G6. The next valid path is not further T1 training: create Tier-C
+pairs by running the exact frozen A1 experts on source-disjoint videos and use
+an independent clean target (GT, multi-view fit, or independently refined
+multi-frame teacher), complete the named 100-sequence audit, run T2 with the
+implemented 50/25/25 mixture, and require G4 to pass. Only then train/calibrate
+U1 and repeat G6 with three seeds. Until those data are provided, retaining the
+selected geometric A1 is the proposal-mandated release decision.
+
+### 29.8 Reproducibility hashes
+
+- G0 A0 summary: `c02f1ccb77bbd6ce5e6e1546ef9156a666dd1069c6ee7166aa087d242bda3d96`;
+- selected A1 evaluation: `74d3042dc872a9cf5bb87d5c6f1dff25950537d99aecadde14320f024f7180a6`;
+- selected A1 locked-view manifest: `cd9d52da521da5ea4cc50b3c249ff44c2f26e93380836691e9e286af96c4cb1c`;
+- selected A1 cache manifest: `507dfad5c13a148cf9cd967104c98ff1cb750e22f0c1e198c0a1a181eb239933`;
+- seed-42 inference manifest: `28277e07d294e83ca4cab67ad9519115bf112d84f45bff700acd5101d7f299d4`;
+- seed-42 strict evaluation: `fca18bb162e94e79e33db951c9eeca7c1edc086bf0af0d54a90601543dfd9483`;
+- seed-42 subset/fallback diagnostics: `bb3ad955dbc06b5fde353cb85a3543ca6227c8ee71c11b080aac1b7818926f5d`;
+  and
+- executable G6 decision: `00dea60a16e7e1f135c74011d69a36c1434d61fb4fe77a45c9340c86ce33a243`.

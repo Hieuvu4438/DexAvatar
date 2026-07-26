@@ -17,7 +17,10 @@ from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR, SequentialLR
 from torch.utils.data import DataLoader
 
 from phase2_refiner.config import load_config, validate_config
-from phase2_refiner.data.corruptions import apply_burst_corruption
+from phase2_refiner.data.corruptions import (
+    apply_burst_corruption,
+    apply_residual_mixture,
+)
 from phase2_refiner.data.dataset import (
     TORSO_POSITION,
     TORSO_POSITION_VALID,
@@ -514,13 +517,30 @@ def main() -> None:
         for batch in train_loader:
             model.train()
             batch = _to_device(batch, device)
-            features, initial_matrix, _ = apply_burst_corruption(
-                batch["features"],
-                batch["initial_matrix"],
-                batch["frame_valid"],
-                target_rotation_valid=batch["target_rotation_valid"],
-                **corruption,
-            )
+            residual_mixture = train_config.get("residual_mixture")
+            if residual_mixture is not None:
+                features, initial_matrix, _, mixture_modes = apply_residual_mixture(
+                    batch["features"],
+                    batch["initial_matrix"],
+                    batch["target_matrix"],
+                    batch["frame_valid"],
+                    batch["target_rotation_valid"],
+                    real_fraction=float(residual_mixture.get("real_fraction", 0.50)),
+                    synthetic_fraction=float(
+                        residual_mixture.get("synthetic_fraction", 0.25)
+                    ),
+                    clean_fraction=float(residual_mixture.get("clean_fraction", 0.25)),
+                    corruption=corruption,
+                )
+            else:
+                features, initial_matrix, _ = apply_burst_corruption(
+                    batch["features"],
+                    batch["initial_matrix"],
+                    batch["frame_valid"],
+                    target_rotation_valid=batch["target_rotation_valid"],
+                    **corruption,
+                )
+                mixture_modes = None
             with autocast_context():
                 prediction = model(
                     features,
@@ -570,7 +590,14 @@ def main() -> None:
                     f"{key}={float(value.detach()):.6f}"
                     for key, value in losses.items()
                 )
-                print(f"step={step} {fields}")
+                mixture_text = ""
+                if mixture_modes is not None:
+                    counts = torch.bincount(mixture_modes, minlength=3).tolist()
+                    mixture_text = (
+                        f" mix_real={counts[0]} mix_synthetic={counts[1]}"
+                        f" mix_clean={counts[2]}"
+                    )
+                print(f"step={step}{mixture_text} {fields}")
             if val_loader is not None and (
                 step % validate_every == 0 or step == max_steps
             ):
