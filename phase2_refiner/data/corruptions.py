@@ -12,6 +12,7 @@ from phase2_refiner.data.dataset import (
     OBSERVATION_FEATURES,
     PALM_NORMAL,
     PALM_VALID,
+    REPROJECTION_RESIDUAL_2D,
     ROTATION_6D,
     ROTATION_ACCELERATION,
     ROTATION_VELOCITY,
@@ -259,6 +260,14 @@ def apply_residual_mixture(
         output_features[clean_or_synthetic] = refresh_rotation_features(
             output_features[clean_or_synthetic], output_matrix[clean_or_synthetic]
         )
+        # Cached reprojection residuals are defined against the frozen real
+        # initializer.  Once a mixture row is replaced by its target (clean or
+        # synthetic-from-clean), those two channels no longer describe the
+        # current pose.  Zero them rather than leak a contradictory H32 error.
+        if output_features.shape[-1] >= REPROJECTION_RESIDUAL_2D.stop:
+            output_features[
+                clean_or_synthetic, :, :, REPROJECTION_RESIDUAL_2D
+            ] = 0.0
 
     corruption_mask = torch.zeros_like(target_rotation_valid)
     synthetic = modes == 1

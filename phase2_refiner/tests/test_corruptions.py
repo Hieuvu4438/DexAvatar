@@ -1,7 +1,11 @@
 import torch
 
 from phase2_refiner.data.corruptions import apply_residual_mixture
-from phase2_refiner.data.dataset import ROTATION_6D
+from phase2_refiner.data.dataset import (
+    REPROJECTION_RESIDUAL_2D,
+    ROTATION_6D,
+    TOKEN_FEATURE_DIM_WITH_REPROJECTION,
+)
 
 
 def test_t2_residual_mixture_clean_mode_uses_target(monkeypatch):
@@ -47,3 +51,41 @@ def test_t2_residual_mixture_rejects_invalid_fractions():
         pass
     else:
         raise AssertionError("invalid mixture did not fail")
+
+
+def test_t2_non_real_modes_do_not_reuse_frozen_initializer_reprojection():
+    features = torch.zeros(1, 4, 51, TOKEN_FEATURE_DIM_WITH_REPROJECTION)
+    features[..., REPROJECTION_RESIDUAL_2D] = 0.25
+    initial = torch.eye(3).expand(1, 4, 51, 3, 3).clone()
+    target = initial.clone()
+    valid = torch.ones(1, 4, 51, dtype=torch.bool)
+    frames = torch.ones(1, 4, dtype=torch.bool)
+
+    clean_features, _, _, _ = apply_residual_mixture(
+        features,
+        initial,
+        target,
+        frames,
+        valid,
+        real_fraction=0.0,
+        synthetic_fraction=0.0,
+        clean_fraction=1.0,
+    )
+    real_features, _, _, _ = apply_residual_mixture(
+        features,
+        initial,
+        target,
+        frames,
+        valid,
+        real_fraction=1.0,
+        synthetic_fraction=0.0,
+        clean_fraction=0.0,
+    )
+
+    assert torch.count_nonzero(
+        clean_features[..., REPROJECTION_RESIDUAL_2D]
+    ) == 0
+    assert torch.equal(
+        real_features[..., REPROJECTION_RESIDUAL_2D],
+        features[..., REPROJECTION_RESIDUAL_2D],
+    )

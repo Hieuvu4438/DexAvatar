@@ -13,8 +13,8 @@ from pathlib import Path
 import numpy as np
 
 
-SCHEMA_VERSION = 2
-SUPPORTED_SCHEMA_VERSIONS = (1, 2)
+SCHEMA_VERSION = 3
+SUPPORTED_SCHEMA_VERSIONS = (1, 2, 3)
 NUM_JOINTS = 51
 NUM_OBSERVATION_FEATURES = 8
 NUM_HANDS = 2
@@ -60,6 +60,7 @@ class CacheClip:
     torso_to_camera: np.ndarray | None = None
     wrist_to_torso: np.ndarray | None = None
     u0_reliability: np.ndarray | None = None
+    reprojection_residual_2d: np.ndarray | None = None
     target_joint_positions: np.ndarray | None = None
     target_joint_valid: np.ndarray | None = None
     metadata_json: str = "{}"
@@ -112,6 +113,10 @@ class CacheClip:
                 * (1.0 - 0.5 * duplicate)
                 * np.exp(-2.0 * innovation)
             ).astype(np.float32)
+        if self.reprojection_residual_2d is None:
+            self.reprojection_residual_2d = np.zeros(
+                (t, NUM_JOINTS, 2), dtype=np.float32
+            )
         if self.target_axis_angle is not None and self.target_rotation_valid is None:
             # Backward compatibility: caches written before partial supervision
             # was introduced represented complete rotation targets.
@@ -149,6 +154,7 @@ class CacheClip:
             "torso_to_camera": (t, 4, 4),
             "wrist_to_torso": (t, NUM_HANDS, 4, 4),
             "u0_reliability": (t, NUM_JOINTS),
+            "reprojection_residual_2d": (t, NUM_JOINTS, 2),
         }
         for name, shape in expected.items():
             value = getattr(self, name)
@@ -184,6 +190,7 @@ class CacheClip:
             "torso_to_camera",
             "wrist_to_torso",
             "u0_reliability",
+            "reprojection_residual_2d",
         )
         for name in finite_fields:
             if not np.isfinite(getattr(self, name)).all():
@@ -235,6 +242,7 @@ def save_cache_clip(path: str | Path, clip: CacheClip) -> None:
         "torso_to_camera": clip.torso_to_camera.astype(np.float32),
         "wrist_to_torso": clip.wrist_to_torso.astype(np.float32),
         "u0_reliability": clip.u0_reliability.astype(np.float32),
+        "reprojection_residual_2d": clip.reprojection_residual_2d.astype(np.float32),
         "metadata_json": np.asarray(clip.metadata_json),
         "has_target": np.asarray(clip.target_axis_angle is not None, dtype=bool),
         "has_target_joints": np.asarray(
@@ -315,6 +323,9 @@ def load_cache_clip(path: str | Path) -> CacheClip:
             torso_to_camera=_get(data, "torso_to_camera", None),
             wrist_to_torso=_get(data, "wrist_to_torso", None),
             u0_reliability=_get(data, "u0_reliability", None),
+            reprojection_residual_2d=_get(
+                data, "reprojection_residual_2d", None
+            ),
             target_joint_positions=(
                 data["target_joint_positions"] if has_target_joints else None
             ),

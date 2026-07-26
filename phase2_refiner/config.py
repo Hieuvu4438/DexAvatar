@@ -32,14 +32,28 @@ def validate_config(
     require_data: bool = False,
     require_validation: bool = False,
 ) -> None:
-    from phase2_refiner.data.dataset import TOKEN_FEATURE_DIM
+    from phase2_refiner.data.dataset import (
+        TOKEN_FEATURE_DIM,
+        TOKEN_FEATURE_DIM_WITH_REPROJECTION,
+    )
 
     model = config.get("model", {})
     input_dim = int(model.get("input_dim", TOKEN_FEATURE_DIM))
-    if input_dim != TOKEN_FEATURE_DIM:
+    if input_dim not in (TOKEN_FEATURE_DIM, TOKEN_FEATURE_DIM_WITH_REPROJECTION):
         raise ValueError(
-            f"model.input_dim={input_dim}, but cache-v2 tokens require {TOKEN_FEATURE_DIM}"
+            f"model.input_dim={input_dim}, but supported token layouts are "
+            f"{TOKEN_FEATURE_DIM} and {TOKEN_FEATURE_DIM_WITH_REPROJECTION}"
         )
+    if (
+        model.get("use_reprojection_skip", False)
+        and input_dim != TOKEN_FEATURE_DIM_WITH_REPROJECTION
+    ):
+        raise ValueError("model.use_reprojection_skip requires the 45-feature layout")
+    residual_scale = float(
+        config.get("data", {}).get("reprojection_residual_scale", 10.0)
+    )
+    if residual_scale <= 0:
+        raise ValueError("data.reprojection_residual_scale must be positive")
     hidden = int(model.get("hidden_size", 256))
     heads = int(model.get("num_heads", 8))
     if hidden % heads:

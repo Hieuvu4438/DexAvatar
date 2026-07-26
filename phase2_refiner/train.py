@@ -7,7 +7,7 @@ import copy
 import json
 import pickle
 import random
-from contextlib import nullcontext
+from contextlib import contextmanager, nullcontext
 from pathlib import Path
 
 import numpy as np
@@ -38,6 +38,29 @@ from phase2_refiner.provenance import run_provenance, sha256_file
 from phase2_refiner.geometry.smplx_decode import decode_smplx_sequence
 from phase2_refiner.geometry.rotations import geodesic_distance
 from phase2_refiner.render import create_smplx_model
+
+
+VALIDATION_REGIONS = {
+    "ubody": slice(0, 21),
+    "lhand": slice(21, 36),
+    "rhand": slice(36, 51),
+}
+
+
+def regional_validation_selection_score(
+    baseline: dict[str, float], prediction: dict[str, float]
+) -> tuple[float, dict[str, float]]:
+    """Return the predeclared equal-region T2 checkpoint-selection score."""
+    ratios = {}
+    for region in VALIDATION_REGIONS:
+        denominator = float(baseline[region])
+        if denominator <= 0:
+            raise ValueError(f"Validation baseline for {region} must be positive")
+        ratios[region] = float(prediction[region]) / denominator
+    score = float(np.mean(list(ratios.values()))) + 0.5 * sum(
+        max(0.0, ratio - 1.01) for ratio in ratios.values()
+    )
+    return score, ratios
 
 
 def set_seed(seed: int) -> None:
@@ -154,6 +177,18 @@ class ExponentialMovingAverage:
             else:
                 self.shadow[key].copy_(value)
 
+    @contextmanager
+    def average_parameters(self, model: torch.nn.Module):
+        """Temporarily expose EMA weights for validation without changing training."""
+        training_state = {
+            key: value.detach().clone() for key, value in model.state_dict().items()
+        }
+        model.load_state_dict(self.shadow, strict=True)
+        try:
+            yield
+        finally:
+            model.load_state_dict(training_state, strict=True)
+
 
 def _optimizer(model: torch.nn.Module, learning_rate: float, weight_decay: float):
     decay, no_decay = [], []
@@ -186,6 +221,10 @@ def evaluate(
 ) -> dict[str, float]:
     model.eval()
     totals: dict[str, list[float]] = {}
+    regional_sums = {
+        region: {"baseline": 0.0, "prediction": 0.0, "count": 0}
+        for region in VALIDATION_REGIONS
+    }
     cuda_devices = (
         [device.index or torch.cuda.current_device()] if device.type == "cuda" else []
     )
@@ -226,6 +265,40 @@ def evaluate(
                 )
             for name, value in losses.items():
                 totals.setdefault(name, []).append(float(value))
+            baseline_rotation_error = geodesic_distance(
+                initial_matrix.float(), batch["target_matrix"].float()
+            )
+            prediction_rotation_error = geodesic_distance(
+                prediction["matrix"].float(), batch["target_matrix"].float()
+            )
+            for region, indices in VALIDATION_REGIONS.items():
+                valid = (
+                    batch["frame_valid"][:, :, None]
+                    & batch["target_rotation_valid"][:, :, indices]
+                    & batch["refine_mask"][:, None, indices]
+                )
+                clip_counts = valid.sum(dim=(1, 2))
+                eligible = clip_counts > 0
+                if eligible.any():
+                    baseline_clip_mean = (
+                        (baseline_rotation_error[:, :, indices] * valid).sum(
+                            dim=(1, 2)
+                        )
+                        / clip_counts.clamp_min(1)
+                    )
+                    prediction_clip_mean = (
+                        (prediction_rotation_error[:, :, indices] * valid).sum(
+                            dim=(1, 2)
+                        )
+                        / clip_counts.clamp_min(1)
+                    )
+                    regional_sums[region]["baseline"] += float(
+                        baseline_clip_mean[eligible].sum()
+                    )
+                    regional_sums[region]["prediction"] += float(
+                        prediction_clip_mean[eligible].sum()
+                    )
+                    regional_sums[region]["count"] += int(eligible.sum())
             if corruption_mask is not None:
                 mask = corruption_mask & batch["target_rotation_valid"]
                 count = mask.sum().clamp_min(1)
@@ -244,6 +317,21 @@ def evaluate(
         totals["recovery_fraction"] = [
             0.0 if injected <= 1e-8 else 1.0 - residual / injected
         ]
+    baseline = {}
+    prediction = {}
+    for region, values in regional_sums.items():
+        if not values["count"]:
+            raise ValueError(f"Validation has no supervised joints for {region}")
+        baseline[region] = values["baseline"] / values["count"]
+        prediction[region] = values["prediction"] / values["count"]
+        totals[f"regional_{region}_baseline_radians"] = [baseline[region]]
+        totals[f"regional_{region}_prediction_radians"] = [prediction[region]]
+    selection_score, ratios = regional_validation_selection_score(
+        baseline, prediction
+    )
+    totals["selection_score"] = [selection_score]
+    for region, ratio in ratios.items():
+        totals[f"regional_{region}_prediction_over_baseline"] = [ratio]
     return {name: float(np.mean(values)) for name, values in totals.items()}
 
 
@@ -355,12 +443,18 @@ def main() -> None:
     if args.val_glob:
         data_config["val_glob"] = args.val_glob
     max_frames = int(config.get("model", {}).get("max_frames", 64))
+    input_dim = int(config.get("model", {}).get("input_dim", 43))
+    reprojection_residual_scale = float(
+        data_config.get("reprojection_residual_scale", 10.0)
+    )
     train_dataset = SequenceCacheDataset(
         data_config["train_glob"],
         max_frames=max_frames,
         training=True,
         identity_target=args.identity_target,
         seed=seed,
+        input_dim=input_dim,
+        reprojection_residual_scale=reprojection_residual_scale,
     )
     val_glob = None if args.no_validation else data_config.get("val_glob")
     val_dataset = (
@@ -370,6 +464,8 @@ def main() -> None:
             training=False,
             identity_target=args.identity_target,
             seed=seed,
+            input_dim=input_dim,
+            reprojection_residual_scale=reprojection_residual_scale,
         )
         if val_glob
         else None
@@ -601,7 +697,7 @@ def main() -> None:
             if val_loader is not None and (
                 step % validate_every == 0 or step == max_steps
             ):
-                metrics = evaluate(
+                raw_metrics = evaluate(
                     model,
                     loss_fn,
                     val_loader,
@@ -611,19 +707,36 @@ def main() -> None:
                     corruption=validation_corruption,
                     corruption_seed=seed + 10000,
                 )
-                score = metrics["total"]
-                print(f"step={step} val={json.dumps(metrics, sort_keys=True)}")
-                if validation_corruption is not None:
-                    clean_metrics = evaluate(
+                with ema.average_parameters(model):
+                    metrics = evaluate(
                         model,
                         loss_fn,
                         val_loader,
                         device,
                         autocast_context,
                         geometry_context,
+                        corruption=validation_corruption,
+                        corruption_seed=seed + 10000,
                     )
+                score = metrics["selection_score"]
+                print(
+                    f"step={step} val_raw={json.dumps(raw_metrics, sort_keys=True)}"
+                )
+                print(
+                    f"step={step} val_ema={json.dumps(metrics, sort_keys=True)}"
+                )
+                if validation_corruption is not None:
+                    with ema.average_parameters(model):
+                        clean_metrics = evaluate(
+                            model,
+                            loss_fn,
+                            val_loader,
+                            device,
+                            autocast_context,
+                            geometry_context,
+                        )
                     print(
-                        f"step={step} val_clean="
+                        f"step={step} val_clean_ema="
                         f"{json.dumps(clean_metrics, sort_keys=True)}"
                     )
                 if score < best:

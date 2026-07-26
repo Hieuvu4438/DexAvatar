@@ -9,6 +9,7 @@ from torch import nn
 
 from phase2_refiner.data.cache_schema import NUM_JOINTS
 from phase2_refiner.data.dataset import (
+    REPROJECTION_RESIDUAL_2D,
     TOKEN_FEATURE_DIM,
     TORSO_POSITION,
     U0_RELIABILITY,
@@ -160,6 +161,7 @@ class WholeSequenceRefiner(nn.Module):
         dropout: float = 0.1,
         max_frames: int = 64,
         predict_uncertainty: bool = False,
+        use_reprojection_skip: bool = False,
         causal: bool = False,
         body_max_degrees: float = 25.0,
         hand_max_degrees: float = 35.0,
@@ -171,6 +173,14 @@ class WholeSequenceRefiner(nn.Module):
         self.token_embedding = ObservationTokenEmbedding(
             input_dim, hidden_size, max_frames, NUM_JOINTS
         )
+        self.reprojection_skip = (
+            nn.Linear(NUM_JOINTS * 2, NUM_JOINTS * 3)
+            if use_reprojection_skip and input_dim >= REPROJECTION_RESIDUAL_2D.stop
+            else None
+        )
+        if self.reprojection_skip is not None:
+            nn.init.zeros_(self.reprojection_skip.weight)
+            nn.init.zeros_(self.reprojection_skip.bias)
         self.reliability_head = (
             LearnedReliabilityHead(hidden_size) if predict_uncertainty else None
         )
@@ -235,6 +245,11 @@ class WholeSequenceRefiner(nn.Module):
             value = block(value, frame_valid, self.group_ids, reliability, self.causal)
         value = self.output_norm(value)
         raw_delta, gate, position_delta = self.heads(value)
+        if self.reprojection_skip is not None:
+            reprojection_delta = self.reprojection_skip(
+                features[..., REPROJECTION_RESIDUAL_2D].flatten(start_dim=2)
+            ).reshape(batch, frames, joints, 3)
+            raw_delta = raw_delta + reprojection_delta
         if refine_mask.ndim == 1:
             refine_mask = refine_mask[None].expand(batch, -1)
         apply_mask = refine_mask[:, None, :, None] & frame_valid[:, :, None, None]

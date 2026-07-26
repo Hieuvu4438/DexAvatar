@@ -148,7 +148,7 @@ def main() -> None:
         valid_real_residual = False
         if not missing:
             valid_real_residual = (
-                str(data["source_kind"].item()) == "real_residual"
+                str(data["source_kind"].item()) == "real_residual_exact_a1"
                 and bool(data["split_disjoint_verified"].item())
             )
 

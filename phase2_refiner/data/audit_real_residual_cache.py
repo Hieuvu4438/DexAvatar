@@ -17,7 +17,9 @@ from phase2_refiner.geometry.rotations import axis_angle_to_matrix, geodesic_dis
 INDEPENDENT_TARGET_TYPES = {"independent_gt", "independent_pseudo_target"}
 
 
-def audit_manifest(manifest: Path) -> tuple[dict, set[str]]:
+def audit_manifest(
+    manifest: Path, require_locked_initializer: bool = False
+) -> tuple[dict, set[str]]:
     failure_counts: Counter[str] = Counter()
     failure_examples: dict[str, list[str]] = {}
 
@@ -43,6 +45,10 @@ def audit_manifest(manifest: Path) -> tuple[dict, set[str]]:
             fail("target_type_is_not_independent", clip.clip_id)
         if not initializer or not provider or initializer.lower() == provider.lower():
             fail("initializer_and_target_provider_not_distinct", clip.clip_id)
+        if require_locked_initializer and not bool(
+            metadata.get("initializer_matches_locked_lane_a1", False)
+        ):
+            fail("initializer_does_not_match_locked_lane_a1", clip.clip_id)
         if not source_group:
             fail("source_group_missing", clip.clip_id)
         if clip.target_axis_angle is None or clip.target_rotation_valid is None:
@@ -86,6 +92,7 @@ def audit_manifest(manifest: Path) -> tuple[dict, set[str]]:
             "nonzero_residual_fraction": nonzero_fraction,
             "initializer_experts": sorted(initializer_experts),
             "target_providers": sorted(target_providers),
+            "locked_initializer_required": require_locked_initializer,
             "source_groups": len(source_groups),
             "failure_counts": dict(sorted(failure_counts.items())),
             "failure_examples": failure_examples,
@@ -106,17 +113,26 @@ def main() -> None:
     parser.add_argument("--train-manifest", type=Path, required=True)
     parser.add_argument("--val-manifest", type=Path, required=True)
     parser.add_argument("--calibration-manifest", type=Path)
+    parser.add_argument(
+        "--require-locked-initializer",
+        action="store_true",
+        help="Require every initializer to match the exact frozen Lane-L A1 stack",
+    )
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--overwrite", action="store_true")
     args = parser.parse_args()
     if args.output.exists() and not args.overwrite:
         raise FileExistsError(f"Refusing to overwrite: {args.output}")
-    train, train_groups = audit_manifest(args.train_manifest.resolve())
-    validation, validation_groups = audit_manifest(args.val_manifest.resolve())
+    train, train_groups = audit_manifest(
+        args.train_manifest.resolve(), args.require_locked_initializer
+    )
+    validation, validation_groups = audit_manifest(
+        args.val_manifest.resolve(), args.require_locked_initializer
+    )
     calibration = calibration_groups = None
     if args.calibration_manifest:
         calibration, calibration_groups = audit_manifest(
-            args.calibration_manifest.resolve()
+            args.calibration_manifest.resolve(), args.require_locked_initializer
         )
     source_overlap = {
         "train_validation": sorted(train_groups & validation_groups),

@@ -42,7 +42,11 @@ BODY_MAP = (
     (9,),
     (10,),
 )
-HAND_MAP = (1, 2, 3, 5, 6, 7, 9, 10, 11, 13, 14, 15, 17, 18, 19)
+# SMPL-X stores each hand in index, middle, pinky, ring, thumb order.  The
+# COCO-WholeBody/How2Sign tracks are thumb, index, middle, ring, pinky.  Keep
+# observations in SMPL-X pose order so a feature at joint j describes the same
+# joint whose rotation is refined at j.
+HAND_MAP = (5, 6, 7, 9, 10, 11, 17, 18, 19, 13, 14, 15, 1, 2, 3)
 
 
 def _pose(payload: np.lib.npyio.NpzFile) -> np.ndarray:
@@ -176,6 +180,10 @@ def _make_clip(
                     "motion_domain": "sign_language_asl",
                     "target_scope": "complete SMPL-X body and both hands",
                     "target_type": "SMPLer-X H32 pseudo-3D",
+                    "coordinate_policy": {
+                        "keypoints_2d": "normalized_image_0_to_1",
+                        "rotations": "smplx_local_axis_angle",
+                    },
                     "teacher_path": str(teacher_path.resolve()),
                     "quality": quality,
                     "sgnify_training_reads": 0,

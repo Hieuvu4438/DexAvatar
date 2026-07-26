@@ -192,8 +192,77 @@ python -m phase2_refiner.train \
   --spatial-init outputs/phase2_training/t1_how2sign_geometry_seed42/best.pt
 ```
 
+For the available How2Sign H32 cache, the reproducible Tier-C proxy is built by
+optimizing the frozen per-frame poses against the independently supplied ordered
+133-point tracks with temporal and bounded-pose constraints:
+
+```bash
+python -m phase2_refiner.data.refine_how2sign_targets \
+  --train-manifest cache/phase2/how2sign_t1_v1/splits/train.json \
+  --val-manifest cache/phase2/how2sign_t1_v1/splits/val.json \
+  --output cache/phase2/t2_how2sign_2d_temporal_v1 \
+  --train-clips 11000 --validation-clips 500 --calibration-clips 500 \
+  --batch-size 64 --iterations 30 --device cuda
+```
+
+The builder corrects COCO-WholeBody versus SMPL-X hand-joint ordering, rejects
+clips that do not improve the independent signal, and writes source-disjoint
+manifests. This is valid proxy/pretraining evidence, but H32 is not the exact
+Lane-L ensemble A1. Formal G4 must therefore add `--require-locked-initializer`
+to the audit; the command intentionally fails until exact-A1 Tier-C caches exist.
+
+```bash
+python -m phase2_refiner.data.audit_real_residual_cache \
+  --train-manifest cache/phase2/t2_how2sign_2d_temporal_v1/splits/train.json \
+  --val-manifest cache/phase2/t2_how2sign_2d_temporal_v1/splits/val.json \
+  --calibration-manifest cache/phase2/t2_how2sign_2d_temporal_v1/splits/calibration.json \
+  --output cache/phase2/t2_how2sign_2d_temporal_v1/proxy_residual_audit.json
+
+# Formal audit: expected to fail closed until the exact ensemble A1 is cached.
+python -m phase2_refiner.data.audit_real_residual_cache \
+  --train-manifest cache/phase2/t2_how2sign_2d_temporal_v1/splits/train.json \
+  --val-manifest cache/phase2/t2_how2sign_2d_temporal_v1/splits/val.json \
+  --calibration-manifest cache/phase2/t2_how2sign_2d_temporal_v1/splits/calibration.json \
+  --require-locked-initializer \
+  --output cache/phase2/t2_how2sign_2d_temporal_v1/formal_exact_a1_audit.json
+```
+
+After proxy T2 training, `evaluate_residual_checkpoint` reports untouched
+regional SO(3) gains, the frozen observation-difficulty subset, clip-bootstrap
+intervals, and fallback. Its formal G4 evidence bit remains false for a proxy
+audit even when the numerical experiment improves.
+
+The delegated catastrophic-target audit is reproducible rather than an
+undocumented checkbox:
+
+```bash
+python -m phase2_refiner.data.render_how2sign_audit \
+  --queue outputs/phase2_gates/g2/how2sign_manual_audit_100.csv \
+  --output outputs/phase2_gates/g2/how2sign_visual_audit_100_v1 \
+  --device cuda
+python -m phase2_refiner.data.complete_visual_audit \
+  --queue outputs/phase2_gates/g2/how2sign_manual_audit_100.csv \
+  --evidence-manifest outputs/phase2_gates/g2/how2sign_visual_audit_100_v1/manifest.json \
+  --output-csv outputs/phase2_gates/g2/how2sign_ai_visual_audit_100_completed.csv \
+  --output-report outputs/phase2_gates/g2/how2sign_ai_visual_audit_100_report.json \
+  --reviewer "Codex (OpenAI), delegated by project owner"
+```
+
+The completion command requires a rendered image for every queue row, records
+the review modality, and never overwrites the original pending queue.
+
 The T2 config implements the proposal's 50% untouched real residual, 25%
-synthetic burst from the target, and 25% clean identity mixture.
+synthetic burst from the target, and 25% clean identity mixture. Cached
+reprojection residuals remain in physical normalized-image coordinates; the
+dataset applies the explicit `data.reprojection_residual_scale` only when
+forming model tokens. Non-real mixture rows receive zero reprojection residual
+because their initializer has been replaced and the cached H32 residual would
+otherwise be geometrically stale. Checkpoint selection uses the proposal's
+clip-balanced, equal-region external-validation score on EMA weights and logs
+the raw-weight score alongside it. The 45-feature model also has a
+zero-initialized cross-joint reprojection skip: it is exactly identity-safe at
+initialization, while giving the per-frame residual a direct bounded SO(3)
+correction path in parallel with the whole-sequence transformer.
 
 Train U1 only after T2/G4 passes, then export matched errors against U0 on the
 same disjoint calibration split:

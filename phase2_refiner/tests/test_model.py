@@ -1,11 +1,15 @@
 import torch
 
 from phase2_refiner.data.corruptions import apply_burst_corruption
-from phase2_refiner.data.dataset import TOKEN_FEATURE_DIM
-from phase2_refiner.geometry.rotations import axis_angle_to_matrix
+from phase2_refiner.data.dataset import (
+    TOKEN_FEATURE_DIM,
+    TOKEN_FEATURE_DIM_WITH_REPROJECTION,
+)
+from phase2_refiner.geometry.rotations import axis_angle_to_matrix, geodesic_distance
 from phase2_refiner.infer import _apply_safety_fallback, _predict_sequence
 from phase2_refiner.losses import RefinerLoss
 from phase2_refiner.models import WholeSequenceRefiner
+from phase2_refiner.models.pretrained import load_compatible_initialization
 
 
 def small_model(
@@ -134,3 +138,78 @@ def test_u1_returns_bounded_observation_uncertainty() -> None:
     assert output["log_variance"].shape == (1, 8, 51, 1)
     assert output["observation_log_variance"].shape == (1, 8, 51, 2)
     assert torch.all((output["reliability"] >= 0) & (output["reliability"] <= 1))
+
+
+def test_spatial_initialization_expands_append_only_input_features(tmp_path) -> None:
+    source = small_model()
+    with torch.no_grad():
+        source.token_embedding.input_projection.weight.normal_()
+    checkpoint = tmp_path / "spatial.pt"
+    torch.save({"model": source.state_dict()}, checkpoint)
+
+    target = WholeSequenceRefiner(
+        input_dim=TOKEN_FEATURE_DIM_WITH_REPROJECTION,
+        use_reprojection_skip=True,
+        hidden_size=32,
+        num_layers=2,
+        num_heads=4,
+        max_frames=8,
+        dropout=0.0,
+    )
+    provenance = load_compatible_initialization(target, checkpoint)
+    source_weight = source.token_embedding.input_projection.weight
+    target_weight = target.token_embedding.input_projection.weight
+
+    assert torch.equal(target_weight[:, :TOKEN_FEATURE_DIM], source_weight)
+    assert torch.count_nonzero(target_weight[:, TOKEN_FEATURE_DIM:]) == 0
+    assert provenance["missing_tensors"] == 2
+    assert set(provenance["missing_tensor_names"]) == {
+        "reprojection_skip.weight",
+        "reprojection_skip.bias",
+    }
+    assert provenance["adapted_tensors"] == [
+        {
+            "tensor": "token_embedding.input_projection.weight",
+            "source_shape": [32, TOKEN_FEATURE_DIM],
+            "target_shape": [32, TOKEN_FEATURE_DIM_WITH_REPROJECTION],
+            "policy": "copy learned prefix; zero-initialize appended features",
+        }
+    ]
+
+
+def test_reprojection_skip_is_identity_safe_and_receives_direct_gradient() -> None:
+    legacy = WholeSequenceRefiner(
+        input_dim=TOKEN_FEATURE_DIM_WITH_REPROJECTION,
+        hidden_size=32,
+        num_layers=1,
+        num_heads=4,
+        max_frames=4,
+        dropout=0.0,
+    )
+    assert legacy.reprojection_skip is None
+
+    model = WholeSequenceRefiner(
+        input_dim=TOKEN_FEATURE_DIM_WITH_REPROJECTION,
+        use_reprojection_skip=True,
+        hidden_size=32,
+        num_layers=1,
+        num_heads=4,
+        max_frames=4,
+        dropout=0.0,
+    )
+    features = torch.zeros(1, 4, 51, TOKEN_FEATURE_DIM_WITH_REPROJECTION)
+    features[..., 43:45] = torch.randn(1, 4, 51, 2)
+    initial = axis_angle_to_matrix(torch.zeros(1, 4, 51, 3))
+    valid = torch.ones(1, 4, dtype=torch.bool)
+    refine = torch.ones(1, 51, dtype=torch.bool)
+
+    identity = model(features, initial, valid, refine)["matrix"]
+    assert torch.equal(identity, initial)
+
+    target = axis_angle_to_matrix(torch.full((1, 4, 51, 3), 0.05))
+    prediction = model(features, initial, valid, refine)
+    loss = geodesic_distance(prediction["matrix"], target).mean()
+    loss.backward()
+    assert model.reprojection_skip is not None
+    assert model.reprojection_skip.weight.grad is not None
+    assert torch.count_nonzero(model.reprojection_skip.weight.grad) > 0

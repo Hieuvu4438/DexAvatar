@@ -9,7 +9,13 @@ from phase2_refiner.data.cache_schema import (
     load_cache_clip,
     save_cache_clip,
 )
-from phase2_refiner.data.dataset import TOKEN_FEATURE_DIM, features_from_clip
+from phase2_refiner.data.dataset import (
+    REPROJECTION_RESIDUAL_2D,
+    REPROJECTION_RESIDUAL_SCALE,
+    TOKEN_FEATURE_DIM,
+    TOKEN_FEATURE_DIM_WITH_REPROJECTION,
+    features_from_clip,
+)
 
 
 def make_clip(frames: int = 5) -> CacheClip:
@@ -65,6 +71,22 @@ def test_missing_observations_produce_finite_explicitly_masked_tokens() -> None:
     assert features.shape == (5, 51, TOKEN_FEATURE_DIM)
     assert np.isfinite(features.numpy()).all()
     assert np.count_nonzero(features[..., 26:28].numpy()) == 0
+
+
+def test_v3_reprojection_layout_is_opt_in_and_backward_compatible() -> None:
+    clip = make_clip()
+    clip.keypoint_valid[:] = True
+    clip.reprojection_residual_2d = np.full((5, 51, 2), 0.25, np.float32)
+    legacy, _ = features_from_clip(clip)
+    enriched, _ = features_from_clip(
+        clip, input_dim=TOKEN_FEATURE_DIM_WITH_REPROJECTION
+    )
+    assert legacy.shape[-1] == TOKEN_FEATURE_DIM
+    assert enriched.shape[-1] == TOKEN_FEATURE_DIM_WITH_REPROJECTION
+    np.testing.assert_allclose(
+        enriched[..., REPROJECTION_RESIDUAL_2D].numpy(),
+        0.25 * REPROJECTION_RESIDUAL_SCALE,
+    )
 
 
 def test_cache_rejects_non_finite() -> None:

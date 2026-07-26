@@ -32,7 +32,10 @@ WRIST_POSITION_VALID = 37
 PALM_NORMAL = slice(38, 41)
 PALM_VALID = 41
 TIME_DELTA = 42
+REPROJECTION_RESIDUAL_2D = slice(43, 45)
+REPROJECTION_RESIDUAL_SCALE = 10.0
 TOKEN_FEATURE_DIM = 43
+TOKEN_FEATURE_DIM_WITH_REPROJECTION = 45
 
 
 def _masked_coordinates(value: np.ndarray, valid: np.ndarray) -> torch.Tensor:
@@ -41,8 +44,29 @@ def _masked_coordinates(value: np.ndarray, valid: np.ndarray) -> torch.Tensor:
     return torch.where(mask[..., None], tensor, torch.zeros_like(tensor))
 
 
+def _keypoints_in_model_coordinates(clip, window: slice) -> np.ndarray:
+    """Standardize 2D cache coordinates to normalized image [-1, 1]."""
+    metadata = json.loads(clip.metadata_json)
+    policy = metadata.get("coordinate_policy", {})
+    coordinate_system = (
+        policy.get("keypoints_2d", "") if isinstance(policy, dict) else ""
+    )
+    value = clip.keypoints_2d[window]
+    # Early How2Sign-v1 caches predate the explicit policy field, but their
+    # extractor contract is unambiguously normalized image [0, 1].
+    legacy_how2sign = (
+        not coordinate_system and str(metadata.get("dataset", "")).lower() == "how2sign"
+    )
+    if coordinate_system == "normalized_image_0_to_1" or legacy_how2sign:
+        return value * 2.0 - 1.0
+    return value
+
+
 def features_from_clip(
-    clip, window: slice | None = None
+    clip,
+    window: slice | None = None,
+    input_dim: int = TOKEN_FEATURE_DIM,
+    reprojection_residual_scale: float = REPROJECTION_RESIDUAL_SCALE,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     clip.validate()
     window = window or slice(0, len(clip.frame_names))
@@ -59,7 +83,7 @@ def features_from_clip(
     observations = torch.from_numpy(clip.observation_features[window]).float()
     keypoint_valid = torch.from_numpy(clip.keypoint_valid[window]).bool()
     keypoints = _masked_coordinates(
-        clip.keypoints_2d[window], clip.keypoint_valid[window]
+        _keypoints_in_model_coordinates(clip, window), clip.keypoint_valid[window]
     )
     reliability = torch.from_numpy(clip.u0_reliability[window]).float()[..., None]
     torso_valid = torch.from_numpy(clip.torso_position_valid[window]).bool()
@@ -88,27 +112,35 @@ def features_from_clip(
         nominal = 1.0 / clip.fps if clip.fps > 0 else time_delta[1:].median()
         time_delta = time_delta / torch.as_tensor(nominal).clamp_min(1e-6)
     time_delta = time_delta[:, None, None].expand(-1, NUM_JOINTS, 1)
-
-    features = torch.cat(
-        (
-            rot6d,
-            velocity,
-            acceleration,
-            observations,
-            keypoints,
-            keypoint_valid[..., None].float(),
-            reliability,
-            torso,
-            torso_valid[..., None].float(),
-            wrist,
-            wrist_valid[..., None].float(),
-            palm,
-            palm_valid[..., None].float(),
-            time_delta,
-        ),
-        dim=-1,
+    reprojection_residual = _masked_coordinates(
+        clip.reprojection_residual_2d[window], clip.keypoint_valid[window]
     )
-    if features.shape[-1] != TOKEN_FEATURE_DIM:
+
+    components = [
+        rot6d,
+        velocity,
+        acceleration,
+        observations,
+        keypoints,
+        keypoint_valid[..., None].float(),
+        reliability,
+        torso,
+        torso_valid[..., None].float(),
+        wrist,
+        wrist_valid[..., None].float(),
+        palm,
+        palm_valid[..., None].float(),
+        time_delta,
+    ]
+    if input_dim == TOKEN_FEATURE_DIM_WITH_REPROJECTION:
+        components.append(reprojection_residual * reprojection_residual_scale)
+    elif input_dim != TOKEN_FEATURE_DIM:
+        raise ValueError(
+            f"Unsupported token feature dimension {input_dim}; expected "
+            f"{TOKEN_FEATURE_DIM} or {TOKEN_FEATURE_DIM_WITH_REPROJECTION}"
+        )
+    features = torch.cat(components, dim=-1)
+    if features.shape[-1] != input_dim:
         raise AssertionError(features.shape)
     return features, init_matrix
 
@@ -150,6 +182,8 @@ class SequenceCacheDataset(Dataset):
         training: bool = False,
         identity_target: bool = False,
         seed: int = 42,
+        input_dim: int = TOKEN_FEATURE_DIM,
+        reprojection_residual_scale: float = REPROJECTION_RESIDUAL_SCALE,
     ) -> None:
         manifest_path = Path(cache_glob)
         if manifest_path.suffix == ".json" and manifest_path.exists():
@@ -171,6 +205,10 @@ class SequenceCacheDataset(Dataset):
         self.max_frames = max_frames
         self.training = training
         self.identity_target = identity_target
+        self.input_dim = input_dim
+        self.reprojection_residual_scale = float(reprojection_residual_scale)
+        if self.reprojection_residual_scale <= 0:
+            raise ValueError("reprojection_residual_scale must be positive")
         self.rng = np.random.default_rng(seed)
         self.lengths = [len(load_cache_clip(path).frame_names) for path in self.paths]
 
@@ -196,7 +234,12 @@ class SequenceCacheDataset(Dataset):
     def __getitem__(self, index: int) -> dict[str, torch.Tensor | str | list[str]]:
         clip = load_cache_clip(self.paths[index])
         window = self._window(len(clip.frame_names))
-        features, init_matrix = features_from_clip(clip, window)
+        features, init_matrix = features_from_clip(
+            clip,
+            window,
+            input_dim=self.input_dim,
+            reprojection_residual_scale=self.reprojection_residual_scale,
+        )
         init_aa = torch.from_numpy(clip.init_axis_angle[window]).float()
 
         target_np = clip.target_axis_angle

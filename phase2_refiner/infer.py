@@ -212,9 +212,14 @@ def infer_clip(
     device: torch.device,
     overwrite: bool,
     uncertainty_offset: float = 0.0,
+    reprojection_residual_scale: float = 10.0,
 ) -> dict:
     clip = load_cache_clip(cache_path)
-    features, initial_matrix = features_from_clip(clip)
+    features, initial_matrix = features_from_clip(
+        clip,
+        input_dim=model.token_embedding.input_projection.in_features,
+        reprojection_residual_scale=reprojection_residual_scale,
+    )
     prediction = _predict_sequence(
         model,
         features,
@@ -383,6 +388,9 @@ def main() -> None:
     if run_manifest_path.exists() and not args.overwrite:
         raise FileExistsError(f"Refusing to overwrite: {run_manifest_path}")
     summaries = []
+    reprojection_residual_scale = float(
+        config.get("data", {}).get("reprojection_residual_scale", 10.0)
+    )
     for cache_path in cache_paths:
         summary = infer_clip(
             cache_path,
@@ -391,6 +399,7 @@ def main() -> None:
             device,
             args.overwrite,
             uncertainty_offset,
+            reprojection_residual_scale,
         )
         if args.render:
             sign_root = output_root / summary["clip_id"] / "smplifyx"
@@ -414,6 +423,7 @@ def main() -> None:
             sha256_file(args.calibration) if args.calibration else None
         ),
         "uncertainty_offset": uncertainty_offset,
+        "reprojection_residual_scale": reprojection_residual_scale,
         "cache_manifest": (
             str((args.cache_root / "manifest.json").resolve())
             if (args.cache_root / "manifest.json").exists()

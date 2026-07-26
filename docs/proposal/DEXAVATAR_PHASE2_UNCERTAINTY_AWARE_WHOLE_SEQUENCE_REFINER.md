@@ -2056,3 +2056,272 @@ selected geometric A1 is the proposal-mandated release decision.
 - seed-42 subset/fallback diagnostics: `bb3ad955dbc06b5fde353cb85a3543ca6227c8ee71c11b080aac1b7818926f5d`;
   and
 - executable G6 decision: `00dea60a16e7e1f135c74011d69a36c1434d61fb4fe77a45c9340c86ce33a243`.
+
+## 30. Executed full-GO remediation attempt (2026-07-26/27)
+
+This section supersedes the pending status in Sections 29.4--29.7 for the new
+How2Sign 2D-temporal branch. It records real GPU training and locked evaluation;
+no metric below is projected or manually invented. The original DexAvatar and
+all earlier Phase 1/Phase 2 implementations remain intact. New behavior is
+opt-in through the v6 configuration and the `use_reprojection_skip` flag.
+
+### 30.1 Owner-delegated G2 visual decision
+
+At the project owner's request, Codex inspected the deterministic 100-clip
+queue instead of requiring the owner to judge the videos. Four source/teacher
+frames per clip were rendered, arranged into ten contact sheets, and reviewed
+for subject swaps, exploded bodies, gross pose discontinuities, and other
+catastrophic pseudo-target failures.
+
+| Audit item | Result |
+|---|---:|
+| Clips / distinct source groups | 100 / 100 |
+| Frames inspected per clip | 4 |
+| Catastrophic failures | 0 |
+| Catastrophic failure rate | 0.0% |
+| Required rate | <10% |
+| Owner-delegated decision | **GO** |
+
+The machine-readable report is
+`outputs/phase2_gates/g2/how2sign_ai_visual_audit_100_report.json`, SHA-256
+`9506f2825267696513e2a969985c4aebb6b70a8a1d7eeb0a0fa5326668a259da`.
+This certifies catastrophic screening only; it does not claim millimetre-level
+or fine-finger correctness. If the proposal is interpreted as requiring an
+external named human rather than an owner-delegated AI reviewer, G2 remains
+conditional on that external sign-off.
+
+### 30.2 Independent 2D-temporal target and residual implementation
+
+The previous How2Sign cache had identical initializer/target poses. The new
+pipeline creates a genuinely non-zero training target by combining ordered
+How2Sign 2D tracks with temporal bundle adjustment, an initializer anchor, and
+bounded pose corrections. The left/right track mapping bug and the How2Sign
+`[0,1]` versus Lane `[-1,1]` coordinate mismatch were corrected before
+training. A 102-dimensional per-frame reprojection residual is stored without
+clipping and scaled only in the model input path.
+
+| Split | Clips | Frames | Source groups | Overlap with train |
+|---|---:|---:|---:|---:|
+| Train | 10,822 | 346,304 | 2,128 | -- |
+| Validation | 498 | 15,936 | 57 | 0 |
+| Calibration | 497 | 15,904 | 57 | 0 |
+
+All clips have 32 frames and complete body/both-hand targets. The target fit
+reduces 2D reprojection error by 37.692% overall: 4.169% body, 56.886% left
+hand, and 55.196% right hand. Mean target correction is 5.001 degrees and the
+maximum is 15.807 degrees. The re-audited G2 artifact is
+`outputs/phase2_gates/g2/how2sign_2d_temporal_reprojection_g2.json`, SHA-256
+`f621a3f1e28f99d2c1f165d1f5a554213a6bf4e7b876b08c3f710662e97290ec`.
+
+The model-side remediation is identity safe:
+
+- schema v3 adds optional `reprojection_residual_2d` while keeping schemas
+  v1/v2 readable;
+- the pretrained 43-channel projection is copied into the 45-channel model and
+  only the two new reliability summaries start at zero;
+- synthetic/clean mixture rows zero stale cached residuals after replacing the
+  initializer;
+- an opt-in, zero-initialized cross-joint reprojection skip maps all 102
+  residual coordinates to the 153 pose corrections;
+- validation uses the exact equal-region proposal score, a >1% regional
+  regression penalty, and explicitly compares raw and EMA weights.
+
+A source-disjoint linear probe predicted target corrections from the
+reprojection signal with 69% relative MSE reduction and 0.83 cosine
+similarity. This established signal availability before the v6 training run.
+
+### 30.3 T2 v6 training and proxy G4
+
+T2 was trained on GPU in tmux with CPU threads capped at four. The selected EMA
+checkpoint is step 1,500:
+
+- checkpoint:
+  `outputs/phase2_training/t2_how2sign_2d_temporal_reprojection_v6_seed42/best.pt`,
+  SHA-256
+  `8c4e8c011fd69e51b6bc492012f1eb1667384cb095b2996a14935b0a26d8a482`;
+- append-only training log:
+  `outputs/phase2_gates/logs/t2_how2sign_2d_temporal_reprojection_v6_seed42.txt`,
+  SHA-256
+  `926fff2c74736a2fcc98b3dd159aff0f26873c701ac70382bd1077d48b6d01fc`.
+
+Independent full-validation evaluation produced:
+
+| Region | Initializer error | T2 error | Relative gain | Clip-bootstrap delta 95% CI |
+|---|---:|---:|---:|---:|
+| Upper body | 2.5610 deg | 2.2599 deg | 11.76% | [−0.3052, −0.2968] deg |
+| Left hand | 7.4778 deg | 6.4641 deg | 13.56% | [−1.0332, −0.9937] deg |
+| Right hand | 7.3657 deg | 6.4226 deg | 12.80% | [−0.9596, −0.9260] deg |
+
+The equal-region gain is **12.71%**, hard-subset gain is **10.88%**, all
+15,936 frames are covered, and fallback is 0%. Therefore every numerical G4
+criterion passes. Evaluation artifact:
+`outputs/phase2_gates/g4/how2sign_reprojection_v6_checkpoint_eval.json`,
+SHA-256
+`ab7ccd7cb2d3d33be47091dbb15cc39ac344a313d8725cbe1512749d0e49a13f`.
+
+This is nevertheless **proxy G4 GO, formal G4 NO-GO**. Every How2Sign sample
+uses frozen `SMPLer-X H32` as initializer, not the exact selected Lane A1
+`method_ensemble + method_hamer fallback`. The fail-closed audit rejects all
+10,822/498/497 train/validation/calibration clips for this one provenance
+reason. Audit:
+`outputs/phase2_gates/g4/how2sign_2d_temporal_formal_exact_a1_audit.json`,
+SHA-256
+`f714b9aa99a3dcca0163cbe3d58841991110d50a8dabb4de5bb591711914ac6d`;
+formal decision:
+`outputs/phase2_gates/g4/how2sign_reprojection_v6_formal_g4_decision.json`,
+SHA-256
+`12aa7dcb42ee67f05ca7fbeca18795ef298bebbd8bb75f80e4f4e330cacfc8ba`.
+
+### 30.4 U1/G5 uncertainty result
+
+U1 was trained as a diagnostic through the frozen-refiner warm-up and stopped
+at step 1,000 before joint fine-tuning because its reconstruction gate failed.
+Checkpoint SHA-256 is
+`f01692261a9cc9f1a7b209c1da5856425e8e03ac6df0d32cc11ec8bb4f8b975b`;
+log SHA-256 is
+`29a70d2e78c5b7b7f27d39c3733afa3944969acd6739279bd7e9a37f3fc28f06`.
+
+The uncertainty head contains useful ranking signal: overall Spearman is
+0.7807, worst-decile AUC is 0.7916, risk is monotonic, and calibrated NLL
+improves from −0.8684 to −1.6347. It still fails release:
+
+- left/right worst-decile AUC are 0.7139/0.7313, below the hand threshold 0.75;
+- U1 clean reconstruction is 0.09654 versus U0 0.09155;
+- U1 corrupt reconstruction is 0.10443 versus U0 0.10346;
+- every regional reconstruction check fails, and the residual provenance is
+  still the H32 proxy rather than exact A1.
+
+The executable decision is **G5 NO-GO; retain deterministic U0 and do not ship
+U1**. Report:
+`outputs/phase2_gates/g5/how2sign_u1_v6_calibration_report.json`, SHA-256
+`6cd5e6cb918bc2d1736004205dc40752b795fc15cded1afb9a78a0e76ef94cf6`.
+
+### 30.5 Locked Lane-L transfer and G6
+
+The T2 EMA checkpoint was inferred and rendered over the immutable 1,493-frame
+Lane-L A1 cache, then evaluated against the same GT, masks, topology, and
+manifest as G0/G1.
+
+| Region | Frozen A1 | T2 v6 | Pooled delta | Sign-bootstrap mean delta 95% CI |
+|---|---:|---:|---:|---:|
+| Upper body | 29.534720 | 29.380139 | −0.154581 mm | [−0.228104, −0.023595] mm |
+| Left hand | 12.824893 | 12.691886 | −0.133007 mm | [−0.269451, −0.002396] mm |
+| Right hand | 12.112852 | 12.277672 | **+0.164819 mm** | **[+0.085230, +0.297501] mm** |
+
+Body and left hand improve significantly, but the right hand significantly
+regresses. The equal-region relative gain is only **0.0666%**, far below 3%.
+On the frozen hard subsets, left/right gains are −6.15%/−3.76% (both
+regressions); the clean right-hand subset regresses 1.51%, above the 1% safety
+limit. Coverage is complete and group-frame fallback remains 0%.
+
+| G6 condition | Result |
+|---|:---:|
+| identical 1,493-frame coverage | GO |
+| no pooled region regression >0.20 mm | GO (right +0.1648 mm) |
+| at least two CI-significant improving regions | GO (body, left) |
+| equal-region gain at least 3% | **NO-GO (0.0666%)** |
+| hard-subset gain at least 8% | **NO-GO** |
+| clean regression below 1% | **NO-GO (right 1.51%)** |
+| fallback below 1% | GO (0%) |
+| exactly three seeds | **NO-GO (early stop after seed 42)** |
+
+The predeclared strategy stops the two remaining seeds because the first
+locked run is two orders of magnitude below the effect target and fails both
+hard-subset and clean-safety checks. Training extra seeds merely to search for
+a favorable Lane result would also convert the locked evaluation set into a
+tuning set.
+
+Artifacts:
+
+- strict evaluation:
+  `outputs/phase2_gates/g6_reprojection_v6/seed42/summary.json`, SHA-256
+  `d17033d0ba52d8eea20fd6c6c3271875df76f4e809dc370fdc8b90c53e429867`;
+- subset diagnostics:
+  `outputs/phase2_gates/g6_reprojection_v6/seed42/diagnostics.json`, SHA-256
+  `6dae98fe8d27a1db9a8d555927172e78e573f8dd81becded61dbb4309fafe0ff`;
+- decision:
+  `outputs/phase2_gates/g6_reprojection_v6/decision.json`, SHA-256
+  `ff9f6a5cbb555a61833451812376ba47b5b6280c13060101bc890fa56696a9f2`;
+- inference/render log:
+  `outputs/phase2_gates/logs/lane_l_reprojection_v6_seed42_infer_render.txt`,
+  SHA-256
+  `d0b6c4f0db4aa44c30c4f9223a4a2f2b4577a6f209dd555b373b93fc1a924abf`.
+
+### 30.6 G7 population reconciliation
+
+The 2,872-versus-1,493 discrepancy is now exactly explained. Summing the 57
+end-exclusive source segment spans gives 2,872. The released evaluator doubles
+the segment bounds, but the released GT meshes have cadence four; this produces
+the exact 1,493-row manifest used locally. Every sign matches the released
+selection. The official intermediate meshes required to evaluate all 2,872
+paper frames are not in the provided data, so the local Lane-L result cannot be
+labelled as the paper's full-population result. G7 remains **NO-GO for an
+official paper comparison**, while the released 1,493-frame protocol is fully
+reproducible. Report:
+`outputs/phase2_gates/g7/protocol_reconciliation_v1.json`, SHA-256
+`922376b8ffdc4fc712d6f2a69f96121f8b7bfb701ef82793899a7611383761e9`.
+
+### 30.7 Root-cause decision and final status
+
+| Gate | Current decision | Evidence-based reason |
+|---|:---:|---|
+| G0 | **GO** | frozen evaluator, topology, masks, population and coverage |
+| G1 | **GO** | selected A1 improves all three regions |
+| G2 | **GO (owner-delegated)** | 100/100 AI visual audit, zero catastrophic failures; external-human caveat above |
+| G3 | **GO** | synthetic recovery tests pass |
+| G4 | **proxy GO / formal NO-GO** | 12.71% independent-target gain, but initializer is H32 rather than exact frozen A1 |
+| G5 | **NO-GO** | U1 worsens reconstruction and misses both hand AUC thresholds |
+| G6 | **NO-GO** | 0.0666% gain; hard subsets and right-hand clean safety fail |
+| G7 | **NO-GO official / GO released Lane-L** | count explained, but 2,872 intermediate GT meshes are absent |
+
+**Full Phase 2 remains NO-GO.** The remediation establishes that the
+architecture and 2D-temporal training signal work in-domain, but it also
+isolates the principal blocker: initializer-domain mismatch. H32-trained
+residual corrections do not transfer safely to the stronger A1 ensemble,
+especially for the right hand. This cannot be fixed honestly by tuning on
+Lane-L after observing its result.
+
+The shortest valid path to full GO is now concrete:
+
+1. generate source-disjoint How2Sign/PHOENIX caches by running the exact frozen
+   A1 experts and fallback policy, preserving expert disagreement and raw 2D
+   residuals;
+2. construct independent multi-view/2D-temporal or mocap targets for those same
+   A1 initializations and pass the fail-closed exact-provenance audit;
+3. retrain T2 with the implemented v6 path and pass G4 on a held-out validation
+   set that is not Lane-L;
+4. retrain U1 only after T2 passes, requiring per-hand AUC at least 0.75 and no
+   U0 reconstruction regression;
+5. freeze once, then run the three G6 seeds on Lane-L; do not tune architecture,
+   scale, or regional gates from Lane-L feedback;
+6. obtain the missing intermediate official GT meshes if the 2,872-frame paper
+   comparison is required.
+
+### 30.8 Files implemented in this remediation
+
+New executable modules:
+
+- `phase2_refiner/data/refine_how2sign_targets.py`;
+- `phase2_refiner/data/add_reprojection_residuals.py`;
+- `phase2_refiner/data/render_how2sign_audit.py`;
+- `phase2_refiner/data/complete_visual_audit.py`;
+- `phase2_refiner/evaluate_residual_checkpoint.py`;
+- `phase2_refiner/audit_official_protocol.py`;
+- `phase2_refiner/configs/uawsr_t2_how2sign_2d_temporal.yaml`;
+- `phase2_refiner/configs/uawsr_u1_how2sign_2d_temporal.yaml`;
+- `phase2_refiner/tests/test_train.py`.
+
+Updated modules:
+
+- `phase2_refiner/config.py`, `train.py`, `infer.py`, `calibrate.py`, and
+  `evaluate_uncertainty.py`;
+- `phase2_refiner/models/pretrained.py` and
+  `models/spatial_temporal_refiner.py`;
+- `phase2_refiner/data/build_how2sign_cache.py`, `cache_schema.py`,
+  `corruptions.py`, `dataset.py`, and `audit_real_residual_cache.py`;
+- `phase2_refiner/tests/test_cache.py`, `test_corruptions.py`,
+  `test_how2sign.py`, and `test_model.py`;
+- `phase2_refiner/README.md` and this proposal report.
+
+All old configurations default the new skip path off, and legacy schema/checkpoint
+compatibility is covered by tests. The final local suite passes 41 tests.

@@ -47,6 +47,7 @@ def export_residuals(args: argparse.Namespace) -> dict:
         raise ValueError("U0 and U1 max_frames differ")
 
     real_audit = None
+    exact_locked_a1 = False
     if args.real_residual_audit:
         with args.real_residual_audit.open("r", encoding="utf-8") as handle:
             real_audit = json.load(handle)
@@ -63,6 +64,15 @@ def export_residuals(args: argparse.Namespace) -> dict:
             )
         if not real_audit.get("split_disjoint_verified", False):
             raise ValueError("Calibration source groups are not split-disjoint")
+        exact_locked_a1 = all(
+            bool((real_audit.get(split) or {}).get("locked_initializer_required"))
+            for split in ("train", "validation", "calibration")
+        )
+        if not exact_locked_a1 and not args.diagnostic_only:
+            raise ValueError(
+                "Residual audit is a proxy audit, not an exact locked-A1 audit; "
+                "use --diagnostic-only and do not claim G5"
+            )
     elif not args.diagnostic_only:
         raise ValueError(
             "A passing --real-residual-audit is required; use --diagnostic-only "
@@ -70,7 +80,13 @@ def export_residuals(args: argparse.Namespace) -> dict:
         )
 
     dataset = SequenceCacheDataset(
-        str(args.manifest.resolve()), max_frames=u1.max_frames, training=False
+        str(args.manifest.resolve()),
+        max_frames=u1.max_frames,
+        training=False,
+        input_dim=u1.token_embedding.input_projection.in_features,
+        reprojection_residual_scale=float(
+            u1_config.get("data", {}).get("reprojection_residual_scale", 10.0)
+        ),
     )
     loader = DataLoader(
         dataset,
@@ -175,9 +191,18 @@ def export_residuals(args: argparse.Namespace) -> dict:
     payload.update(
         {
             "source_kind": np.asarray(
-                "real_residual" if real_audit is not None else "synthetic_diagnostic"
+                "real_residual_exact_a1"
+                if exact_locked_a1
+                else (
+                    "proxy_residual_diagnostic"
+                    if real_audit is not None
+                    else "synthetic_diagnostic"
+                )
             ),
-            "split_disjoint_verified": np.asarray(real_audit is not None),
+            "split_disjoint_verified": np.asarray(
+                real_audit is not None
+                and bool(real_audit.get("split_disjoint_verified", False))
+            ),
             "u1_checkpoint_sha256": np.asarray(sha256_file(args.u1_checkpoint)),
             "u0_checkpoint_sha256": np.asarray(sha256_file(args.u0_checkpoint)),
             "manifest_sha256": np.asarray(sha256_file(args.manifest)),
