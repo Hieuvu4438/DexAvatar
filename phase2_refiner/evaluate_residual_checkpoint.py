@@ -17,6 +17,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from phase2_refiner.config import load_config
+from phase2_refiner.data.cache_schema import load_cache_clip
 from phase2_refiner.data.dataset import (
     OBSERVATION_FEATURES,
     U0_RELIABILITY,
@@ -26,6 +27,9 @@ from phase2_refiner.data.dataset import (
 from phase2_refiner.geometry.rotations import geodesic_distance
 from phase2_refiner.infer import _apply_safety_fallback, _load_model
 from phase2_refiner.provenance import sha256_file
+from phase2_refiner.render import create_smplx_model
+from phase2_refiner.t5_optimize import REGIONS as T5_REGIONS
+from phase2_refiner.t5_optimize import optimize_t5_sequence
 
 
 REGIONS = {
@@ -89,6 +93,15 @@ def evaluate(args: argparse.Namespace) -> dict:
         num_workers=0,
         pin_memory=device.type == "cuda",
     )
+    t5_config = dict(config.get("t5", {}))
+    t5_body_model = None
+    clip_paths: dict[str, Path] = {}
+    if t5_config.get("enabled", False):
+        t5_body_model = create_smplx_model(args.model_folder, device)
+        t5_body_model.requires_grad_(False)
+        for path in dataset.paths:
+            cached = load_cache_clip(path)
+            clip_paths[cached.clip_id] = path
     with args.real_residual_audit.open("r", encoding="utf-8") as handle:
         audit = json.load(handle)
     validation = audit.get("validation") or {}
@@ -101,7 +114,10 @@ def evaluate(args: argparse.Namespace) -> dict:
     }
     per_clip: list[dict] = []
     frames = fallback_group_frames = total_group_frames = 0
-    for batch in loader:
+    t5_accepted = {name: 0 for name in T5_REGIONS}
+    t5_attempted = 0
+    processed_clips = 0
+    for batch_index_global, batch in enumerate(loader, start=1):
         batch = _to_device(batch, device)
         prediction = model(
             batch["features"],
@@ -111,6 +127,34 @@ def evaluate(args: argparse.Namespace) -> dict:
             batch["initial_joint_position"],
         )
         output = prediction["matrix"]
+        t5_initializer_fallback = torch.zeros(
+            output.shape[0], output.shape[1], 3, dtype=torch.bool, device=device
+        )
+        if t5_body_model is not None:
+            for batch_index, clip_id in enumerate(batch["clip_id"]):
+                clip = load_cache_clip(clip_paths[clip_id])
+                length = int(batch["frame_valid"][batch_index].sum())
+                refined, diagnostics = optimize_t5_sequence(
+                    clip,
+                    output[batch_index, :length],
+                    t5_body_model,
+                    t5_config,
+                    device,
+                    initializer_matrix=batch["initial_matrix"][batch_index, :length],
+                )
+                output[batch_index, :length] = refined
+                t5_attempted += 1
+                for name in T5_REGIONS:
+                    t5_accepted[name] += int(
+                        diagnostics.get("accepted_regions", {}).get(name, False)
+                    )
+                for group_index, name in enumerate(T5_REGIONS):
+                    if diagnostics.get(
+                        "fallback_to_initializer_regions", {}
+                    ).get(name, False):
+                        t5_initializer_fallback[
+                            batch_index, :length, group_index
+                        ] = True
         fallback = torch.zeros(
             output.shape[0], output.shape[1], 3, dtype=torch.bool, device=device
         )
@@ -126,6 +170,7 @@ def evaluate(args: argparse.Namespace) -> dict:
                 if "log_variance" in prediction
                 else None,
             )
+        fallback = fallback | t5_initializer_fallback
         baseline_error = torch.rad2deg(
             geodesic_distance(batch["initial_matrix"], batch["target_matrix"])
         )
@@ -179,6 +224,12 @@ def evaluate(args: argparse.Namespace) -> dict:
                     "hard_joint_frames": hard_count,
                 }
             per_clip.append(row)
+        processed_clips += len(batch["clip_id"])
+        print(
+            f"[residual-eval] batch={batch_index_global}/{len(loader)} "
+            f"clips={processed_clips}/{len(dataset)} frames={frames}",
+            flush=True,
+        )
 
     baseline = {
         region: float(np.mean(region_values["baseline"]))
@@ -239,6 +290,14 @@ def evaluate(args: argparse.Namespace) -> dict:
         "total_group_frames": total_group_frames,
         "group_frame_fallback_fraction": fallback_group_frames
         / max(total_group_frames, 1),
+        "t5": {
+            "config": t5_config,
+            "clips_attempted": t5_attempted,
+            "accepted_clip_fraction": {
+                name: t5_accepted[name] / max(t5_attempted, 1)
+                for name in T5_REGIONS
+            },
+        },
         "paired_clip_bootstrap": {
             region: _bootstrap_clip_delta(per_clip, region, args.bootstrap_samples, args.seed)
             for region in REGIONS
@@ -268,6 +327,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument("--bootstrap-samples", type=int, default=10000)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument(
+        "--model-folder",
+        type=Path,
+        default=Path("SMPLer-X/common/utils/human_model_files"),
+    )
     parser.add_argument(
         "--device", default="cuda" if torch.cuda.is_available() else "cpu"
     )

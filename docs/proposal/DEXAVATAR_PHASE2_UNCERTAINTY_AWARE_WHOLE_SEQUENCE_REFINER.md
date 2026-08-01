@@ -2325,3 +2325,211 @@ Updated modules:
 
 All old configurations default the new skip path off, and legacy schema/checkpoint
 compatibility is covered by tests. The final local suite passes 41 tests.
+
+## 31. Root-cause remediation, T5 safety test, and U1 v7 decision — 1 August 2026
+
+This section records the final experiments requested after Section 30 and
+supersedes its current-status table. The project owner has explicitly selected
+the author-released evaluator and `data/evaluation_from_author` as the canonical
+evaluation contract. Therefore **G7 is GO on the 57-sign, 1,493-frame author
+population**. The unavailable 2,872-frame paper population is out of scope and
+is not a blocker for this project.
+
+### 31.1 Root causes of the remaining NO-GO decisions
+
+The audit isolated five independent causes rather than one generic training
+failure:
+
+1. **Formal initializer mismatch:** all 10,822/498/497
+   train/validation/calibration clips contain the frozen H32 initializer, not
+   the exact Lane-L A1 ensemble/fallback stack selected by G1. The targets are
+   source-disjoint and the 2D residuals are real, but the formal provenance bit
+   must remain false.
+2. **Large residual-domain shift:** the Lane-A1-to-How2Sign median residual
+   ratios are 2.35172 for upper body, 0.32744 for left hand, and 0.34763 for
+   right hand. Every region lies outside the predeclared `[0.5, 2.0]` range.
+   This explains why a correction learned from H32 transfers poorly to the
+   stronger A1 initializer.
+3. **U1 feedback during warm-up:** the newly initialized variance head was
+   immediately modifying attention reliability. Its approximately random
+   initial predictions changed reconstruction before the head was calibrated.
+   U1 v7 learns uncertainty without feeding it back into the deterministic
+   refinement path.
+4. **U1 objective/gate mismatch:** the old U1 optimized heteroscedastic NLL but
+   G5 evaluates worst-decile ranking. V7 adds a regional worst-decile ranking
+   loss, including separate body, left-hand, and right-hand terms.
+5. **Stale corruption features and diagnostic population:** synthetic
+   corruption changed observations/initializers without clearing the cached
+   reprojection residual in every affected mode. The Lane diagnostic also
+   counted inactive body joints, producing empty or misleading hard/clean
+   subsets. Corruptions now invalidate stale residual channels, and diagnostic
+   contract v2 evaluates only the immutable `refine_mask` population.
+
+The formal exact-A1 cache intake is now fail-closed. It verifies the frozen G1
+stack ID, Lane manifest hash, G1 evaluation hash, hashes of all five stack
+components, and every per-frame result-PKL hash before materialization. The
+current H32 cache is therefore rejected rather than relabelled as A1. Formal
+audit: `outputs/phase2_gates/g4/how2sign_formal_exact_a1_audit_v2.json`,
+SHA-256 `83e2f555e9322184f15fe5f4736066460098de52cd8e2dd0ce90dc93dce7cb0c`.
+Domain-shift audit:
+`outputs/phase2_gates/g6_reprojection_domain_shift_v1.json`, SHA-256
+`362c04782d8085f9628d8f1e4178de9142d94f5ee8f8e945e1caef5654927971`.
+
+### 31.2 Implemented T5 observation-only safety strategy
+
+The proposal's T5 fallback strategy is now executable end to end. For each
+complete sequence it optimizes only a bounded pose delta for 15 Adam steps
+(hard maximum 20), using frozen 2D observations, the correct dataset camera,
+reliability-weighted anchoring, velocity, and acceleration. It never reads a
+training target or benchmark GT. Body/left/right groups are selected
+independently from reprojection improvement, followed by a second safety check
+against the original A1 initializer. Every rejected group is counted as
+fallback.
+
+On the external How2Sign validation set, T5 passes every **numerical** G4
+condition:
+
+| G4 measurement | Result |
+|---|---:|
+| equal-region relative gain | **33.1391%** |
+| hard-subset relative gain | **30.4181%** |
+| upper-body relative gain | **11.2553%** |
+| left-hand relative gain | **43.8149%** |
+| right-hand relative gain | **44.3470%** |
+| coverage / regional regression | full / none |
+
+This is **proxy G4 GO, formal G4 NO-GO**, solely because the initializer is H32
+rather than exact A1. Artifacts:
+
+- `outputs/phase2_gates/g4/how2sign_reprojection_v6_t5_checkpoint_eval.json`,
+  SHA-256
+  `a652caa8c7a64bb471be6e3ce8fc25de3a04d61cdc44797730fc98582b0dc33e`;
+- `outputs/phase2_gates/g4/how2sign_reprojection_v6_t5_formal_g4_decision.json`,
+  SHA-256
+  `7264ab49c2d465d75f32c4f097fe7b4076baa600f70aec8e4485c5aeb74ed9bd`.
+
+The settings were then frozen and run once over all 57 Lane signs and all
+1,493 author-evaluation frames. No Lane tuning was performed.
+
+| Region | A1 (mm) | T5 (mm) | T5 − A1 |
+|---|---:|---:|---:|
+| upper body | 29.534720 | 29.436036 | −0.098685 |
+| left hand | 12.824893 | 12.835032 | +0.010140 |
+| right hand | 12.112852 | 12.359398 | **+0.246545** |
+
+The executable G6 result is **NO-GO**: equal-region relative gain is −0.5934%,
+right-hand regression exceeds 0.20 mm, the aggregate hard-subset gain is
+−5.2511%, right-hand clean regression is 1.7700%, and fallback is
+1,368/4,479 group-frames (30.5425%). Only 0/57 body, 7/57 left-hand, and 9/57
+right-hand clips were accepted. Per the locked protocol, the other two seeds
+are not run after this decisive seed-42 failure, and T5 is disabled for release.
+
+Artifacts:
+
+- strict metrics:
+  `outputs/phase2_gates/g6_reprojection_v6_t5/seed42/summary.json`, SHA-256
+  `0376b8aaf7871ea5f3838df5059ccef0fa6ca6169f701c6606764fd255d8b4ce`;
+- diagnostics:
+  `outputs/phase2_gates/g6_reprojection_v6_t5/seed42/diagnostics.json`, SHA-256
+  `87436c4940ce9bbe78f1edde9385582da763e32e2d15746dd702e1440c2cf843`;
+- decision:
+  `outputs/phase2_gates/g6_reprojection_v6_t5/decision_seed42.json`, SHA-256
+  `966bbde45fe964db11a623ece5462e90a7858daa58e05c98a00d56eb7f14e925`.
+
+### 31.3 U1 v7 training and G5 remediation
+
+U1 v7 was genuinely trained on GPU for 3,000 optimizer steps with batch 24,
+gradient accumulation 2 (effective batch 48), BF16, four CPU threads, a
+1,000-step uncertainty-head warm-up, and joint fine-tuning afterward. It was
+initialized from the trained T2 v6 spatial-temporal checkpoint. The selected
+EMA checkpoint is step 3,000 with corrupted validation selection score
+0.661517, improved from 0.725525 at step 2,500.
+
+On the disjoint calibration split, 667,968 matched U0/U1 joint observations give:
+
+| G5 measurement | Result | Threshold |
+|---|---:|---:|
+| overall Spearman | **0.817074** | ≥0.35 |
+| overall worst-decile AUC | **0.802250** | ≥0.70 |
+| body AUC | **0.939934** | ≥0.70 |
+| left-hand AUC | **0.753737** | ≥0.75 |
+| right-hand AUC | **0.770316** | ≥0.75 |
+| U0 → U1 corrupted error | 0.104108 → **0.083074** | improve |
+| U0 → U1 clean error | 0.091552 → **0.050310** | ≤1% regress |
+| risk monotonic / self-calibration / U1-vs-U0 NLL | **GO / GO / GO** | all GO |
+
+Thus every numerical G5 condition now passes. The machine report remains
+`passed: false` only for
+`source_and_signer_disjoint_real_residual=false`, because fail-closed formal
+G5 additionally requires the exact A1 initializer. The correct decision is
+**proxy G5 GO, formal G5 NO-GO**; U1 must remain disabled in released Lane
+inference until the external exact-A1 cache is available.
+
+Artifacts:
+
+- selected checkpoint:
+  `outputs/phase2_training/u1_how2sign_2d_temporal_reprojection_v7_seed42/best.pt`,
+  SHA-256
+  `edc8a035225e246530b80e4482876b921ab1d69ef8211d1afa8c66f063198570`;
+- training log:
+  `outputs/phase2_gates/logs/u1_how2sign_2d_temporal_reprojection_v7_seed42.txt`,
+  SHA-256
+  `f8d3d77939d0c3bfb1d93228303edeb2f6de1cfd8a7c88398d2119fb61e72bd0`;
+- calibration residuals:
+  `outputs/phase2_gates/g5/how2sign_u1_v7_calibration_residuals.npz`, SHA-256
+  `72f517981a6be2d1379d8ffe273799a650a359c33dfbf74afc741327a93bfeaa`;
+- calibration decision:
+  `outputs/phase2_gates/g5/how2sign_u1_v7_calibration_report.json`, SHA-256
+  `2d0663fa33a307e2e638f20604e75f891b87b71018be67fcd99eb86c96841bca`.
+
+### 31.4 Superseding gate decision
+
+| Gate | Decision after remediation | Evidence |
+|---|:---:|---|
+| G0 | **GO** | immutable evaluator, topology, masks, author population, and coverage |
+| G1 | **GO** | complete A1 ensemble/fallback improves all three regions |
+| G2 | **GO (owner-delegated)** | 100/100 automated visual audit with zero catastrophic failures |
+| G3 | **GO** | formal synthetic recoverability passed |
+| G4 | **proxy GO / formal NO-GO** | all numerical T5 checks pass; external initializer is not exact A1 |
+| G5 | **proxy GO / formal NO-GO** | every numerical U1 v7 check passes; external initializer is not exact A1 |
+| G6 | **NO-GO** | direct T2 and observation-only T5 both fail locked Lane transfer |
+| G7 | **GO by project scope** | author's released 57-sign/1,493-frame evaluator is canonical; 2,872 is out of scope |
+
+**Full Phase 2 remains NO-GO because G4/G5 lack exact-A1 provenance and G6
+fails—not because of G7.** The U1 implementation defect is fixed and the T5
+fallback strategy has been exhausted. The only scientifically valid route to
+full GO is to add the external exact-A1 provider outputs, materialize them with
+the new hash-bound intake, enrich their real residuals, retrain T2/U1 on that
+domain, freeze once, and then repeat G4/G5 followed by the locked G6 sequence.
+Lane-L must not be used to tune another architecture or threshold.
+
+### 31.5 Files implemented or updated in this remediation
+
+New files:
+
+- `phase2_refiner/t5_optimize.py`;
+- `phase2_refiner/data/materialize_exact_a1_cache.py`;
+- `phase2_refiner/data/audit_reprojection_domain_shift.py`;
+- `phase2_refiner/configs/exact_a1_provenance_v1.json`;
+- `phase2_refiner/configs/uawsr_t2_how2sign_2d_temporal_t5.yaml`;
+- `phase2_refiner/configs/uawsr_u1_how2sign_2d_temporal_v7.yaml`;
+- `phase2_refiner/tests/test_t5.py`.
+
+Updated files:
+
+- `phase2_refiner/config.py`, `infer.py`, `evaluate_residual_checkpoint.py`,
+  and `evaluate_lane_diagnostics.py`;
+- `phase2_refiner/models/spatial_temporal_refiner.py`;
+- `phase2_refiner/losses/sequence.py` and `losses/uncertainty.py`;
+- `phase2_refiner/data/add_reprojection_residuals.py`,
+  `data/audit_real_residual_cache.py`, and `data/corruptions.py`;
+- `phase2_refiner/tests/test_cache.py`, `test_calibrate.py`,
+  `test_corruptions.py`, and `test_model.py`;
+- `phase2_refiner/README.md` and this report.
+
+Backward compatibility is preserved: legacy configurations retain uncertainty
+feedback unless explicitly disabled, T5 defaults off, and no earlier method or
+output is overwritten. Verification passes **48/48 Phase 2 tests**, full Ruff
+checks, and Python byte-compilation. The G7 project-scope artifact is
+`outputs/phase2_gates/g7/project_scope_author_1493_v1.json`, SHA-256
+`733612b1a44aee3beeb6da2c59a3b2a3ed276ffc9cca73fe05d4c869a7cd432f`.

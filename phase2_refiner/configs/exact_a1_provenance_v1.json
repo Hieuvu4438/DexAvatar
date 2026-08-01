@@ -1,0 +1,12 @@
+{
+  "component_hashes": {
+    "dexavatar_fitting/cfg_files/fit_smplx_vposer_x_ensemble.yaml": "d33e9593ebdc2479a9fac6d734fbdcf44ee553c7110f0b82a7febcb8304cefd2",
+    "methods/Full_running_command_wilor_ensemble.sh": "b1b2c8fa8d5afd462d5270595ad2293f1b0a2f27ddfd60308e2cc40247fe6846",
+    "scripts/M3.5_wilor_extract.sh": "2f69c89f75a5be359afeaaca0b0a419e09e9356bef61a44540f8cebd0c1dcb25",
+    "scripts/M3_ensemble_init.sh": "2990ad6bc2d408e33797a16736416559109599ff204fe7f32fab69c910232e42",
+    "scripts/M4_smplifyx_pose_ensemble.sh": "05ee0518a296c8211faf9848c1efb200d298bfc3c3a946fa7222e059022b13a8"
+  },
+  "g1_evaluation_sha256": "74d3042dc872a9cf5bb87d5c6f1dff25950537d99aecadde14320f024f7180a6",
+  "locked_view_manifest_sha256": "cd9d52da521da5ea4cc50b3c249ff44c2f26e93380836691e9e286af96c4cb1c",
+  "stack_id": "lane_l_a1_method_ensemble_hamer_fallback_v1"
+}

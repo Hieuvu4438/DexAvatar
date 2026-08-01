@@ -1,6 +1,8 @@
 import numpy as np
+import torch
 
 from phase2_refiner.calibrate import calibration_gate, calibration_metrics
+from phase2_refiner.losses.uncertainty import regional_worst_decile_ranking_loss
 
 
 def test_calibration_recovers_variance_scale() -> None:
@@ -26,3 +28,14 @@ def test_gate_fails_without_real_residual_and_u0_comparator() -> None:
     gate = calibration_gate(metrics)
     assert not gate["passed"]
     assert not gate["checks"]["source_and_signer_disjoint_real_residual"]
+
+
+def test_worst_decile_ranking_loss_drives_high_error_variance_up() -> None:
+    error = torch.linspace(0.0, 1.0, 2 * 3 * 51).reshape(2, 3, 51)
+    log_variance = torch.zeros_like(error, requires_grad=True)
+    valid = torch.ones_like(error, dtype=torch.bool)
+    loss = regional_worst_decile_ranking_loss(error, log_variance, valid)
+    loss.backward()
+    assert torch.isfinite(loss)
+    worst = error >= torch.quantile(error, 0.9)
+    assert log_variance.grad[worst].mean() < 0.0

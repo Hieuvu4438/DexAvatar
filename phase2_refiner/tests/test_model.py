@@ -213,3 +213,43 @@ def test_reprojection_skip_is_identity_safe_and_receives_direct_gradient() -> No
     assert model.reprojection_skip is not None
     assert model.reprojection_skip.weight.grad is not None
     assert torch.count_nonzero(model.reprojection_skip.weight.grad) > 0
+
+
+def test_uncertainty_head_can_be_reconstruction_neutral() -> None:
+    torch.manual_seed(7)
+    deterministic = WholeSequenceRefiner(
+        hidden_size=32,
+        num_layers=1,
+        num_heads=4,
+        max_frames=8,
+        dropout=0.0,
+        predict_uncertainty=False,
+    ).eval()
+    uncertainty = WholeSequenceRefiner(
+        hidden_size=32,
+        num_layers=1,
+        num_heads=4,
+        max_frames=8,
+        dropout=0.0,
+        predict_uncertainty=True,
+        uncertainty_feedback=False,
+    ).eval()
+    compatible = {
+        key: value
+        for key, value in deterministic.state_dict().items()
+        if key in uncertainty.state_dict()
+        and uncertainty.state_dict()[key].shape == value.shape
+    }
+    uncertainty.load_state_dict(compatible, strict=False)
+    features = torch.randn(2, 6, 51, TOKEN_FEATURE_DIM)
+    features[..., 29] = torch.rand(2, 6, 51)
+    initial = axis_angle_to_matrix(torch.randn(2, 6, 51, 3) * 0.1)
+    valid = torch.ones(2, 6, dtype=torch.bool)
+    refine = torch.ones(2, 51, dtype=torch.bool)
+    with torch.no_grad():
+        reference = deterministic(features, initial, valid, refine)
+        candidate = uncertainty(features, initial, valid, refine)
+    assert torch.equal(reference["matrix"], candidate["matrix"])
+    assert torch.equal(reference["raw_delta"], candidate["raw_delta"])
+    assert torch.equal(reference["reliability"], candidate["reliability"])
+    assert "log_variance" in candidate

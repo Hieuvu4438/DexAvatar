@@ -89,6 +89,8 @@ def _drop_observations(
     selected[:, joints, WRIST_POSITION_VALID] = 0.0
     selected[:, joints, PALM_NORMAL] = 0.0
     selected[:, joints, PALM_VALID] = 0.0
+    if selected.shape[-1] >= REPROJECTION_RESIDUAL_2D.stop:
+        selected[:, joints, REPROJECTION_RESIDUAL_2D] = 0.0
 
 
 def _joint_indices(mode: str, device: torch.device) -> tuple[int, ...]:
@@ -190,6 +192,10 @@ def apply_burst_corruption(
                 initial_matrix[batch_idx, frames, 36:51] = left_matrix
                 features[batch_idx, frames, 21:51, OBSERVATION_FEATURES.start + 6] = 1.0
                 features[batch_idx, frames, 21:51, U0_RELIABILITY] *= 0.25
+                if features.shape[-1] >= REPROJECTION_RESIDUAL_2D.stop:
+                    features[
+                        batch_idx, frames, 21:51, REPROJECTION_RESIDUAL_2D
+                    ] = 0.0
                 continue
 
         if mode == "crop_truncation":
@@ -197,6 +203,10 @@ def apply_burst_corruption(
             features[batch_idx, frames, joints, U0_RELIABILITY] *= 0.1
             features[batch_idx, frames, joints, KEYPOINT_2D_VALID] = 0.0
             features[batch_idx, frames, joints, KEYPOINT_2D] = 0.0
+            if features.shape[-1] >= REPROJECTION_RESIDUAL_2D.stop:
+                features[
+                    batch_idx, frames, joints, REPROJECTION_RESIDUAL_2D
+                ] = 0.0
             continue
 
         _drop_observations(features, batch_idx, frames, joints)

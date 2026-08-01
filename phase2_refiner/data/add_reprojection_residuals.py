@@ -106,6 +106,7 @@ def _enriched(clip, residual: np.ndarray, clipping_fraction: float):
     )
     metadata["reprojection_residual_provider"] = PROVIDER
     metadata["reprojection_residual_clipping_fraction"] = clipping_fraction
+    metadata.pop("requires_reprojection_enrichment", None)
     return replace(
         clip,
         reprojection_residual_2d=residual,

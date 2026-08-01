@@ -1,6 +1,9 @@
 import torch
 
-from phase2_refiner.data.corruptions import apply_residual_mixture
+from phase2_refiner.data.corruptions import (
+    apply_burst_corruption,
+    apply_residual_mixture,
+)
 from phase2_refiner.data.dataset import (
     REPROJECTION_RESIDUAL_2D,
     ROTATION_6D,
@@ -88,4 +91,27 @@ def test_t2_non_real_modes_do_not_reuse_frozen_initializer_reprojection():
     assert torch.equal(
         real_features[..., REPROJECTION_RESIDUAL_2D],
         features[..., REPROJECTION_RESIDUAL_2D],
+    )
+
+
+def test_burst_corruption_zeros_stale_reprojection_for_affected_joints():
+    features = torch.ones(1, 4, 51, TOKEN_FEATURE_DIM_WITH_REPROJECTION)
+    matrix = torch.eye(3).expand(1, 4, 51, 3, 3).clone()
+    frames = torch.ones(1, 4, dtype=torch.bool)
+    corrupted, _, mask = apply_burst_corruption(
+        features,
+        matrix,
+        frames,
+        probability=1.0,
+        min_duration=4,
+        max_duration=4,
+        modes=["left_hand"],
+    )
+    assert mask[:, :, 21:36].all()
+    assert torch.count_nonzero(
+        corrupted[:, :, 21:36, REPROJECTION_RESIDUAL_2D]
+    ) == 0
+    assert torch.equal(
+        corrupted[:, :, 36:51, REPROJECTION_RESIDUAL_2D],
+        features[:, :, 36:51, REPROJECTION_RESIDUAL_2D],
     )

@@ -161,6 +161,7 @@ class WholeSequenceRefiner(nn.Module):
         dropout: float = 0.1,
         max_frames: int = 64,
         predict_uncertainty: bool = False,
+        uncertainty_feedback: bool = True,
         use_reprojection_skip: bool = False,
         causal: bool = False,
         body_max_degrees: float = 25.0,
@@ -169,6 +170,7 @@ class WholeSequenceRefiner(nn.Module):
         super().__init__()
         self.max_frames = max_frames
         self.predict_uncertainty = predict_uncertainty
+        self.uncertainty_feedback = uncertainty_feedback
         self.causal = causal
         self.token_embedding = ObservationTokenEmbedding(
             input_dim, hidden_size, max_frames, NUM_JOINTS
@@ -237,8 +239,11 @@ class WholeSequenceRefiner(nn.Module):
             )
             rotation_log_variance = rotation_log_variance + uncertainty_offset
             observation_log_variance = observation_log_variance + uncertainty_offset
+        feedback_variance = (
+            rotation_log_variance if self.uncertainty_feedback else None
+        )
         reliability = (
-            effective_reliability(fixed_reliability, rotation_log_variance)
+            effective_reliability(fixed_reliability, feedback_variance)
             * frame_valid[:, :, None]
         )
         for block in self.blocks:

@@ -14,7 +14,10 @@ from phase2_refiner.losses.geometry import (
     palm_normal_loss,
 )
 from phase2_refiner.losses.motion import rotation_motion_losses
-from phase2_refiner.losses.uncertainty import heteroscedastic_nll
+from phase2_refiner.losses.uncertainty import (
+    heteroscedastic_nll,
+    regional_worst_decile_ranking_loss,
+)
 
 
 class RefinerLoss(nn.Module):
@@ -31,6 +34,7 @@ class RefinerLoss(nn.Module):
         anchor_weight: float = 0.05,
         biomechanical_weight: float = 0.01,
         uncertainty_weight: float = 0.1,
+        uncertainty_ranking_weight: float = 0.0,
     ) -> None:
         super().__init__()
         self.weights = {
@@ -45,6 +49,7 @@ class RefinerLoss(nn.Module):
             "anchor": anchor_weight,
             "biomechanical": biomechanical_weight,
             "uncertainty": uncertainty_weight,
+            "uncertainty_ranking": uncertainty_ranking_weight,
         }
 
     def forward(
@@ -159,10 +164,14 @@ class RefinerLoss(nn.Module):
         )
         biomechanical = masked_mean(biomechanical.square(), mask)
 
-        uncertainty = zero
+        uncertainty = uncertainty_ranking = zero
         if "log_variance" in prediction:
+            log_variance = prediction["log_variance"].squeeze(-1)
             uncertainty = heteroscedastic_nll(
-                rotation_error, prediction["log_variance"].squeeze(-1), mask
+                rotation_error, log_variance, mask
+            )
+            uncertainty_ranking = regional_worst_decile_ranking_loss(
+                rotation_error, log_variance, mask
             )
 
         terms = {
@@ -177,6 +186,7 @@ class RefinerLoss(nn.Module):
             "anchor": anchor,
             "biomechanical": biomechanical,
             "uncertainty": uncertainty,
+            "uncertainty_ranking": uncertainty_ranking,
         }
         total = sum(self.weights[name] * value for name, value in terms.items())
         return {"total": total, **terms}

@@ -22,7 +22,9 @@ from phase2_refiner.geometry.rotations import (
 )
 from phase2_refiner.models import WholeSequenceRefiner
 from phase2_refiner.provenance import run_provenance, sha256_file
-from phase2_refiner.render import render_source_anchored_directory
+from phase2_refiner.render import create_smplx_model, render_source_anchored_directory
+from phase2_refiner.t5_optimize import REGIONS as T5_REGIONS
+from phase2_refiner.t5_optimize import optimize_t5_sequence
 
 
 def _sha256(path: Path) -> str:
@@ -213,6 +215,8 @@ def infer_clip(
     overwrite: bool,
     uncertainty_offset: float = 0.0,
     reprojection_residual_scale: float = 10.0,
+    t5_config: dict | None = None,
+    t5_body_model=None,
 ) -> dict:
     clip = load_cache_clip(cache_path)
     features, initial_matrix = features_from_clip(
@@ -229,6 +233,26 @@ def infer_clip(
         uncertainty_offset,
     )
     length = len(clip.frame_names)
+    t5_initializer_fallback = torch.zeros(
+        length, 3, dtype=torch.bool, device=device
+    )
+    t5_diagnostics = {"enabled": False}
+    if t5_config and t5_config.get("enabled", False):
+        if t5_body_model is None:
+            raise ValueError("Enabled T5 inference requires a frozen SMPL-X model")
+        prediction["matrix"], t5_diagnostics = optimize_t5_sequence(
+            clip,
+            prediction["matrix"],
+            t5_body_model,
+            t5_config,
+            device,
+            initializer_matrix=initial_matrix,
+        )
+        for group_index, name in enumerate(T5_REGIONS):
+            if t5_diagnostics.get("fallback_to_initializer_regions", {}).get(
+                name, False
+            ):
+                t5_initializer_fallback[:, group_index] = True
     body_limit = float(torch.rad2deg(model.max_angles[:21].max()).cpu())
     hand_limit = float(torch.rad2deg(model.max_angles[21:].max()).cpu())
     output_matrix, fallback = _apply_safety_fallback(
@@ -238,6 +262,7 @@ def infer_clip(
         hand_limit,
         prediction.get("log_variance"),
     )
+    fallback = fallback | t5_initializer_fallback
     delta = prediction["raw_delta"]
     gate = prediction["gate"]
     if fallback.any():
@@ -246,7 +271,10 @@ def infer_clip(
             delta[invalid, start:end] = 0.0
             gate[invalid, start:end] = 0.0
     output_axis_angle = matrix_to_axis_angle(output_matrix).cpu().numpy()
-    identity = torch.linalg.vector_norm(delta, dim=-1).cpu().numpy() < 1e-12
+    identity = (
+        geodesic_distance(output_matrix, initial_matrix.to(device)).cpu().numpy()
+        < 1e-12
+    )
     output_axis_angle[identity] = clip.init_axis_angle[identity]
 
     result_dir = output_root / clip.clip_id / "smplifyx" / "results"
@@ -303,6 +331,13 @@ def infer_clip(
             if "log_variance" in prediction
             else np.zeros((length, 51, 1), np.float32)
         ),
+        t5_accepted_regions=np.asarray(
+            [
+                bool(t5_diagnostics.get("accepted_regions", {}).get(name, False))
+                for name in T5_REGIONS
+            ],
+            dtype=bool,
+        ),
     )
     summary = {
         "clip_id": clip.clip_id,
@@ -316,6 +351,7 @@ def infer_clip(
         ),
         "mean_gate": float(gate.mean()),
         "fallback_group_frames": int(fallback.sum()),
+        "t5": t5_diagnostics,
     }
     with summary_path.open("w", encoding="utf-8") as handle:
         json.dump(summary, handle, indent=2, sort_keys=True)
@@ -391,6 +427,11 @@ def main() -> None:
     reprojection_residual_scale = float(
         config.get("data", {}).get("reprojection_residual_scale", 10.0)
     )
+    t5_config = dict(config.get("t5", {}))
+    t5_body_model = None
+    if t5_config.get("enabled", False):
+        t5_body_model = create_smplx_model(args.model_folder, device)
+        t5_body_model.requires_grad_(False)
     for cache_path in cache_paths:
         summary = infer_clip(
             cache_path,
@@ -400,6 +441,8 @@ def main() -> None:
             args.overwrite,
             uncertainty_offset,
             reprojection_residual_scale,
+            t5_config,
+            t5_body_model,
         )
         if args.render:
             sign_root = output_root / summary["clip_id"] / "smplifyx"
@@ -424,6 +467,7 @@ def main() -> None:
         ),
         "uncertainty_offset": uncertainty_offset,
         "reprojection_residual_scale": reprojection_residual_scale,
+        "t5": t5_config,
         "cache_manifest": (
             str((args.cache_root / "manifest.json").resolve())
             if (args.cache_root / "manifest.json").exists()

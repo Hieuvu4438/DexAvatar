@@ -49,6 +49,12 @@ def validate_config(
         and input_dim != TOKEN_FEATURE_DIM_WITH_REPROJECTION
     ):
         raise ValueError("model.use_reprojection_skip requires the 45-feature layout")
+    if model.get("uncertainty_feedback", False) and not model.get(
+        "predict_uncertainty", False
+    ):
+        raise ValueError(
+            "model.uncertainty_feedback requires model.predict_uncertainty"
+        )
     residual_scale = float(
         config.get("data", {}).get("reprojection_residual_scale", 10.0)
     )
@@ -60,6 +66,9 @@ def validate_config(
         raise ValueError("model.hidden_size must be divisible by model.num_heads")
     if int(model.get("max_frames", 64)) < 2:
         raise ValueError("model.max_frames must be at least 2")
+    from phase2_refiner.t5_optimize import validate_t5_config
+
+    validate_t5_config(config.get("t5", {}))
     if require_data:
         data = config.get("data", {})
         if not data.get("train_glob"):

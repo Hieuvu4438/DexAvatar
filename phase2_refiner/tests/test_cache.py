@@ -16,6 +16,14 @@ from phase2_refiner.data.dataset import (
     TOKEN_FEATURE_DIM_WITH_REPROJECTION,
     features_from_clip,
 )
+from phase2_refiner.data.materialize_exact_a1_cache import (
+    A1_COMPONENT_SHA256,
+    G1_EVALUATION_SHA256,
+    LOCKED_VIEW_SHA256,
+    STACK_ID,
+    validate_exact_a1_provenance,
+    validate_exact_a1_result_binding,
+)
 
 
 def make_clip(frames: int = 5) -> CacheClip:
@@ -94,3 +102,26 @@ def test_cache_rejects_non_finite() -> None:
     clip.init_axis_angle[0, 0, 0] = np.nan
     with pytest.raises(ValueError, match="NaN"):
         clip.validate()
+
+
+def test_exact_a1_provenance_is_tied_to_locked_g1_evidence() -> None:
+    payload = {
+        "stack_id": STACK_ID,
+        "locked_view_manifest_sha256": LOCKED_VIEW_SHA256,
+        "g1_evaluation_sha256": G1_EVALUATION_SHA256,
+        "component_hashes": A1_COMPONENT_SHA256,
+    }
+    validate_exact_a1_provenance(payload)
+    payload["locked_view_manifest_sha256"] = "b" * 64
+    with pytest.raises(ValueError, match="locked_view_manifest_sha256"):
+        validate_exact_a1_provenance(payload)
+
+
+def test_exact_a1_result_hashes_are_bound_to_cached_sources() -> None:
+    paths = np.asarray(["/tmp/frame_1.pkl", "/tmp/frame_2.pkl"])
+    digests = np.asarray(["a" * 64, "b" * 64])
+    result_hashes = {"frame_1.pkl": "a" * 64, "frame_2.pkl": "b" * 64}
+    validate_exact_a1_result_binding(paths, digests, result_hashes)
+    result_hashes["frame_2.pkl"] = "c" * 64
+    with pytest.raises(ValueError, match="digest mismatch"):
+        validate_exact_a1_result_binding(paths, digests, result_hashes)

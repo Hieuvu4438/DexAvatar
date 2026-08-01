@@ -11,6 +11,11 @@ import numpy as np
 
 from phase2_refiner.data.audit_training_cache import _manifest_paths
 from phase2_refiner.data.cache_schema import load_cache_clip
+from phase2_refiner.data.materialize_exact_a1_cache import (
+    validate_exact_a1_provenance,
+    validate_exact_a1_result_binding,
+    verify_exact_a1_components,
+)
 from phase2_refiner.geometry.rotations import axis_angle_to_matrix, geodesic_distance
 
 
@@ -32,6 +37,7 @@ def audit_manifest(
     initializer_experts: set[str] = set()
     target_providers: set[str] = set()
     source_groups: set[str] = set()
+    verified_provenance: set[str] = set()
     for path in _manifest_paths(manifest):
         clip = load_cache_clip(path)
         clips += 1
@@ -41,6 +47,8 @@ def audit_manifest(
         initializer = str(metadata.get("initializer_expert", ""))
         provider = str(metadata.get("target_provider", ""))
         source_group = str(metadata.get("source_group", ""))
+        if bool(metadata.get("requires_reprojection_enrichment", False)):
+            fail("reprojection_residual_not_enriched", clip.clip_id)
         if target_type not in INDEPENDENT_TARGET_TYPES:
             fail("target_type_is_not_independent", clip.clip_id)
         if not initializer or not provider or initializer.lower() == provider.lower():
@@ -49,6 +57,21 @@ def audit_manifest(
             metadata.get("initializer_matches_locked_lane_a1", False)
         ):
             fail("initializer_does_not_match_locked_lane_a1", clip.clip_id)
+        if require_locked_initializer:
+            try:
+                provenance = metadata.get("initializer_provenance", {})
+                validate_exact_a1_provenance(provenance)
+                provenance_key = json.dumps(provenance, sort_keys=True)
+                if provenance_key not in verified_provenance:
+                    verify_exact_a1_components(provenance)
+                    verified_provenance.add(provenance_key)
+                validate_exact_a1_result_binding(
+                    clip.source_paths,
+                    clip.source_sha256,
+                    metadata.get("initializer_result_set_sha256"),
+                )
+            except (FileNotFoundError, TypeError, ValueError):
+                fail("initializer_locked_a1_provenance_invalid", clip.clip_id)
         if not source_group:
             fail("source_group_missing", clip.clip_id)
         if clip.target_axis_angle is None or clip.target_rotation_valid is None:

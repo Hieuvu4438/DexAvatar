@@ -264,8 +264,47 @@ zero-initialized cross-joint reprojection skip: it is exactly identity-safe at
 initialization, while giving the per-frame residual a direct bounded SO(3)
 correction path in parallel with the whole-sequence transformer.
 
+When exact frozen-A1 outputs become available, materialize them against the
+independent target cache with a provenance record tied to the immutable G1
+hashes. The command refuses incomplete frame coverage, invalidates stale H32
+reprojection residuals, and requires a subsequent reprojection-enrichment pass:
+
+```bash
+python -m phase2_refiner.data.materialize_exact_a1_cache \
+  --template-root cache/phase2/t2_how2sign_2d_temporal_v1 \
+  --exact-root outputs/how2sign_exact_a1_v1 \
+  --provenance phase2_refiner/configs/exact_a1_provenance_v1.json \
+  --output cache/phase2/t2_how2sign_exact_a1_raw_v1
+
+python -m phase2_refiner.data.add_reprojection_residuals \
+  --input-root cache/phase2/t2_how2sign_exact_a1_raw_v1 \
+  --output cache/phase2/t2_how2sign_exact_a1_reprojection_v1 \
+  --mode how2sign --device cuda
+```
+
+The optional T5 configuration implements the proposal's bounded 15-step
+observation-only optimization. It uses the How2Sign crop camera or each Lane
+PKL's perspective `K`, never reads target/GT, and returns a group to A1 when
+reliable reprojection is worse. Such returns count toward the formal fallback
+rate:
+
+```bash
+python -m phase2_refiner.evaluate_residual_checkpoint \
+  --manifest cache/phase2/t2_how2sign_2d_temporal_reprojection_v2/splits/val.json \
+  --config phase2_refiner/configs/uawsr_t2_how2sign_2d_temporal_t5.yaml \
+  --checkpoint outputs/phase2_training/t2_how2sign_2d_temporal_reprojection_v6_seed42/best.pt \
+  --real-residual-audit outputs/phase2_gates/g4/how2sign_2d_temporal_reprojection_proxy_audit.json \
+  --output outputs/phase2_gates/g4/t5_validation.json \
+  --per-clip-output outputs/phase2_gates/g4/t5_validation.jsonl
+```
+
 Train U1 only after T2/G4 passes, then export matched errors against U0 on the
 same disjoint calibration split:
+
+The v7 U1 diagnostic keeps learned uncertainty feedback out of deterministic
+attention during calibration, so the head-only warm-up is exactly
+reconstruction-neutral. Its equal-region ranking term targets the predeclared
+worst-decile AUC in addition to Gaussian NLL.
 
 ```bash
 python -m phase2_refiner.evaluate_uncertainty \

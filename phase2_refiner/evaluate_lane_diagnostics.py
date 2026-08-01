@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 import csv
 import json
 from pathlib import Path
@@ -19,7 +20,8 @@ REGIONS = {
     "rhand": (36, 51, 2),
 }
 SUBSET_CONTRACT = {
-    "version": "lane_l_observation_difficulty_v1",
+    "version": "lane_l_observation_difficulty_v2_active_refine_mask",
+    "population": "only joints enabled by the immutable cache refine_mask",
     "hard": (
         "mean U0 reliability <0.35 OR missing fraction >0.25 OR "
         "truncation >0.25 OR duplicate/disagreement flag"
@@ -53,6 +55,9 @@ def evaluate_diagnostics(
     classifications: dict[tuple[str, str, str], tuple[bool, bool]] = {}
     fallback_count = group_frames = 0
     diagnostic_frames = 0
+    t5_clips = 0
+    t5_accepted_clips: Counter[str] = Counter()
+    fallback_clips: Counter[str] = Counter()
     for cache_path in sorted((cache_root / "clips").glob("*.npz")):
         clip = load_cache_clip(cache_path)
         diagnostic_path = (
@@ -63,18 +68,39 @@ def evaluate_diagnostics(
         with np.load(diagnostic_path, allow_pickle=False) as data:
             diagnostic_names = data["frame_names"].astype(str)
             fallback = data["fallback_mask"].astype(bool)
+            t5_accepted = (
+                data["t5_accepted_regions"].astype(bool)
+                if "t5_accepted_regions" in data.files
+                else None
+            )
         if not np.array_equal(diagnostic_names, clip.frame_names.astype(str)):
             raise ValueError(f"Diagnostic/cache frame mismatch for {clip.clip_id}")
         fallback_count += int(fallback.sum())
         group_frames += int(fallback.size)
         diagnostic_frames += len(clip.frame_names)
+        for region, (_, _, group_index) in REGIONS.items():
+            fallback_clips[region] += int(fallback[:, group_index].any())
+        if t5_accepted is not None:
+            if t5_accepted.shape != (len(REGIONS),):
+                raise ValueError(
+                    f"Invalid T5 acceptance shape for {clip.clip_id}: "
+                    f"{t5_accepted.shape}"
+                )
+            t5_clips += 1
+            for accepted, region in zip(t5_accepted, REGIONS, strict=True):
+                t5_accepted_clips[region] += int(accepted)
         observations = clip.observation_features
         for index, frame in enumerate(clip.frame_names.astype(str)):
             if (clip.clip_id, frame) not in by_id:
                 raise ValueError(f"Evaluator row missing for {clip.clip_id}/{frame}")
             for region, (start, end, _) in REGIONS.items():
-                reliability = clip.u0_reliability[index, start:end]
-                group = observations[index, start:end]
+                active = clip.refine_mask[start:end]
+                if not active.any():
+                    raise ValueError(
+                        f"No active refined joints for {clip.clip_id}/{region}"
+                    )
+                reliability = clip.u0_reliability[index, start:end][active]
+                group = observations[index, start:end][active]
                 mean_reliability = float(reliability.mean())
                 missing_fraction = float(group[:, 2].mean())
                 max_truncation = float(group[:, 4].max())
@@ -128,12 +154,26 @@ def evaluate_diagnostics(
         "counts": counts,
         "hard_subset_regional_relative_gain": hard_gains,
         "hard_subset_relative_gain": (
-            float(np.mean(valid_hard)) if len(valid_hard) == len(REGIONS) else None
+            float(np.mean(valid_hard)) if valid_hard else None
         ),
+        "hard_subset_regions_present": [
+            region for region, gain in hard_gains.items() if gain is not None
+        ],
         "clean_regression_fraction": clean_regressions,
         "fallback_group_frames": fallback_count,
         "total_group_frames": group_frames,
         "group_frame_fallback_fraction": fallback_count / group_frames,
+        "fallback_clip_count_by_region": {
+            region: fallback_clips[region] for region in REGIONS
+        },
+        "t5_clips_attempted": t5_clips,
+        "t5_accepted_clip_count": {
+            region: t5_accepted_clips[region] for region in REGIONS
+        },
+        "t5_accepted_clip_fraction": {
+            region: t5_accepted_clips[region] / max(t5_clips, 1)
+            for region in REGIONS
+        },
     }
 
 
