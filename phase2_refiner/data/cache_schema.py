@@ -9,12 +9,14 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+import json
 
 import numpy as np
 
 
-SCHEMA_VERSION = 3
-SUPPORTED_SCHEMA_VERSIONS = (1, 2, 3)
+SCHEMA_VERSION = 4
+SUPPORTED_SCHEMA_VERSIONS = (1, 2, 3, 4)
+PHASE2R_SEMANTIC_CONTRACT = "phase2r-v1"
 NUM_JOINTS = 51
 NUM_OBSERVATION_FEATURES = 8
 NUM_HANDS = 2
@@ -63,6 +65,21 @@ class CacheClip:
     reprojection_residual_2d: np.ndarray | None = None
     target_joint_positions: np.ndarray | None = None
     target_joint_valid: np.ndarray | None = None
+    raw_confidence: np.ndarray | None = None
+    calibrated_confidence: np.ndarray | None = None
+    detector_present: np.ndarray | None = None
+    track_valid: np.ndarray | None = None
+    in_frame: np.ndarray | None = None
+    copied_observation: np.ndarray | None = None
+    interpolated_observation: np.ndarray | None = None
+    target_quality: np.ndarray | None = None
+    initializer_component: np.ndarray | None = None
+    fallback_reason: np.ndarray | None = None
+    camera_model: np.ndarray | None = None
+    camera_intrinsics: np.ndarray | None = None
+    crop_transform: np.ndarray | None = None
+    hand_activity: np.ndarray | None = None
+    semantic_contract_version: str = "legacy"
     metadata_json: str = "{}"
 
     def _fill_optional_defaults(self) -> None:
@@ -117,6 +134,49 @@ class CacheClip:
             self.reprojection_residual_2d = np.zeros(
                 (t, NUM_JOINTS, 2), dtype=np.float32
             )
+        confidence = np.clip(self.observation_features[..., 0], 0.0, 1.0)
+        presence = self.observation_features[..., 1] > 0.5
+        missing = self.observation_features[..., 2] > 0.5
+        truncation = self.observation_features[..., 4] > 0.5
+        duplicate = self.observation_features[..., 6] > 0.5
+        if self.raw_confidence is None:
+            self.raw_confidence = confidence.astype(np.float32)
+        if self.calibrated_confidence is None:
+            self.calibrated_confidence = confidence.astype(np.float32)
+        if self.detector_present is None:
+            self.detector_present = presence
+        if self.track_valid is None:
+            self.track_valid = self.keypoint_valid.copy()
+        if self.in_frame is None:
+            self.in_frame = ~truncation
+        if self.copied_observation is None:
+            self.copied_observation = duplicate
+        if self.interpolated_observation is None:
+            self.interpolated_observation = np.zeros((t, NUM_JOINTS), dtype=bool)
+        if self.target_quality is None:
+            self.target_quality = np.zeros((t, NUM_JOINTS), dtype=np.float32)
+        if self.initializer_component is None:
+            self.initializer_component = np.full(t, "unknown", dtype=str)
+        if self.fallback_reason is None:
+            self.fallback_reason = np.full(t, "", dtype=str)
+        if self.camera_model is None:
+            self.camera_model = np.full(t, "unknown", dtype=str)
+        if self.camera_intrinsics is None:
+            self.camera_intrinsics = np.broadcast_to(
+                np.eye(3, dtype=np.float32), (t, 3, 3)
+            ).copy()
+        if self.crop_transform is None:
+            self.crop_transform = np.broadcast_to(
+                np.eye(3, dtype=np.float32), (t, 3, 3)
+            ).copy()
+        if self.hand_activity is None:
+            self.hand_activity = np.stack(
+                (
+                    self.track_valid[:, 21:36].mean(axis=1),
+                    self.track_valid[:, 36:51].mean(axis=1),
+                ),
+                axis=-1,
+            ).astype(np.float32)
         if self.target_axis_angle is not None and self.target_rotation_valid is None:
             # Backward compatibility: caches written before partial supervision
             # was introduced represented complete rotation targets.
@@ -155,6 +215,20 @@ class CacheClip:
             "wrist_to_torso": (t, NUM_HANDS, 4, 4),
             "u0_reliability": (t, NUM_JOINTS),
             "reprojection_residual_2d": (t, NUM_JOINTS, 2),
+            "raw_confidence": (t, NUM_JOINTS),
+            "calibrated_confidence": (t, NUM_JOINTS),
+            "detector_present": (t, NUM_JOINTS),
+            "track_valid": (t, NUM_JOINTS),
+            "in_frame": (t, NUM_JOINTS),
+            "copied_observation": (t, NUM_JOINTS),
+            "interpolated_observation": (t, NUM_JOINTS),
+            "target_quality": (t, NUM_JOINTS),
+            "initializer_component": (t,),
+            "fallback_reason": (t,),
+            "camera_model": (t,),
+            "camera_intrinsics": (t, 3, 3),
+            "crop_transform": (t, 3, 3),
+            "hand_activity": (t, NUM_HANDS),
         }
         for name, shape in expected.items():
             value = getattr(self, name)
@@ -191,6 +265,12 @@ class CacheClip:
             "wrist_to_torso",
             "u0_reliability",
             "reprojection_residual_2d",
+            "raw_confidence",
+            "calibrated_confidence",
+            "target_quality",
+            "camera_intrinsics",
+            "crop_transform",
+            "hand_activity",
         )
         for name in finite_fields:
             if not np.isfinite(getattr(self, name)).all():
@@ -202,6 +282,28 @@ class CacheClip:
             raise ValueError("target_axis_angle contains NaN or Inf")
         if not np.all((self.u0_reliability >= 0.0) & (self.u0_reliability <= 1.0)):
             raise ValueError("u0_reliability must be within [0, 1]")
+        for name in ("raw_confidence", "calibrated_confidence", "target_quality", "hand_activity"):
+            value = getattr(self, name)
+            if not np.all((value >= 0.0) & (value <= 1.0)):
+                raise ValueError(f"{name} must be within [0, 1]")
+
+
+def validate_phase2r_semantics(clip: CacheClip) -> None:
+    """Reject legacy/ambiguous caches before a Phase 2R experiment starts."""
+    clip.validate()
+    if clip.semantic_contract_version != PHASE2R_SEMANTIC_CONTRACT:
+        raise ValueError(
+            "Phase 2R requires semantic_contract_version="
+            f"{PHASE2R_SEMANTIC_CONTRACT!r}; got {clip.semantic_contract_version!r}"
+        )
+    metadata = json.loads(clip.metadata_json)
+    policy = metadata.get("coordinate_policy")
+    if not isinstance(policy, dict) or not policy.get("keypoints_2d"):
+        raise ValueError("Phase 2R cache metadata requires coordinate_policy.keypoints_2d")
+    if np.any(clip.track_valid & ~clip.detector_present):
+        raise ValueError("track_valid cannot be true when detector_present is false")
+    if np.any(clip.interpolated_observation & clip.detector_present):
+        raise ValueError("interpolated observations cannot be detector-present")
 
 
 def save_cache_clip(path: str | Path, clip: CacheClip) -> None:
@@ -243,6 +345,21 @@ def save_cache_clip(path: str | Path, clip: CacheClip) -> None:
         "wrist_to_torso": clip.wrist_to_torso.astype(np.float32),
         "u0_reliability": clip.u0_reliability.astype(np.float32),
         "reprojection_residual_2d": clip.reprojection_residual_2d.astype(np.float32),
+        "raw_confidence": clip.raw_confidence.astype(np.float32),
+        "calibrated_confidence": clip.calibrated_confidence.astype(np.float32),
+        "detector_present": clip.detector_present.astype(bool),
+        "track_valid": clip.track_valid.astype(bool),
+        "in_frame": clip.in_frame.astype(bool),
+        "copied_observation": clip.copied_observation.astype(bool),
+        "interpolated_observation": clip.interpolated_observation.astype(bool),
+        "target_quality": clip.target_quality.astype(np.float32),
+        "initializer_component": clip.initializer_component.astype(str),
+        "fallback_reason": clip.fallback_reason.astype(str),
+        "camera_model": clip.camera_model.astype(str),
+        "camera_intrinsics": clip.camera_intrinsics.astype(np.float32),
+        "crop_transform": clip.crop_transform.astype(np.float32),
+        "hand_activity": clip.hand_activity.astype(np.float32),
+        "semantic_contract_version": np.asarray(clip.semantic_contract_version),
         "metadata_json": np.asarray(clip.metadata_json),
         "has_target": np.asarray(clip.target_axis_angle is not None, dtype=bool),
         "has_target_joints": np.asarray(
@@ -331,6 +448,37 @@ def load_cache_clip(path: str | Path) -> CacheClip:
             ),
             target_joint_valid=(
                 data["target_joint_valid"] if has_target_joints else None
+            ),
+            raw_confidence=_get(data, "raw_confidence", None),
+            calibrated_confidence=_get(data, "calibrated_confidence", None),
+            detector_present=_get(data, "detector_present", None),
+            track_valid=_get(data, "track_valid", None),
+            in_frame=_get(data, "in_frame", None),
+            copied_observation=_get(data, "copied_observation", None),
+            interpolated_observation=_get(
+                data, "interpolated_observation", None
+            ),
+            target_quality=_get(data, "target_quality", None),
+            initializer_component=(
+                data["initializer_component"].astype(str)
+                if "initializer_component" in data.files
+                else None
+            ),
+            fallback_reason=(
+                data["fallback_reason"].astype(str)
+                if "fallback_reason" in data.files
+                else None
+            ),
+            camera_model=(
+                data["camera_model"].astype(str)
+                if "camera_model" in data.files
+                else None
+            ),
+            camera_intrinsics=_get(data, "camera_intrinsics", None),
+            crop_transform=_get(data, "crop_transform", None),
+            hand_activity=_get(data, "hand_activity", None),
+            semantic_contract_version=str(
+                _get(data, "semantic_contract_version", "legacy")
             ),
             metadata_json=str(_get(data, "metadata_json", "{}")),
         )

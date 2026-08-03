@@ -91,12 +91,14 @@ def _loss_arguments(batch: dict, features: torch.Tensor) -> dict:
     observed_valid = torso_valid | wrist_valid
     return {
         "target_rotation_valid": batch["target_rotation_valid"],
+        "target_quality": batch["target_quality"],
         "target_joint_position": batch["target_joint_position"],
         "target_joint_valid": batch["target_joint_valid"],
         "target_palm_normal": batch["target_palm_normal"],
         "target_palm_valid": batch["target_palm_valid"],
         "observed_joint_position": observed_position,
         "observed_joint_valid": observed_valid,
+        "time_delta_seconds": batch["time_delta_seconds"],
     }
 
 
@@ -447,6 +449,13 @@ def main() -> None:
     reprojection_residual_scale = float(
         data_config.get("reprojection_residual_scale", 10.0)
     )
+    physical_time_motion = bool(data_config.get("physical_time_motion", False))
+    motion_reference_seconds = float(
+        data_config.get("motion_reference_seconds", 0.04)
+    )
+    require_phase2r_semantics = bool(
+        data_config.get("require_phase2r_semantics", False)
+    )
     train_dataset = SequenceCacheDataset(
         data_config["train_glob"],
         max_frames=max_frames,
@@ -455,6 +464,9 @@ def main() -> None:
         seed=seed,
         input_dim=input_dim,
         reprojection_residual_scale=reprojection_residual_scale,
+        physical_time_motion=physical_time_motion,
+        motion_reference_seconds=motion_reference_seconds,
+        require_phase2r_semantics=require_phase2r_semantics,
     )
     val_glob = None if args.no_validation else data_config.get("val_glob")
     val_dataset = (
@@ -466,6 +478,9 @@ def main() -> None:
             seed=seed,
             input_dim=input_dim,
             reprojection_residual_scale=reprojection_residual_scale,
+            physical_time_motion=physical_time_motion,
+            motion_reference_seconds=motion_reference_seconds,
+            require_phase2r_semantics=require_phase2r_semantics,
         )
         if val_glob
         else None
@@ -519,7 +534,10 @@ def main() -> None:
         if args.resume is not None:
             raise ValueError("--spatial-init and --resume are mutually exclusive")
         initialization_report = load_compatible_initialization(model, args.spatial_init)
-    loss_fn = RefinerLoss(**config.get("loss", {})).to(device)
+    loss_config = dict(config.get("loss", {}))
+    loss_config.setdefault("physical_time_motion", physical_time_motion)
+    loss_config.setdefault("motion_reference_seconds", motion_reference_seconds)
+    loss_fn = RefinerLoss(**loss_config).to(device)
     geometry_context = _geometry_context(config, device)
     optimizer = _optimizer(
         model,

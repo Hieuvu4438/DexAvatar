@@ -48,8 +48,22 @@ def main() -> None:
     validate_config(config, require_data=True, require_validation=True)
     device = torch.device(args.device)
     max_frames = int(config.get("model", {}).get("max_frames", 64))
+    data_config = config["data"]
     dataset = SequenceCacheDataset(
-        config["data"]["val_glob"], max_frames=max_frames, training=False
+        data_config["val_glob"],
+        max_frames=max_frames,
+        training=False,
+        input_dim=int(config.get("model", {}).get("input_dim", 43)),
+        reprojection_residual_scale=float(
+            data_config.get("reprojection_residual_scale", 10.0)
+        ),
+        physical_time_motion=bool(data_config.get("physical_time_motion", False)),
+        motion_reference_seconds=float(
+            data_config.get("motion_reference_seconds", 0.04)
+        ),
+        require_phase2r_semantics=bool(
+            data_config.get("require_phase2r_semantics", False)
+        ),
     )
     loader = DataLoader(
         dataset,

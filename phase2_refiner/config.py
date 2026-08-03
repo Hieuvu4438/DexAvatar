@@ -38,6 +38,7 @@ def validate_config(
     )
 
     model = config.get("model", {})
+    data = config.get("data", {})
     input_dim = int(model.get("input_dim", TOKEN_FEATURE_DIM))
     if input_dim not in (TOKEN_FEATURE_DIM, TOKEN_FEATURE_DIM_WITH_REPROJECTION):
         raise ValueError(
@@ -55,11 +56,43 @@ def validate_config(
         raise ValueError(
             "model.uncertainty_feedback requires model.predict_uncertainty"
         )
-    residual_scale = float(
-        config.get("data", {}).get("reprojection_residual_scale", 10.0)
-    )
+    if float(config.get("loss", {}).get("benefit_weight", 0.0)) > 0 and not model.get(
+        "predict_benefit", False
+    ):
+        raise ValueError("loss.benefit_weight requires model.predict_benefit")
+    if config.get("loss", {}).get("target_quality_weighting", False) and not data.get(
+        "require_phase2r_semantics", False
+    ):
+        raise ValueError(
+            "loss.target_quality_weighting requires data.require_phase2r_semantics"
+        )
+    threshold = config.get("inference", {}).get("benefit_threshold")
+    if threshold is not None:
+        if not model.get("predict_benefit", False):
+            raise ValueError(
+                "inference.benefit_threshold requires model.predict_benefit"
+            )
+        if not 0.0 < float(threshold) < 1.0:
+            raise ValueError("inference.benefit_threshold must be within (0, 1)")
+    residual_scale = float(data.get("reprojection_residual_scale", 10.0))
     if residual_scale <= 0:
         raise ValueError("data.reprojection_residual_scale must be positive")
+    reference_seconds = float(data.get("motion_reference_seconds", 0.04))
+    if reference_seconds <= 0:
+        raise ValueError("data.motion_reference_seconds must be positive")
+    loss = config.get("loss", {})
+    if "physical_time_motion" in loss and bool(loss["physical_time_motion"]) != bool(
+        data.get("physical_time_motion", False)
+    ):
+        raise ValueError(
+            "loss.physical_time_motion must match data.physical_time_motion"
+        )
+    if "motion_reference_seconds" in loss and float(
+        loss["motion_reference_seconds"]
+    ) != reference_seconds:
+        raise ValueError(
+            "loss.motion_reference_seconds must match data.motion_reference_seconds"
+        )
     hidden = int(model.get("hidden_size", 256))
     heads = int(model.get("num_heads", 8))
     if hidden % heads:
@@ -70,7 +103,6 @@ def validate_config(
 
     validate_t5_config(config.get("t5", {}))
     if require_data:
-        data = config.get("data", {})
         if not data.get("train_glob"):
             raise ValueError("Missing data.train_glob")
         if require_validation and not data.get("val_glob"):

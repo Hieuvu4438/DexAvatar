@@ -1,0 +1,5 @@
+base: rdp_base.yaml
+output_dir: outputs/phase3_training/rdp_r5_sign_adaptation_seed42
+training:
+  max_steps: 100000
+  generic_batch_fraction: 0.25

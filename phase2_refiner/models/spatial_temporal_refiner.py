@@ -90,6 +90,7 @@ class FactorizedBlock(nn.Module):
         group_ids: torch.Tensor,
         reliability: torch.Tensor,
         causal: bool,
+        temporal_attention: bool,
     ) -> torch.Tensor:
         batch, frames, joints, hidden = value.shape
         reliable = reliability[..., None].clamp(0.0, 1.0)
@@ -104,29 +105,30 @@ class FactorizedBlock(nn.Module):
         )
         value = value + spatial.reshape(batch, frames, joints, hidden)
 
-        temporal_query = self.temporal_norm(value).permute(0, 2, 1, 3)
-        temporal_reliable = reliable.permute(0, 2, 1, 3)
-        temporal_key_value = temporal_query * (0.1 + 0.9 * temporal_reliable)
-        temporal_query = temporal_query.reshape(batch * joints, frames, hidden)
-        temporal_key_value = temporal_key_value.reshape(batch * joints, frames, hidden)
-        padding_bool = (
-            (~frame_valid)[:, None, :]
-            .expand(batch, joints, frames)
-            .reshape(batch * joints, frames)
-        )
-        padding = torch.zeros(
-            padding_bool.shape, device=value.device, dtype=value.dtype
-        ).masked_fill(padding_bool, float("-inf"))
-        temporal, _ = self.temporal_attention(
-            temporal_query,
-            temporal_key_value,
-            temporal_key_value,
-            key_padding_mask=padding,
-            attn_mask=self._temporal_mask(frames, value.device, value.dtype, causal),
-            need_weights=False,
-        )
-        temporal = temporal.reshape(batch, joints, frames, hidden).permute(0, 2, 1, 3)
-        value = value + temporal
+        if temporal_attention:
+            temporal_query = self.temporal_norm(value).permute(0, 2, 1, 3)
+            temporal_reliable = reliable.permute(0, 2, 1, 3)
+            temporal_key_value = temporal_query * (0.1 + 0.9 * temporal_reliable)
+            temporal_query = temporal_query.reshape(batch * joints, frames, hidden)
+            temporal_key_value = temporal_key_value.reshape(batch * joints, frames, hidden)
+            padding_bool = (
+                (~frame_valid)[:, None, :]
+                .expand(batch, joints, frames)
+                .reshape(batch * joints, frames)
+            )
+            padding = torch.zeros(
+                padding_bool.shape, device=value.device, dtype=value.dtype
+            ).masked_fill(padding_bool, float("-inf"))
+            temporal, _ = self.temporal_attention(
+                temporal_query,
+                temporal_key_value,
+                temporal_key_value,
+                key_padding_mask=padding,
+                attn_mask=self._temporal_mask(frames, value.device, value.dtype, causal),
+                need_weights=False,
+            )
+            temporal = temporal.reshape(batch, joints, frames, hidden).permute(0, 2, 1, 3)
+            value = value + temporal
 
         normalized = self.group_norm(value)
         group_tokens = []
@@ -161,17 +163,21 @@ class WholeSequenceRefiner(nn.Module):
         dropout: float = 0.1,
         max_frames: int = 64,
         predict_uncertainty: bool = False,
+        predict_benefit: bool = False,
         uncertainty_feedback: bool = True,
         use_reprojection_skip: bool = False,
         causal: bool = False,
+        temporal_attention: bool = True,
         body_max_degrees: float = 25.0,
         hand_max_degrees: float = 35.0,
     ) -> None:
         super().__init__()
         self.max_frames = max_frames
         self.predict_uncertainty = predict_uncertainty
+        self.predict_benefit = bool(predict_benefit)
         self.uncertainty_feedback = uncertainty_feedback
         self.causal = causal
+        self.temporal_attention = bool(temporal_attention)
         self.token_embedding = ObservationTokenEmbedding(
             input_dim, hidden_size, max_frames, NUM_JOINTS
         )
@@ -194,6 +200,10 @@ class WholeSequenceRefiner(nn.Module):
         )
         self.output_norm = nn.LayerNorm(hidden_size)
         self.heads = ResidualHeads(hidden_size)
+        self.benefit_head = nn.Linear(hidden_size, 1) if self.predict_benefit else None
+        if self.benefit_head is not None:
+            nn.init.zeros_(self.benefit_head.weight)
+            nn.init.zeros_(self.benefit_head.bias)
 
         group_ids = default_group_ids()
         max_angles = torch.full((NUM_JOINTS,), math.radians(body_max_degrees))
@@ -247,7 +257,14 @@ class WholeSequenceRefiner(nn.Module):
             * frame_valid[:, :, None]
         )
         for block in self.blocks:
-            value = block(value, frame_valid, self.group_ids, reliability, self.causal)
+            value = block(
+                value,
+                frame_valid,
+                self.group_ids,
+                reliability,
+                self.causal,
+                self.temporal_attention,
+            )
         value = self.output_norm(value)
         raw_delta, gate, position_delta = self.heads(value)
         if self.reprojection_skip is not None:
@@ -289,4 +306,14 @@ class WholeSequenceRefiner(nn.Module):
         if rotation_log_variance is not None:
             result["log_variance"] = rotation_log_variance[..., None]
             result["observation_log_variance"] = observation_log_variance
+        if self.benefit_head is not None:
+            joint_benefit = self.benefit_head(value).squeeze(-1)
+            result["benefit_logit"] = torch.stack(
+                (
+                    joint_benefit[..., :21].mean(dim=-1),
+                    joint_benefit[..., 21:36].mean(dim=-1),
+                    joint_benefit[..., 36:51].mean(dim=-1),
+                ),
+                dim=-1,
+            )
         return result

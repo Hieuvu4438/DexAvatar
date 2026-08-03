@@ -1,0 +1,48 @@
+seed: 42
+output_dir: outputs/phase3_training/replace_me
+data:
+  train_index: cache/phase3/v1/splits/train.json
+  val_index: cache/phase3/v1/splits/val.json
+  identity_target: false
+model:
+  num_joints: 51
+  max_frames: 64
+  observation_dim: 45
+  width: 384
+  blocks: 8
+  heads: 8
+  mlp_ratio: 4
+  dropout: 0.1
+  relation_width: 128
+  relation_layers: 3
+  activation_checkpointing: true
+  spatial_prior:
+    route: from_scratch
+    claim: no_pretrained_prior
+diffusion:
+  type: sub_vp
+  beta_min: 0.1
+  beta_max: 20.0
+  eps: 0.001
+  nominal_scales: 1000
+loss:
+  rotation: 0.5
+  motion: 0.25
+  contact: 0.25
+  persistence: 0.10
+  depth: 0.10
+training:
+  learning_rate: 0.0002
+  weight_decay: 0.05
+  batch_size: 4
+  gradient_accumulation: 8
+  gradient_clip: 1.0
+  ema: 0.9999
+  condition_dropout: 0.10
+  workers: 4
+  log_interval: 50
+  max_steps: 75000
+sampling:
+  candidates: 4
+  steps: 30
+  guidance: 1.0

@@ -10,7 +10,11 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset, Sampler
 
-from phase2_refiner.data.cache_schema import NUM_JOINTS, load_cache_clip
+from phase2_refiner.data.cache_schema import (
+    NUM_JOINTS,
+    load_cache_clip,
+    validate_phase2r_semantics,
+)
 from phase2_refiner.geometry.rotations import (
     axis_angle_to_matrix,
     matrix_to_rotation_6d,
@@ -67,18 +71,43 @@ def features_from_clip(
     window: slice | None = None,
     input_dim: int = TOKEN_FEATURE_DIM,
     reprojection_residual_scale: float = REPROJECTION_RESIDUAL_SCALE,
+    physical_time_motion: bool = False,
+    motion_reference_seconds: float = 0.04,
 ) -> tuple[torch.Tensor, torch.Tensor]:
     clip.validate()
     window = window or slice(0, len(clip.frame_names))
     init_aa = torch.from_numpy(clip.init_axis_angle[window]).float()
     init_matrix = axis_angle_to_matrix(init_aa)
     rot6d = matrix_to_rotation_6d(init_matrix)
+    if motion_reference_seconds <= 0:
+        raise ValueError("motion_reference_seconds must be positive")
+    timestamps = torch.from_numpy(clip.timestamps[window]).float()
+    delta_seconds = torch.zeros(len(timestamps), dtype=torch.float32)
+    if len(timestamps) > 1:
+        delta_seconds[1:] = timestamps[1:] - timestamps[:-1]
+        if torch.any(delta_seconds[1:] <= 0):
+            raise ValueError("cache timestamps must be strictly increasing")
+        delta_seconds[0] = delta_seconds[1]
+    elif clip.fps > 0:
+        delta_seconds[0] = 1.0 / clip.fps
+    else:
+        delta_seconds[0] = motion_reference_seconds
+
     velocity = torch.zeros_like(rot6d)
     acceleration = torch.zeros_like(rot6d)
     if len(rot6d) > 1:
         velocity[1:] = rot6d[1:] - rot6d[:-1]
+        if physical_time_motion:
+            velocity[1:] *= (
+                motion_reference_seconds / delta_seconds[1:]
+            )[:, None, None]
     if len(rot6d) > 2:
         acceleration[2:] = velocity[2:] - velocity[1:-1]
+        if physical_time_motion:
+            interval = 0.5 * (delta_seconds[2:] + delta_seconds[1:-1])
+            acceleration[2:] *= (
+                motion_reference_seconds / interval
+            )[:, None, None]
 
     observations = torch.from_numpy(clip.observation_features[window]).float()
     keypoint_valid = torch.from_numpy(clip.keypoint_valid[window]).bool()
@@ -105,11 +134,10 @@ def features_from_clip(
     palm_valid[:, 36:51] = palm_source_valid[:, 1, None]
     palm = torch.where(palm_valid[..., None], palm, torch.zeros_like(palm))
 
-    timestamps = torch.from_numpy(clip.timestamps[window]).float()
     time_delta = torch.zeros(len(timestamps), dtype=torch.float32)
     if len(timestamps) > 1:
-        time_delta[1:] = timestamps[1:] - timestamps[:-1]
-        nominal = 1.0 / clip.fps if clip.fps > 0 else time_delta[1:].median()
+        time_delta[1:] = delta_seconds[1:]
+        nominal = 1.0 / clip.fps if clip.fps > 0 else delta_seconds[1:].median()
         time_delta = time_delta / torch.as_tensor(nominal).clamp_min(1e-6)
     time_delta = time_delta[:, None, None].expand(-1, NUM_JOINTS, 1)
     reprojection_residual = _masked_coordinates(
@@ -151,6 +179,7 @@ def collate_sequences(items: list[dict]) -> dict:
         "initial_matrix",
         "target_matrix",
         "target_rotation_valid",
+        "target_quality",
         "initial_joint_position",
         "target_joint_position",
         "target_joint_valid",
@@ -167,6 +196,7 @@ def collate_sequences(items: list[dict]) -> dict:
         "frame_valid",
         "refine_mask",
         "length",
+        "time_delta_seconds",
     )
     batch = {key: torch.stack([item[key] for item in items]) for key in tensor_keys}
     batch["clip_id"] = [item["clip_id"] for item in items]
@@ -184,6 +214,9 @@ class SequenceCacheDataset(Dataset):
         seed: int = 42,
         input_dim: int = TOKEN_FEATURE_DIM,
         reprojection_residual_scale: float = REPROJECTION_RESIDUAL_SCALE,
+        physical_time_motion: bool = False,
+        motion_reference_seconds: float = 0.04,
+        require_phase2r_semantics: bool = False,
     ) -> None:
         manifest_path = Path(cache_glob)
         if manifest_path.suffix == ".json" and manifest_path.exists():
@@ -209,8 +242,21 @@ class SequenceCacheDataset(Dataset):
         self.reprojection_residual_scale = float(reprojection_residual_scale)
         if self.reprojection_residual_scale <= 0:
             raise ValueError("reprojection_residual_scale must be positive")
+        self.physical_time_motion = bool(physical_time_motion)
+        self.motion_reference_seconds = float(motion_reference_seconds)
+        if self.motion_reference_seconds <= 0:
+            raise ValueError("motion_reference_seconds must be positive")
+        self.require_phase2r_semantics = bool(require_phase2r_semantics)
         self.rng = np.random.default_rng(seed)
-        self.lengths = [len(load_cache_clip(path).frame_names) for path in self.paths]
+        self.lengths = []
+        for path in self.paths:
+            clip = load_cache_clip(path)
+            if self.require_phase2r_semantics:
+                try:
+                    validate_phase2r_semantics(clip)
+                except ValueError as error:
+                    raise ValueError(f"{path}: {error}") from error
+            self.lengths.append(len(clip.frame_names))
 
     def __len__(self) -> int:
         return len(self.paths)
@@ -239,6 +285,8 @@ class SequenceCacheDataset(Dataset):
             window,
             input_dim=self.input_dim,
             reprojection_residual_scale=self.reprojection_residual_scale,
+            physical_time_motion=self.physical_time_motion,
+            motion_reference_seconds=self.motion_reference_seconds,
         )
         init_aa = torch.from_numpy(clip.init_axis_angle[window]).float()
 
@@ -256,6 +304,9 @@ class SequenceCacheDataset(Dataset):
                 clip.target_rotation_valid[window]
             ).bool()
         target_matrix = axis_angle_to_matrix(target_aa)
+        target_quality = torch.from_numpy(clip.target_quality[window]).float()
+        if self.identity_target and target_np is None:
+            target_quality = torch.ones_like(target_quality)
 
         initial_joint = torch.from_numpy(clip.torso_positions[window]).float()
         wrist_joint = torch.from_numpy(clip.wrist_local_positions[window]).float()
@@ -292,10 +343,21 @@ class SequenceCacheDataset(Dataset):
 
         length = len(init_aa)
         pad = self.max_frames - length
+        timestamps = torch.from_numpy(clip.timestamps[window]).float()
+        time_delta_seconds = torch.zeros(length, dtype=torch.float32)
+        if length > 1:
+            time_delta_seconds[1:] = timestamps[1:] - timestamps[:-1]
+            time_delta_seconds[0] = time_delta_seconds[1]
+        elif clip.fps > 0:
+            time_delta_seconds[0] = 1.0 / clip.fps
+        else:
+            time_delta_seconds[0] = self.motion_reference_seconds
+        time_delta_seconds = self._pad_time(time_delta_seconds, pad)
         features = self._pad_time(features, pad)
         init_matrix = self._pad_time(init_matrix, pad)
         target_matrix = self._pad_time(target_matrix, pad)
         target_rotation_valid = self._pad_time(target_rotation_valid, pad)
+        target_quality = self._pad_time(target_quality, pad)
         initial_joint = self._pad_time(initial_joint, pad)
         target_joint = self._pad_time(target_joint, pad)
         target_joint_valid = self._pad_time(target_joint_valid, pad)
@@ -327,6 +389,7 @@ class SequenceCacheDataset(Dataset):
             "initial_matrix": init_matrix,
             "target_matrix": target_matrix,
             "target_rotation_valid": target_rotation_valid,
+            "target_quality": target_quality,
             "initial_joint_position": initial_joint,
             "target_joint_position": target_joint,
             "target_joint_valid": target_joint_valid,
@@ -343,6 +406,7 @@ class SequenceCacheDataset(Dataset):
             "frame_valid": frame_valid,
             "refine_mask": torch.from_numpy(clip.refine_mask).bool(),
             "length": torch.tensor(length, dtype=torch.long),
+            "time_delta_seconds": time_delta_seconds,
         }
 
 

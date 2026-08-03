@@ -1,0 +1,25 @@
+# Ready-now pilot only. License identifiers must be replaced with locally verified
+# agreement/version IDs before P3-G0 can pass a paper-grade run.
+sources:
+  - name: arctic
+    domain: generic_hand_object
+    license_id: ARCTIC_RESEARCH_LOCAL_REVIEW_REQUIRED
+    target_weight: 1.0
+    splits:
+      train: cache/phase2/arctic_t1_v1/splits/train.json
+      val: cache/phase2/arctic_t1_v1/splits/val.json
+  - name: interhand26m
+    domain: generic_two_hand
+    license_id: INTERHAND26M_LOCAL_REVIEW_REQUIRED
+    target_weight: 1.0
+    splits:
+      train: cache/phase2/interhand_t1_v1/splits/train.json
+      val: cache/phase2/interhand_t1_v1/splits/val.json
+  - name: how2sign
+    domain: sign_pseudo_target
+    license_id: HOW2SIGN_LOCAL_REVIEW_REQUIRED
+    target_weight: 0.35
+    splits:
+      train: cache/phase2/t2_how2sign_2d_temporal_reprojection_v2/splits/train.json
+      val: cache/phase2/t2_how2sign_2d_temporal_reprojection_v2/splits/val.json
+      calibration: cache/phase2/t2_how2sign_2d_temporal_reprojection_v2/splits/calibration.json

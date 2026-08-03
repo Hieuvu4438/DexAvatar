@@ -121,6 +121,19 @@ def main() -> None:
         config["data"]["val_glob"],
         max_frames=int(config["model"]["max_frames"]),
         training=False,
+        input_dim=int(config.get("model", {}).get("input_dim", 43)),
+        reprojection_residual_scale=float(
+            config["data"].get("reprojection_residual_scale", 10.0)
+        ),
+        physical_time_motion=bool(
+            config["data"].get("physical_time_motion", False)
+        ),
+        motion_reference_seconds=float(
+            config["data"].get("motion_reference_seconds", 0.04)
+        ),
+        require_phase2r_semantics=bool(
+            config["data"].get("require_phase2r_semantics", False)
+        ),
     )
     loader = DataLoader(
         dataset,

@@ -1,0 +1,6 @@
+base: rdp_base.yaml
+output_dir: outputs/phase3_training/rdp_r3_spatial_seed42
+model:
+  max_frames: 8
+training:
+  max_steps: 75000

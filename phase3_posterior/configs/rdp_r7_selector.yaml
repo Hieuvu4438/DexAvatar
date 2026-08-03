@@ -1,0 +1,10 @@
+base: rdp_base.yaml
+output_dir: outputs/phase3_training/rdp_r7_selector_seed42
+selector:
+  feature_dim: 16
+  width: 128
+  candidate_features: outputs/phase3_training/rdp_r6_observation_seed42/selector_train.npz
+training:
+  learning_rate: 0.0001
+  max_steps: 20000
+  batch_size: 32

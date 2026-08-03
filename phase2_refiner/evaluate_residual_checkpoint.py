@@ -25,7 +25,11 @@ from phase2_refiner.data.dataset import (
     collate_sequences,
 )
 from phase2_refiner.geometry.rotations import geodesic_distance
-from phase2_refiner.infer import _apply_safety_fallback, _load_model
+from phase2_refiner.infer import (
+    _apply_safety_fallback,
+    _apply_selective_benefit,
+    _load_model,
+)
 from phase2_refiner.provenance import sha256_file
 from phase2_refiner.render import create_smplx_model
 from phase2_refiner.t5_optimize import REGIONS as T5_REGIONS
@@ -84,6 +88,15 @@ def evaluate(args: argparse.Namespace) -> dict:
         reprojection_residual_scale=float(
             config.get("data", {}).get("reprojection_residual_scale", 10.0)
         ),
+        physical_time_motion=bool(
+            config.get("data", {}).get("physical_time_motion", False)
+        ),
+        motion_reference_seconds=float(
+            config.get("data", {}).get("motion_reference_seconds", 0.04)
+        ),
+        require_phase2r_semantics=bool(
+            config.get("data", {}).get("require_phase2r_semantics", False)
+        ),
     )
     loader = DataLoader(
         dataset,
@@ -125,6 +138,12 @@ def evaluate(args: argparse.Namespace) -> dict:
             batch["frame_valid"],
             batch["refine_mask"],
             batch["initial_joint_position"],
+        )
+        benefit_threshold = config.get("inference", {}).get("benefit_threshold")
+        _apply_selective_benefit(
+            prediction,
+            batch["initial_matrix"],
+            float(benefit_threshold) if benefit_threshold is not None else None,
         )
         output = prediction["matrix"]
         t5_initializer_fallback = torch.zeros(

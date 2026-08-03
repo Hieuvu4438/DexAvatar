@@ -87,6 +87,15 @@ def export_residuals(args: argparse.Namespace) -> dict:
         reprojection_residual_scale=float(
             u1_config.get("data", {}).get("reprojection_residual_scale", 10.0)
         ),
+        physical_time_motion=bool(
+            u1_config.get("data", {}).get("physical_time_motion", False)
+        ),
+        motion_reference_seconds=float(
+            u1_config.get("data", {}).get("motion_reference_seconds", 0.04)
+        ),
+        require_phase2r_semantics=bool(
+            u1_config.get("data", {}).get("require_phase2r_semantics", False)
+        ),
     )
     loader = DataLoader(
         dataset,

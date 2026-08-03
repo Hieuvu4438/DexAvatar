@@ -1,0 +1,8 @@
+base: rdp_base.yaml
+output_dir: outputs/phase3_training/rdp_r6_observation_seed42
+training:
+  max_steps: 50000
+  real_residual_fraction: 0.40
+  synthetic_burst_fraction: 0.30
+  clean_fraction: 0.20
+  unlabeled_consistency_fraction: 0.10

@@ -1,0 +1,4 @@
+base: rdp_base.yaml
+output_dir: outputs/phase3_training/rdp_r4_temporal_generic_seed42
+training:
+  max_steps: 150000

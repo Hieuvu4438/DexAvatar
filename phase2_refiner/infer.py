@@ -12,7 +12,7 @@ import numpy as np
 import torch
 
 from phase2_refiner.config import load_config, validate_config
-from phase2_refiner.data.cache_schema import load_cache_clip
+from phase2_refiner.data.cache_schema import load_cache_clip, validate_phase2r_semantics
 from phase2_refiner.data.dataset import features_from_clip
 from phase2_refiner.geometry.rotations import (
     geodesic_distance,
@@ -94,7 +94,9 @@ def _predict_sequence(
     variance_sum = torch.zeros(length, 51, 1, device=device)
     position_sum = torch.zeros(length, 51, 3, device=device)
     reliability_sum = torch.zeros(length, 51, device=device)
+    benefit_sum = torch.zeros(length, 3, device=device)
     has_variance = False
+    has_benefit = False
     for start in starts:
         end = min(start + window, length)
         padded_features, padded_matrix, frame_valid = _pad_sequence(
@@ -135,6 +137,11 @@ def _predict_sequence(
                 prediction["log_variance"][0, :current_length].exp() * weights
             )
             has_variance = True
+        if "benefit_logit" in prediction:
+            benefit_sum[start:end] += (
+                prediction["benefit_logit"][0, :current_length] * weights.squeeze(-1)
+            )
+            has_benefit = True
         weight_sum[start:end] += weights
     result = {
         "matrix": quaternion_to_matrix(quaternion_sum / weight_sum),
@@ -145,7 +152,46 @@ def _predict_sequence(
     }
     if has_variance:
         result["log_variance"] = (variance_sum / weight_sum).clamp_min(1e-8).log()
+    if has_benefit:
+        result["benefit_logit"] = benefit_sum / weight_sum.squeeze(-1)
     return result
+
+
+def _apply_selective_benefit(
+    prediction: dict[str, torch.Tensor],
+    initial: torch.Tensor,
+    threshold: float | None,
+) -> torch.Tensor:
+    """Use the initializer for group/frame candidates predicted not to help."""
+    selected_identity = torch.zeros(
+        initial.shape[:-3] + (initial.shape[-3], 3),
+        dtype=torch.bool,
+        device=initial.device,
+    )
+    if threshold is None:
+        return selected_identity
+    if "benefit_logit" not in prediction:
+        raise ValueError("benefit_threshold requires a checkpoint with benefit logits")
+    probability = prediction["benefit_logit"].sigmoid()
+    selected_identity = probability < threshold
+    for group_index, (start, end) in enumerate(((0, 21), (21, 36), (36, 51))):
+        reject = selected_identity[..., group_index]
+        prediction["matrix"][..., start:end, :, :] = torch.where(
+            reject[..., None, None, None],
+            initial[..., start:end, :, :].to(prediction["matrix"].device),
+            prediction["matrix"][..., start:end, :, :],
+        )
+        prediction["raw_delta"][..., start:end, :] = torch.where(
+            reject[..., None, None],
+            torch.zeros_like(prediction["raw_delta"][..., start:end, :]),
+            prediction["raw_delta"][..., start:end, :],
+        )
+        prediction["gate"][..., start:end, :] = torch.where(
+            reject[..., None, None],
+            torch.zeros_like(prediction["gate"][..., start:end, :]),
+            prediction["gate"][..., start:end, :],
+        )
+    return selected_identity
 
 
 def _standard_result(clip, index: int, pose: np.ndarray) -> dict[str, np.ndarray]:
@@ -215,14 +261,22 @@ def infer_clip(
     overwrite: bool,
     uncertainty_offset: float = 0.0,
     reprojection_residual_scale: float = 10.0,
+    physical_time_motion: bool = False,
+    motion_reference_seconds: float = 0.04,
+    require_phase2r_semantics: bool = False,
+    benefit_threshold: float | None = None,
     t5_config: dict | None = None,
     t5_body_model=None,
 ) -> dict:
     clip = load_cache_clip(cache_path)
+    if require_phase2r_semantics:
+        validate_phase2r_semantics(clip)
     features, initial_matrix = features_from_clip(
         clip,
         input_dim=model.token_embedding.input_projection.in_features,
         reprojection_residual_scale=reprojection_residual_scale,
+        physical_time_motion=physical_time_motion,
+        motion_reference_seconds=motion_reference_seconds,
     )
     prediction = _predict_sequence(
         model,
@@ -233,6 +287,9 @@ def infer_clip(
         uncertainty_offset,
     )
     length = len(clip.frame_names)
+    selective_identity = _apply_selective_benefit(
+        prediction, initial_matrix.to(device), benefit_threshold
+    )
     t5_initializer_fallback = torch.zeros(
         length, 3, dtype=torch.bool, device=device
     )
@@ -325,6 +382,12 @@ def infer_clip(
         gate=gate.cpu().numpy(),
         reliability=prediction["reliability"].cpu().numpy(),
         fallback_mask=fallback.cpu().numpy(),
+        selective_identity_mask=selective_identity.cpu().numpy(),
+        benefit_probability=(
+            prediction["benefit_logit"].sigmoid().cpu().numpy()
+            if "benefit_logit" in prediction
+            else np.ones((length, 3), np.float32)
+        ),
         joint_position=prediction["joint_position"].cpu().numpy(),
         log_variance=(
             prediction["log_variance"].cpu().numpy()
@@ -351,6 +414,7 @@ def infer_clip(
         ),
         "mean_gate": float(gate.mean()),
         "fallback_group_frames": int(fallback.sum()),
+        "selective_identity_group_frames": int(selective_identity.sum()),
         "t5": t5_diagnostics,
     }
     with summary_path.open("w", encoding="utf-8") as handle:
@@ -427,6 +491,18 @@ def main() -> None:
     reprojection_residual_scale = float(
         config.get("data", {}).get("reprojection_residual_scale", 10.0)
     )
+    physical_time_motion = bool(
+        config.get("data", {}).get("physical_time_motion", False)
+    )
+    motion_reference_seconds = float(
+        config.get("data", {}).get("motion_reference_seconds", 0.04)
+    )
+    require_phase2r_semantics = bool(
+        config.get("data", {}).get("require_phase2r_semantics", False)
+    )
+    benefit_threshold = config.get("inference", {}).get("benefit_threshold")
+    if benefit_threshold is not None:
+        benefit_threshold = float(benefit_threshold)
     t5_config = dict(config.get("t5", {}))
     t5_body_model = None
     if t5_config.get("enabled", False):
@@ -441,6 +517,10 @@ def main() -> None:
             args.overwrite,
             uncertainty_offset,
             reprojection_residual_scale,
+            physical_time_motion,
+            motion_reference_seconds,
+            require_phase2r_semantics,
+            benefit_threshold,
             t5_config,
             t5_body_model,
         )
@@ -467,6 +547,10 @@ def main() -> None:
         ),
         "uncertainty_offset": uncertainty_offset,
         "reprojection_residual_scale": reprojection_residual_scale,
+        "physical_time_motion": physical_time_motion,
+        "motion_reference_seconds": motion_reference_seconds,
+        "require_phase2r_semantics": require_phase2r_semantics,
+        "benefit_threshold": benefit_threshold,
         "t5": t5_config,
         "cache_manifest": (
             str((args.cache_root / "manifest.json").resolve())

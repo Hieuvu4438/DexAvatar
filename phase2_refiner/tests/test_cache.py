@@ -5,9 +5,11 @@ import pytest
 
 from phase2_refiner.data.cache_schema import (
     SCHEMA_VERSION,
+    PHASE2R_SEMANTIC_CONTRACT,
     CacheClip,
     load_cache_clip,
     save_cache_clip,
+    validate_phase2r_semantics,
 )
 from phase2_refiner.data.dataset import (
     REPROJECTION_RESIDUAL_2D,
@@ -61,6 +63,33 @@ def test_cache_round_trip(tmp_path: Path) -> None:
         assert int(data["schema_version"]) == SCHEMA_VERSION
 
 
+def test_v4_semantic_channels_round_trip_and_strict_validation(tmp_path: Path) -> None:
+    clip = make_clip()
+    clip.semantic_contract_version = PHASE2R_SEMANTIC_CONTRACT
+    clip.metadata_json = '{"coordinate_policy":{"keypoints_2d":"normalized_image_minus1_to_1"}}'
+    clip.detector_present = np.ones((5, 51), dtype=bool)
+    clip.track_valid = np.ones((5, 51), dtype=bool)
+    clip.initializer_component = np.asarray(["ensemble"] * 5)
+    path = tmp_path / "phase2r.npz"
+    save_cache_clip(path, clip)
+    loaded = load_cache_clip(path)
+    validate_phase2r_semantics(loaded)
+    assert loaded.semantic_contract_version == PHASE2R_SEMANTIC_CONTRACT
+    assert loaded.initializer_component.tolist() == ["ensemble"] * 5
+
+
+def test_phase2r_semantics_reject_legacy_and_contradictory_presence() -> None:
+    clip = make_clip()
+    with pytest.raises(ValueError, match="semantic_contract_version"):
+        validate_phase2r_semantics(clip)
+    clip.semantic_contract_version = PHASE2R_SEMANTIC_CONTRACT
+    clip.metadata_json = '{"coordinate_policy":{"keypoints_2d":"pixels"}}'
+    clip.detector_present = np.zeros((5, 51), dtype=bool)
+    clip.track_valid = np.ones((5, 51), dtype=bool)
+    with pytest.raises(ValueError, match="track_valid"):
+        validate_phase2r_semantics(clip)
+
+
 def test_partial_rotation_target_mask_round_trip(tmp_path: Path) -> None:
     clip = make_clip()
     clip.target_axis_angle = clip.init_axis_angle.copy()
@@ -79,6 +108,20 @@ def test_missing_observations_produce_finite_explicitly_masked_tokens() -> None:
     assert features.shape == (5, 51, TOKEN_FEATURE_DIM)
     assert np.isfinite(features.numpy()).all()
     assert np.count_nonzero(features[..., 26:28].numpy()) == 0
+
+
+def test_physical_time_features_scale_derivatives_by_elapsed_seconds() -> None:
+    clip = make_clip(4)
+    clip.init_axis_angle[:, :, 2] = np.arange(4, dtype=np.float32)[:, None] * 0.01
+    clip.timestamps = np.arange(4, dtype=np.float64) * 0.04
+    legacy, _ = features_from_clip(clip)
+    physical, _ = features_from_clip(clip, physical_time_motion=True)
+    clip.timestamps *= 2.0
+    slower, _ = features_from_clip(clip, physical_time_motion=True)
+    np.testing.assert_allclose(legacy[1:, :, 6:12], physical[1:, :, 6:12], atol=1e-7)
+    np.testing.assert_allclose(
+        slower[1:, :, 6:12], physical[1:, :, 6:12] * 0.5, atol=1e-7
+    )
 
 
 def test_v3_reprojection_layout_is_opt_in_and_backward_compatible() -> None:

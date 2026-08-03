@@ -6,8 +6,13 @@ from phase2_refiner.data.dataset import (
     TOKEN_FEATURE_DIM_WITH_REPROJECTION,
 )
 from phase2_refiner.geometry.rotations import axis_angle_to_matrix, geodesic_distance
-from phase2_refiner.infer import _apply_safety_fallback, _predict_sequence
+from phase2_refiner.infer import (
+    _apply_safety_fallback,
+    _apply_selective_benefit,
+    _predict_sequence,
+)
 from phase2_refiner.losses import RefinerLoss
+from phase2_refiner.losses.motion import rotation_motion_losses
 from phase2_refiner.models import WholeSequenceRefiner
 from phase2_refiner.models.pretrained import load_compatible_initialization
 
@@ -97,6 +102,25 @@ def test_training_step_has_finite_gradients() -> None:
     assert torch.count_nonzero(model.delta_head.weight.grad) > 0
 
 
+def test_physical_motion_loss_is_invariant_to_sampling_interval() -> None:
+    target = axis_angle_to_matrix(torch.zeros(1, 4, 1, 3))
+    mask = torch.ones(1, 4, 1, dtype=torch.bool)
+    fast_angles = torch.zeros(1, 4, 1, 3)
+    fast_angles[..., 2] = torch.arange(4).view(1, 4, 1) * 0.01
+    slow_angles = fast_angles * 2.0
+    fast = axis_angle_to_matrix(fast_angles)
+    slow = axis_angle_to_matrix(slow_angles)
+    fast_dt = torch.full((1, 4), 0.04)
+    slow_dt = torch.full((1, 4), 0.08)
+    fast_velocity, _ = rotation_motion_losses(
+        fast, target, mask, fast_dt, physical_time_motion=True
+    )
+    slow_velocity, _ = rotation_motion_losses(
+        slow, target, mask, slow_dt, physical_time_motion=True
+    )
+    assert torch.allclose(fast_velocity, slow_velocity, atol=1e-6)
+
+
 def test_safety_fallback_is_groupwise() -> None:
     initial = axis_angle_to_matrix(torch.zeros(2, 51, 3))
     output = initial.clone()
@@ -123,6 +147,72 @@ def test_causal_mode_cannot_see_future_features() -> None:
     first = causal(features, initial, valid, refine)["matrix"][:, :4]
     second = causal(changed, initial, valid, refine)["matrix"][:, :4]
     assert torch.allclose(first, second, atol=1e-6)
+
+
+def test_matched_framewise_mode_has_no_cross_frame_information() -> None:
+    torch.manual_seed(13)
+    model = WholeSequenceRefiner(
+        input_dim=TOKEN_FEATURE_DIM,
+        hidden_size=32,
+        num_layers=2,
+        num_heads=4,
+        max_frames=8,
+        dropout=0.0,
+        temporal_attention=False,
+    ).eval()
+    with torch.no_grad():
+        model.delta_head.weight.normal_(std=0.02)
+    features = torch.randn(1, 8, 51, TOKEN_FEATURE_DIM)
+    features[..., 29] = 1.0
+    changed = features.clone()
+    changed[:, 1:] += torch.randn_like(changed[:, 1:]) * 10.0
+    initial = axis_angle_to_matrix(torch.randn(1, 8, 51, 3) * 0.1)
+    valid = torch.ones(1, 8, dtype=torch.bool)
+    refine = torch.ones(1, 51, dtype=torch.bool)
+    first = model(features, initial, valid, refine)["matrix"][:, :1]
+    second = model(changed, initial, valid, refine)["matrix"][:, :1]
+    assert torch.allclose(first, second, atol=1e-6)
+
+
+def test_selective_benefit_rejects_only_predicted_harmful_groups() -> None:
+    initial = axis_angle_to_matrix(torch.zeros(2, 51, 3))
+    candidate = axis_angle_to_matrix(torch.full((2, 51, 3), 0.05))
+    prediction = {
+        "matrix": candidate.clone(),
+        "raw_delta": torch.ones(2, 51, 3),
+        "gate": torch.ones(2, 51, 1),
+        "benefit_logit": torch.tensor([[4.0, -4.0, 4.0], [-4.0, 4.0, 4.0]]),
+    }
+    selected = _apply_selective_benefit(prediction, initial, 0.5)
+    assert selected.tolist() == [[False, True, False], [True, False, False]]
+    assert torch.equal(prediction["matrix"][0, 21:36], initial[0, 21:36])
+    assert torch.equal(prediction["matrix"][1, :21], initial[1, :21])
+    assert torch.equal(prediction["matrix"][0, :21], candidate[0, :21])
+
+
+def test_benefit_head_and_loss_are_trainable() -> None:
+    model = WholeSequenceRefiner(
+        input_dim=TOKEN_FEATURE_DIM,
+        hidden_size=32,
+        num_layers=1,
+        num_heads=4,
+        max_frames=4,
+        dropout=0.0,
+        predict_benefit=True,
+    )
+    features = torch.randn(1, 4, 51, TOKEN_FEATURE_DIM)
+    initial = axis_angle_to_matrix(torch.zeros(1, 4, 51, 3))
+    target = axis_angle_to_matrix(torch.full((1, 4, 51, 3), 0.02))
+    valid = torch.ones(1, 4, dtype=torch.bool)
+    refine = torch.ones(1, 51, dtype=torch.bool)
+    prediction = model(features, initial, valid, refine)
+    losses = RefinerLoss(benefit_weight=0.1)(
+        prediction, initial, target, valid, refine, torch.ones(1, 4, 51)
+    )
+    losses["total"].backward()
+    assert prediction["benefit_logit"].shape == (1, 4, 3)
+    assert model.benefit_head.weight.grad is not None
+    assert torch.isfinite(model.benefit_head.weight.grad).all()
 
 
 def test_u1_returns_bounded_observation_uncertainty() -> None:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import torch
+import torch.nn.functional as F
 from torch import nn
 
 from phase2_refiner.geometry.rotations import geodesic_distance
@@ -35,6 +36,12 @@ class RefinerLoss(nn.Module):
         biomechanical_weight: float = 0.01,
         uncertainty_weight: float = 0.1,
         uncertainty_ranking_weight: float = 0.0,
+        benefit_weight: float = 0.0,
+        benefit_margin_degrees: float = 0.0,
+        target_quality_weighting: bool = False,
+        minimum_target_quality: float = 0.1,
+        physical_time_motion: bool = False,
+        motion_reference_seconds: float = 0.04,
     ) -> None:
         super().__init__()
         self.weights = {
@@ -50,7 +57,17 @@ class RefinerLoss(nn.Module):
             "biomechanical": biomechanical_weight,
             "uncertainty": uncertainty_weight,
             "uncertainty_ranking": uncertainty_ranking_weight,
+            "benefit": benefit_weight,
         }
+        self.benefit_margin = torch.deg2rad(torch.tensor(benefit_margin_degrees)).item()
+        self.target_quality_weighting = bool(target_quality_weighting)
+        self.minimum_target_quality = float(minimum_target_quality)
+        if not 0.0 <= self.minimum_target_quality <= 1.0:
+            raise ValueError("minimum_target_quality must be within [0, 1]")
+        self.physical_time_motion = bool(physical_time_motion)
+        self.motion_reference_seconds = float(motion_reference_seconds)
+        if self.motion_reference_seconds <= 0:
+            raise ValueError("motion_reference_seconds must be positive")
 
     def forward(
         self,
@@ -62,6 +79,7 @@ class RefinerLoss(nn.Module):
         observation_confidence: torch.Tensor,
         *,
         target_rotation_valid: torch.Tensor | None = None,
+        target_quality: torch.Tensor | None = None,
         target_joint_position: torch.Tensor | None = None,
         target_joint_valid: torch.Tensor | None = None,
         observed_joint_position: torch.Tensor | None = None,
@@ -74,6 +92,7 @@ class RefinerLoss(nn.Module):
         predicted_keypoints_2d: torch.Tensor | None = None,
         observed_keypoints_2d: torch.Tensor | None = None,
         observed_keypoint_valid: torch.Tensor | None = None,
+        time_delta_seconds: torch.Tensor | None = None,
     ) -> dict[str, torch.Tensor]:
         output = prediction["matrix"]
         if refine_mask.ndim == 1:
@@ -81,9 +100,26 @@ class RefinerLoss(nn.Module):
         mask = frame_valid[:, :, None] & refine_mask[:, None, :]
         if target_rotation_valid is not None:
             mask = mask & target_rotation_valid
+        quality = None
+        if self.target_quality_weighting:
+            if target_quality is None:
+                raise ValueError("target_quality_weighting requires target_quality")
+            quality = target_quality.clamp(0.0, 1.0)
+            mask = mask & (quality >= self.minimum_target_quality)
         rotation_error = geodesic_distance(output, target_matrix)
-        rotation = masked_mean(rotation_error, mask)
-        velocity, acceleration = rotation_motion_losses(output, target_matrix, mask)
+        if quality is None:
+            rotation = masked_mean(rotation_error, mask)
+        else:
+            rotation_weight = quality * mask
+            rotation = (rotation_error * rotation_weight).sum() / rotation_weight.sum().clamp_min(1.0)
+        velocity, acceleration = rotation_motion_losses(
+            output,
+            target_matrix,
+            mask,
+            time_delta_seconds=time_delta_seconds,
+            physical_time_motion=self.physical_time_motion,
+            motion_reference_seconds=self.motion_reference_seconds,
+        )
 
         anchor_error = geodesic_distance(output, initial_matrix)
         reliable_anchor = mask.to(output.dtype) * observation_confidence.clamp(0.0, 1.0)
@@ -164,7 +200,7 @@ class RefinerLoss(nn.Module):
         )
         biomechanical = masked_mean(biomechanical.square(), mask)
 
-        uncertainty = uncertainty_ranking = zero
+        uncertainty = uncertainty_ranking = benefit = zero
         if "log_variance" in prediction:
             log_variance = prediction["log_variance"].squeeze(-1)
             uncertainty = heteroscedastic_nll(
@@ -173,6 +209,29 @@ class RefinerLoss(nn.Module):
             uncertainty_ranking = regional_worst_decile_ranking_loss(
                 rotation_error, log_variance, mask
             )
+        if "benefit_logit" in prediction:
+            initial_error = geodesic_distance(initial_matrix, target_matrix).detach()
+            group_labels = []
+            group_valid = []
+            for start, end in ((0, 21), (21, 36), (36, 51)):
+                region_mask = mask[..., start:end]
+                denominator = region_mask.sum(dim=-1).clamp_min(1)
+                initial_region = (
+                    initial_error[..., start:end] * region_mask
+                ).sum(dim=-1) / denominator
+                output_region = (
+                    rotation_error[..., start:end].detach() * region_mask
+                ).sum(dim=-1) / denominator
+                group_labels.append(
+                    (initial_region - output_region > self.benefit_margin).float()
+                )
+                group_valid.append(region_mask.any(dim=-1))
+            benefit_label = torch.stack(group_labels, dim=-1)
+            benefit_valid = torch.stack(group_valid, dim=-1) & frame_valid[..., None]
+            benefit_error = F.binary_cross_entropy_with_logits(
+                prediction["benefit_logit"], benefit_label, reduction="none"
+            )
+            benefit = masked_mean(benefit_error, benefit_valid)
 
         terms = {
             "rotation": rotation,
@@ -187,6 +246,7 @@ class RefinerLoss(nn.Module):
             "biomechanical": biomechanical,
             "uncertainty": uncertainty,
             "uncertainty_ranking": uncertainty_ranking,
+            "benefit": benefit,
         }
         total = sum(self.weights[name] * value for name, value in terms.items())
         return {"total": total, **terms}
