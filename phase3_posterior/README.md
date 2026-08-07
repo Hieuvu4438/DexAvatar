@@ -6,15 +6,12 @@ modify DexAvatar fitting, Phase 1, or Phase 2 behavior.
 
 ## Safety state
 
-The code is training-capable, but the current repository is **not paper-grade GO**:
-
-- the official DPoser-X whole-body mixed checkpoint and exact 51-joint/6D
-  normalization contract are not installed;
-- the local DPoser sign checkpoint is body-only and is deliberately rejected as a
-  whole-body prior;
-- SignAvatars and repaired Motion-X assets are not ready; and
-- the 300-clip manual quality/contact audit and local license verification remain
-  required for P3-G0.
+P3-G0 is GO with zero blockers. The signer-disjoint cache, decoded relation
+sidecars, license evidence, and hash-bound 300-clip visual audit are materialized.
+The official DPoser-X whole-body mixed checkpoint and exact 51-joint/6D
+normalization contract are still unavailable, so the implementation uses the
+explicitly named from-scratch fallback and makes no pretrained-prior claim.
+SignAvatars and repaired Motion-X remain optional future additions.
 
 The default model therefore uses an explicitly named from-scratch spatial prior.
 It never silently labels that route as pretrained. Supply a validated frozen prior
@@ -31,12 +28,16 @@ python -m phase3_posterior.models.dposer_adapter \
 
 python -m phase3_posterior.data.build_phase3_index \
   --sources phase3_posterior/configs/data_sources_v1.yaml \
-  --output cache/phase3/v1
+  --output cache/phase3/v1 \
+  --model-folder data/ARCTIC/body_models \
+  --device cuda --resume
 
 python -m phase3_posterior.data.audit_phase3_cache \
   --index cache/phase3/v1/splits/train.json \
   --index cache/phase3/v1/splits/val.json \
+  --index cache/phase3/v1/splits/calibration.json \
   --manual-quality cache/phase3/v1/manual_quality_300.json \
+  --license-evidence docs/proposal/evidence/PHASE3_DATA_LICENSE_RECORDS_V1.json \
   --output outputs/phase3_gates/g0/cache_audit.json
 ```
 

@@ -1,0 +1,11 @@
+base: rdp_r2_relation_corrected_v2.yaml
+output_dir: outputs/phase3_training/rdp_r2_relation_corrected_v2_smoke_v2
+training:
+  max_steps: 2
+  batch_size: 2
+  validation_batch_size: 8
+  gradient_accumulation: 1
+  generic_warmup_steps: 1
+  workers: 0
+  checkpoint_interval: 1
+  validation_interval: 2

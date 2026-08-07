@@ -1,25 +1,26 @@
-# Ready-now pilot only. License identifiers must be replaced with locally verified
-# agreement/version IDs before P3-G0 can pass a paper-grade run.
+# Phase 3 pilot sources.  The identifiers map to the immutable evidence records
+# under docs/proposal/evidence; use remains limited to non-commercial research.
 sources:
   - name: arctic
     domain: generic_hand_object
-    license_id: ARCTIC_RESEARCH_LOCAL_REVIEW_REQUIRED
+    license_id: ARCTIC_REGISTERED_RESEARCH_ACCESS_LOCAL_COPY_V1
     target_weight: 1.0
     splits:
       train: cache/phase2/arctic_t1_v1/splits/train.json
       val: cache/phase2/arctic_t1_v1/splits/val.json
   - name: interhand26m
     domain: generic_two_hand
-    license_id: INTERHAND26M_LOCAL_REVIEW_REQUIRED
+    license_id: CC-BY-NC-4.0:INTERHAND26M:OFFICIAL_REPOSITORY
     target_weight: 1.0
     splits:
       train: cache/phase2/interhand_t1_v1/splits/train.json
       val: cache/phase2/interhand_t1_v1/splits/val.json
   - name: how2sign
     domain: sign_pseudo_target
-    license_id: HOW2SIGN_LOCAL_REVIEW_REQUIRED
+    license_id: CC-BY-NC-4.0:HOW2SIGN:OFFICIAL_DATASET_PAGE
+    signer_resolver: how2sign_filename_v1
     target_weight: 0.35
     splits:
-      train: cache/phase2/t2_how2sign_2d_temporal_reprojection_v2/splits/train.json
-      val: cache/phase2/t2_how2sign_2d_temporal_reprojection_v2/splits/val.json
-      calibration: cache/phase2/t2_how2sign_2d_temporal_reprojection_v2/splits/calibration.json
+      train: cache/phase3/how2sign_signer_splits_v1/train.json
+      val: cache/phase3/how2sign_signer_splits_v1/val.json
+      calibration: cache/phase3/how2sign_signer_splits_v1/calibration.json

@@ -20,8 +20,14 @@ class RelationalDiffusionPosterior(nn.Module):
                 "A pretrained spatial-prior route requires an audited, explicitly injected module"
             )
         self.spatial_prior = spatial_prior or ZeroSpatialPrior()
+        self.contact_energy_enabled = bool(
+            config.get("contact_energy_enabled", True)
+        )
         self.relation_graph = RelationGraphEncoder(
-            width, int(config.get("relation_layers", 3))
+            width,
+            int(config.get("relation_layers", 3)),
+            predict_distance=bool(config.get("predict_distance", False)),
+            edge_identity=bool(config.get("edge_identity", False)),
         )
         self.residual = TemporalScoreNetwork(
             observation_dim=int(config.get("observation_dim", 45)),
@@ -33,6 +39,7 @@ class RelationalDiffusionPosterior(nn.Module):
             relation_width=width,
             max_frames=int(config.get("max_frames", 64)),
             activation_checkpointing=bool(config.get("activation_checkpointing", True)),
+            masked_rotation_hints=bool(config.get("masked_rotation_hints", False)),
         )
 
     def forward(
@@ -46,6 +53,7 @@ class RelationalDiffusionPosterior(nn.Module):
         edge_valid: torch.Tensor,
         condition_mask: torch.Tensor | None = None,
         residual_enabled: bool = True,
+        rotation_hint_mask: torch.Tensor | None = None,
     ) -> dict[str, torch.Tensor]:
         relation = self.relation_graph(edge_features, edge_index, edge_valid)
         prior = self.spatial_prior(state, time)
@@ -56,8 +64,14 @@ class RelationalDiffusionPosterior(nn.Module):
             relation["relation_token"],
             frame_valid,
             condition_mask,
+            rotation_hint_mask,
         )
         outputs = dict(relation)
+        if not self.contact_energy_enabled:
+            # Fail closed: downstream code cannot accidentally consume contact
+            # or persistence logits in the geometry-only fallback pipeline.
+            outputs.pop("contact_logits", None)
+            outputs.pop("persistence_logits", None)
         outputs.update(
             prior_score=prior,
             residual_score=residual,

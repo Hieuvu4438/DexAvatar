@@ -1,0 +1,4 @@
+base: rdp_r3_spatial_geometry_only_fallback_v4.yaml
+output_dir: outputs/phase3_training/rdp_r3_spatial_geometry_only_v4b_seed42
+model:
+  reset_conditioning_projections_on_init: true

@@ -1,0 +1,34 @@
+base: rdp_base.yaml
+seed: 42
+output_dir: outputs/phase3_training/rdp_r2_relation_corrected_v2b_seed42
+data:
+  train_index: cache/phase3/r2_relation_targets_v2/splits/train.json
+  val_index: cache/phase3/r2_relation_targets_v2/splits/val.json
+  identity_target: false
+model:
+  max_frames: 32
+  relation_width: 128
+  relation_layers: 3
+  predict_distance: true
+  edge_identity: true
+training:
+  max_steps: 50000
+  batch_size: 8
+  gradient_accumulation: 4
+  validation_batch_size: 8
+  generic_warmup_steps: 30000
+  generic_mixture:
+    arctic: 0.6666666667
+    interhand26m: 0.3333333333
+  joint_mixture:
+    how2sign: 0.55
+    arctic: 0.30
+    interhand26m: 0.15
+  contact_positive_alpha: 0.75
+  sign_contact_clip_probability: 0.35
+  sign_hand_body_weight: 4.0
+  distance_loss_weight: 0.5
+  checkpoint_interval: 1000
+  validation_interval: 2000
+evaluation:
+  contact_threshold: 0.5

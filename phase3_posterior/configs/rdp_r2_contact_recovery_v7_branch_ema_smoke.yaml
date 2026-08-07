@@ -1,0 +1,9 @@
+base: rdp_r2_contact_recovery_v7_branch_ema.yaml
+output_dir: outputs/phase3_training/rdp_r2_contact_recovery_v7_branch_ema_smoke
+training:
+  max_steps: 2
+  batch_size: 2
+  gradient_accumulation: 1
+  workers: 0
+  validation_interval: 500
+  checkpoint_interval: 500

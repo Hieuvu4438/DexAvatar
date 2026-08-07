@@ -60,6 +60,56 @@ def validate_config(config: dict[str, Any]) -> None:
         raise ValueError("Phase 3 CPU worker cap is 4")
     if int(training.get("gradient_accumulation", 1)) < 1:
         raise ValueError("training.gradient_accumulation must be positive")
+    if int(training.get("early_stop_patience", 0)) < 0:
+        raise ValueError("training.early_stop_patience cannot be negative")
+    if int(training.get("hint_only_steps", 0)) < 0:
+        raise ValueError("training.hint_only_steps cannot be negative")
+    if training.get("conditioning_validity", "frame_valid_initializer") != (
+        "frame_valid_initializer"
+    ):
+        raise ValueError(
+            "Phase 3 masked diffusion requires frame-valid initializer conditioning"
+        )
+    validation_interval = int(training.get("validation_interval", 0))
+    if validation_interval < 0:
+        raise ValueError("training.validation_interval cannot be negative")
+    if validation_interval > 0:
+        if not config["data"].get("val_index"):
+            raise ValueError("training validation requires data.val_index")
+        for key in (
+            "validation_batch_size",
+            "validation_max_batches",
+            "validation_sampling_steps",
+        ):
+            if int(training.get(key, 1)) < 1:
+                raise ValueError(f"training.{key} must be positive")
+    if model.get("masked_rotation_hints", False):
+        if float(training.get("masked_rotation_corruption_degrees", 0.0)) <= 0:
+            raise ValueError(
+                "masked rotation hints require positive corruption degrees"
+            )
+        if model.get("reset_conditioning_projections_on_init", False):
+            raise ValueError(
+                "conditional warm starts must not reset trained conditioning"
+            )
+    fallback = config.get("fallback", {})
+    if fallback.get("mode") == "geometry_only":
+        required_false = (
+            "contact_energy_enabled",
+            "force_coupling_enabled",
+            "persistence_constraints_enabled",
+        )
+        for key in required_false:
+            if fallback.get(key) is not False:
+                raise ValueError(f"geometry-only fallback requires fallback.{key}=false")
+        if model.get("contact_energy_enabled") is not False:
+            raise ValueError(
+                "geometry-only fallback requires model.contact_energy_enabled=false"
+            )
+        loss = config.get("loss", {})
+        for key in ("contact", "persistence"):
+            if float(loss.get(key, 0.0)) != 0.0:
+                raise ValueError(f"geometry-only fallback requires loss.{key}=0")
 
 
 def save_resolved_config(config: dict[str, Any], output: str | Path) -> None:

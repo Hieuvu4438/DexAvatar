@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import random
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -83,6 +84,18 @@ class ExponentialMovingAverage:
                 self.state[key].lerp_(value.detach(), 1.0 - self.decay)
             else:
                 self.state[key].copy_(value)
+
+    @contextmanager
+    def average_parameters(self, model: torch.nn.Module):
+        """Temporarily expose EMA weights without changing the training state."""
+        original = {
+            key: value.detach().clone() for key, value in model.state_dict().items()
+        }
+        model.load_state_dict(self.state, strict=True)
+        try:
+            yield
+        finally:
+            model.load_state_dict(original, strict=True)
 
 
 def cosine_warmup_scheduler(

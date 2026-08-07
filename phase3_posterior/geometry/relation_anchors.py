@@ -25,6 +25,32 @@ NUM_BODY_NODES = len(BODY_ANCHORS)
 HAND_NODE_COUNT = 11
 NUM_RELATION_NODES = NUM_BODY_NODES + 2 * HAND_NODE_COUNT
 EDGE_FEATURE_DIM = 16
+OBSERVATION_EDGE_FEATURE_DIM = 16
+
+# Fixed anatomical proxy radii used to convert decoded joint-centre distances
+# into an approximate surface gap.  Keeping this contract next to the fixed
+# node ordering makes the feature reproducible at training and inference time.
+CONTACT_PROXY_RADII_M = torch.tensor(
+    (
+        0.10,
+        0.075,
+        0.16,
+        0.14,
+        0.06,
+        0.06,
+        0.055,
+        0.055,
+        0.04,
+        0.04,
+        0.055,
+        *([0.022] * 5),
+        *([0.015] * 5),
+        0.055,
+        *([0.022] * 5),
+        *([0.015] * 5),
+    ),
+    dtype=torch.float32,
+)
 
 
 @dataclass(frozen=True)
@@ -116,6 +142,50 @@ def default_edge_index(device: torch.device | str | None = None) -> torch.Tensor
     return torch.tensor(edges, dtype=torch.long, device=device).t().contiguous()
 
 
+def relation_node_conditioning_mask(conditioning: torch.Tensor) -> torch.Tensor:
+    """Map a ``(...,51)`` joint mask to the fixed 32 relation nodes."""
+    if conditioning.shape[-1] != 51:
+        raise ValueError("conditioning must end in 51 joints")
+    body = conditioning[..., list(BODY_ANCHORS.values())]
+    left = conditioning[..., 21:36]
+    right = conditioning[..., 36:51]
+
+    def hand_nodes(hand: torch.Tensor) -> torch.Tensor:
+        return torch.cat(
+            (
+                hand[..., list(MCP_INDICES)].all(dim=-1, keepdim=True),
+                hand[..., list(MCP_INDICES)],
+                hand[..., list(FINGERTIP_INDICES)],
+            ),
+            dim=-1,
+        )
+
+    result = torch.cat((body, hand_nodes(left), hand_nodes(right)), dim=-1)
+    if result.shape[-1] != NUM_RELATION_NODES:
+        raise AssertionError(result.shape)
+    return result
+
+
+def mask_relation_inputs(
+    edge_features: torch.Tensor,
+    edge_valid: torch.Tensor,
+    edge_index: torch.Tensor,
+    conditioning: torch.Tensor,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Remove every relation whose endpoint is absent from conditioning."""
+    if edge_index.ndim == 3:
+        if not torch.equal(edge_index, edge_index[:1].expand_as(edge_index)):
+            raise ValueError("batched edge indexes must use identical ordering")
+        edge_index = edge_index[0]
+    nodes = relation_node_conditioning_mask(conditioning)
+    source, target = edge_index
+    conditioned_valid = edge_valid & nodes[..., source] & nodes[..., target]
+    conditioned_features = torch.where(
+        conditioned_valid[..., None], edge_features, torch.zeros_like(edge_features)
+    )
+    return conditioned_features, conditioned_valid
+
+
 def build_edge_features(
     nodes: torch.Tensor,
     node_valid: torch.Tensor,
@@ -135,7 +205,8 @@ def build_edge_features(
             velocity[..., 2:, :, :] - velocity[..., 1:-1, :, :]
         )
     depth = relative[..., 2:3]
-    overlap = torch.zeros_like(depth)
+    radii = CONTACT_PROXY_RADII_M.to(device=nodes.device, dtype=nodes.dtype)
+    surface_gap = distance - (radii[source] + radii[target])[..., None]
     if node_reliability is None:
         rel_source = torch.ones_like(distance)
         rel_target = torch.ones_like(distance)
@@ -150,7 +221,7 @@ def build_edge_features(
             velocity,
             acceleration,
             depth,
-            overlap,
+            surface_gap,
             rel_source,
             rel_target,
             valid[..., None].float(),
@@ -159,6 +230,127 @@ def build_edge_features(
         dim=-1,
     )
     if features.shape[-1] != EDGE_FEATURE_DIM:
+        raise AssertionError(features.shape)
+    return torch.where(valid[..., None], features, torch.zeros_like(features)), valid
+
+
+def build_observation_edge_features(
+    keypoints_2d: torch.Tensor,
+    joint_valid: torch.Tensor,
+    joint_reliability: torch.Tensor,
+    edge_index: torch.Tensor,
+    reprojection_residual_2d: torch.Tensor | None = None,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Build target-independent 2D relation evidence from detector tracks.
+
+    The node ordering exactly mirrors :func:`build_relation_nodes`. These
+    features expose the observation that drives the independent How2Sign target
+    refinement; they never read target rotations or target geometry.
+    """
+    if keypoints_2d.shape[-2:] != (51, 2):
+        raise ValueError("keypoints_2d must end in (51,2)")
+    if joint_valid.shape != keypoints_2d.shape[:-1]:
+        raise ValueError("joint_valid shape must match keypoints_2d")
+    if joint_reliability.shape != joint_valid.shape:
+        raise ValueError("joint_reliability shape must match joint_valid")
+    if reprojection_residual_2d is None:
+        reprojection_residual_2d = torch.zeros_like(keypoints_2d)
+    if reprojection_residual_2d.shape != keypoints_2d.shape:
+        raise ValueError("reprojection_residual_2d shape must match keypoints_2d")
+
+    body_indices = list(BODY_ANCHORS.values())
+
+    def hand_nodes(hand: torch.Tensor) -> torch.Tensor:
+        palm = hand[..., list(MCP_INDICES), :].mean(dim=-2, keepdim=True)
+        return torch.cat(
+            (
+                palm,
+                hand[..., list(MCP_INDICES), :],
+                hand[..., list(FINGERTIP_INDICES), :],
+            ),
+            dim=-2,
+        )
+
+    def hand_valid(hand: torch.Tensor) -> torch.Tensor:
+        return torch.cat(
+            (
+                hand[..., list(MCP_INDICES)].all(dim=-1, keepdim=True),
+                hand[..., list(MCP_INDICES)],
+                hand[..., list(FINGERTIP_INDICES)],
+            ),
+            dim=-1,
+        )
+
+    def hand_reliability(hand: torch.Tensor) -> torch.Tensor:
+        return torch.cat(
+            (
+                hand[..., list(MCP_INDICES)].mean(dim=-1, keepdim=True),
+                hand[..., list(MCP_INDICES)],
+                hand[..., list(FINGERTIP_INDICES)],
+            ),
+            dim=-1,
+        )
+
+    nodes = torch.cat(
+        (
+            keypoints_2d[..., body_indices, :],
+            hand_nodes(keypoints_2d[..., 21:36, :]),
+            hand_nodes(keypoints_2d[..., 36:51, :]),
+        ),
+        dim=-2,
+    )
+    residual_nodes = torch.cat(
+        (
+            reprojection_residual_2d[..., body_indices, :],
+            hand_nodes(reprojection_residual_2d[..., 21:36, :]),
+            hand_nodes(reprojection_residual_2d[..., 36:51, :]),
+        ),
+        dim=-2,
+    )
+    node_valid = torch.cat(
+        (
+            joint_valid[..., body_indices],
+            hand_valid(joint_valid[..., 21:36]),
+            hand_valid(joint_valid[..., 36:51]),
+        ),
+        dim=-1,
+    )
+    reliability = torch.cat(
+        (
+            joint_reliability[..., body_indices],
+            hand_reliability(joint_reliability[..., 21:36]),
+            hand_reliability(joint_reliability[..., 36:51]),
+        ),
+        dim=-1,
+    )
+    source, target = edge_index
+    relative = nodes[..., target, :] - nodes[..., source, :]
+    distance = torch.linalg.vector_norm(relative, dim=-1, keepdim=True)
+    velocity = torch.zeros_like(relative)
+    acceleration = torch.zeros_like(relative)
+    if nodes.shape[-3] > 1:
+        velocity[..., 1:, :, :] = relative[..., 1:, :, :] - relative[..., :-1, :, :]
+    if nodes.shape[-3] > 2:
+        acceleration[..., 2:, :, :] = (
+            velocity[..., 2:, :, :] - velocity[..., 1:-1, :, :]
+        )
+    valid = node_valid[..., source] & node_valid[..., target]
+    features = torch.cat(
+        (
+            relative,
+            distance,
+            velocity,
+            acceleration,
+            reliability[..., source, None],
+            reliability[..., target, None],
+            valid[..., None].float(),
+            residual_nodes[..., source, :],
+            residual_nodes[..., target, :],
+            residual_nodes[..., target, :] - residual_nodes[..., source, :],
+        ),
+        dim=-1,
+    )
+    if features.shape[-1] != OBSERVATION_EDGE_FEATURE_DIM:
         raise AssertionError(features.shape)
     return torch.where(valid[..., None], features, torch.zeros_like(features)), valid
 

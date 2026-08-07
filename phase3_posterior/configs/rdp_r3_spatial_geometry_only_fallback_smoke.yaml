@@ -1,0 +1,8 @@
+base: rdp_r3_spatial_geometry_only_fallback.yaml
+output_dir: outputs/phase3_training/rdp_r3_spatial_geometry_only_smoke_v3
+training:
+  max_steps: 2
+  batch_size: 8
+  gradient_accumulation: 1
+  workers: 0
+  checkpoint_interval: 1

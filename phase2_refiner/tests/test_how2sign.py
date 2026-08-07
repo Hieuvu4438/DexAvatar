@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import numpy as np
 import torch
 
@@ -6,6 +8,7 @@ from phase2_refiner.data.build_how2sign_cache import (
     _quality,
     _source_group,
 )
+from phase2_refiner.data.extract_how2sign_teacher import _signer_id, _split_paths
 from phase2_refiner.data.refine_how2sign_targets import _bounded_delta
 from phase2_refiner.data.cache_schema import CacheClip
 from phase2_refiner.data.dataset import _keypoints_in_model_coordinates
@@ -14,6 +17,13 @@ from phase2_refiner.data.dataset import _keypoints_in_model_coordinates
 def test_how2sign_source_group_preserves_underscore_in_video_id() -> None:
     assert _source_group("_G0MZFLIHa0_5-5-rgb_front") == "_G0MZFLIHa0"
     assert _source_group("FZd8Iv9ACVw_3_4-8-rgb_front") == "FZd8Iv9ACVw"
+
+
+def test_how2sign_official_test_and_signer_parsing() -> None:
+    video, pose = _split_paths(Path("/dataset"), "test")
+    assert video == Path("/dataset/test/raw_videos")
+    assert pose == Path("/dataset/test/test_pose")
+    assert _signer_id("FZd8Iv9ACVw_3_4-10-rgb_front") == 10
 
 
 def test_how2sign_wholebody_mapping_is_finite_and_bounded() -> None:

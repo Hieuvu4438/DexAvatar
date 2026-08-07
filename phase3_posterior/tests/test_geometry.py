@@ -10,8 +10,12 @@ from phase3_posterior.geometry.contact import (
 from phase3_posterior.geometry.relation_anchors import (
     EDGE_FEATURE_DIM,
     NUM_RELATION_NODES,
+    OBSERVATION_EDGE_FEATURE_DIM,
     build_edge_features,
+    build_observation_edge_features,
     default_edge_index,
+    mask_relation_inputs,
+    relation_node_conditioning_mask,
 )
 from phase3_posterior.geometry.state_adapter import matrices_to_state, state_to_matrices
 
@@ -33,6 +37,27 @@ def test_relation_contract_and_finite_features() -> None:
     assert torch.isfinite(features).all()
 
 
+def test_observation_relation_features_are_masked_and_target_independent() -> None:
+    keypoints = torch.rand(2, 5, 51, 2) * 2.0 - 1.0
+    valid = torch.ones(2, 5, 51, dtype=torch.bool)
+    reliability = torch.rand(2, 5, 51)
+    residual = torch.rand(2, 5, 51, 2)
+    valid[:, :, 21:36] = False
+    edges = default_edge_index()
+    features, edge_valid = build_observation_edge_features(
+        keypoints, valid, reliability, edges, residual
+    )
+    assert features.shape == (2, 5, edges.shape[1], OBSERVATION_EDGE_FEATURE_DIM)
+    source, target = edges
+    left_nodes = set(range(10, 21))
+    left_edges = torch.tensor(
+        [int(a) in left_nodes or int(b) in left_nodes for a, b in zip(source, target)]
+    )
+    assert not edge_valid[..., left_edges].any()
+    assert torch.count_nonzero(features[..., left_edges, :]) == 0
+    assert torch.isfinite(features).all()
+
+
 def test_contact_hysteresis_and_persistence() -> None:
     distances = torch.tensor([[0.03], [0.01], [0.015], [0.025], [0.01]])
     valid = torch.ones_like(distances, dtype=torch.bool)
@@ -40,3 +65,23 @@ def test_contact_hysteresis_and_persistence() -> None:
     assert contact[:, 0].tolist() == [False, True, True, False, True]
     persistence = contact_persistence_target(contact)
     assert persistence[:, 0].tolist() == [False, False, True, False, False]
+
+
+def test_masked_hand_cannot_leak_through_relation_edges() -> None:
+    edges = default_edge_index()
+    conditioning = torch.ones(2, 4, 51, dtype=torch.bool)
+    conditioning[:, 1:3, 21:36] = False
+    node_mask = relation_node_conditioning_mask(conditioning)
+    assert not node_mask[:, 1:3, 10:21].any()
+    features = torch.randn(2, 4, edges.shape[1], EDGE_FEATURE_DIM)
+    valid = torch.ones(2, 4, edges.shape[1], dtype=torch.bool)
+    masked_features, masked_valid = mask_relation_inputs(
+        features, valid, edges[None].expand(2, -1, -1), conditioning
+    )
+    source, target = edges
+    left_nodes = set(range(10, 21))
+    left_edges = torch.tensor(
+        [int(a) in left_nodes or int(b) in left_nodes for a, b in zip(source, target)]
+    )
+    assert not masked_valid[:, 1:3, left_edges].any()
+    assert torch.count_nonzero(masked_features[:, 1:3, left_edges]) == 0

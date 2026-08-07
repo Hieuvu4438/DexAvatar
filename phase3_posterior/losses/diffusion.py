@@ -16,6 +16,21 @@ class SubVPSDE:
     def beta(self, time: torch.Tensor) -> torch.Tensor:
         return self.beta_min + time * (self.beta_max - self.beta_min)
 
+    def diffusion_squared(self, time: torch.Tensor) -> torch.Tensor:
+        """Return the exact public sub-VP diffusion coefficient squared."""
+        discount = 1.0 - torch.exp(
+            -2.0 * self.beta_min * time
+            - (self.beta_max - self.beta_min) * time.square()
+        )
+        return self.beta(time) * discount
+
+    def probability_flow_drift(
+        self, state: torch.Tensor, score: torch.Tensor, time: torch.Tensor
+    ) -> torch.Tensor:
+        beta = self.beta(time)[:, None, None, None]
+        diffusion_squared = self.diffusion_squared(time)[:, None, None, None]
+        return -0.5 * beta * state - 0.5 * diffusion_squared * score
+
     def log_mean_coeff(self, time: torch.Tensor) -> torch.Tensor:
         return (
             -0.25 * time**2 * (self.beta_max - self.beta_min)
@@ -30,6 +45,20 @@ class SubVPSDE:
         # This intentionally matches the public DPoser sub-VP implementation.
         std = (1.0 - torch.exp(2.0 * log_mean)).clamp_min(1e-6)
         return mean, std
+
+    def snr(self, time: torch.Tensor) -> torch.Tensor:
+        """Signal-to-noise ratio under this implementation's perturbation scale."""
+        alpha = torch.exp(self.log_mean_coeff(time))
+        std = (1.0 - alpha.square()).clamp_min(1e-6)
+        return alpha.square() / std.square()
+
+    def clipped_auxiliary_weight(
+        self, time: torch.Tensor, gamma: float = 5.0
+    ) -> torch.Tensor:
+        """Suppress unstable x0 geometry gradients at high-noise timesteps."""
+        if gamma <= 0:
+            raise ValueError("auxiliary SNR gamma must be positive")
+        return self.snr(time).clamp(max=gamma) / gamma
 
     def perturb(
         self, clean: torch.Tensor, time: torch.Tensor, noise: torch.Tensor | None = None

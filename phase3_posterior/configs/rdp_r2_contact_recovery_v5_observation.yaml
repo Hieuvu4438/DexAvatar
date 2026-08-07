@@ -1,0 +1,30 @@
+base: rdp_r2_contact_recovery_v4.yaml
+seed: 42
+output_dir: outputs/phase3_training/rdp_r2_contact_recovery_v5_observation_seed42
+data:
+  train_index: cache/phase3/r2_relation_targets_v3_expanded_signers/splits/train.json
+  val_index: cache/phase3/r2_relation_targets_v3_expanded_signers/splits/val.json
+adapter_initialization:
+  path: outputs/phase3_training/rdp_r2_contact_recovery_v4_seed42/best.pt
+  sha256: 5021cc6295780e72e1348467707fa00c00c3c1b84f9a9c60e4fd7af9463fd754
+model:
+  temporal_contact:
+    type: bidirectional_gru_reprojection_observation_residual
+    hidden: 128
+    persistence_fusion_weight: 2.0
+    train_contact_encoder: true
+    observation_features: true
+training:
+  max_steps: 12000
+  learning_rate: 0.00005
+  batch_size: 16
+  gradient_accumulation: 2
+  workers: 4
+  sign_contact_clip_probability: 0.75
+  validation_interval: 500
+  checkpoint_interval: 500
+  early_stop_patience: 8
+evaluation:
+  contact_threshold: 0.5
+  threshold_policy: frozen_before_v3_validation
+  observation_evidence_contract: target_independent_2d_tracks_and_initializer_reprojection

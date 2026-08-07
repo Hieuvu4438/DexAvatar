@@ -117,7 +117,7 @@ def _enriched(clip, residual: np.ndarray, clipping_fraction: float):
 def _write_how2sign(args, model, device, output: Path) -> dict:
     summary = {}
     (output / "splits").mkdir(parents=True)
-    for split in ("train", "val", "calibration"):
+    for split in args.splits:
         source_manifest = args.input_root / "splits" / f"{split}.json"
         with source_manifest.open("r", encoding="utf-8") as handle:
             manifest = json.load(handle)
@@ -237,6 +237,16 @@ def main() -> None:
     parser.add_argument("--mode", choices=("how2sign", "lane"), required=True)
     parser.add_argument("--batch-size", type=int, default=64)
     parser.add_argument(
+        "--split",
+        dest="splits",
+        action="append",
+        choices=("train", "val", "calibration", "test"),
+        help=(
+            "How2Sign split to enrich; repeat as needed. Defaults to the legacy "
+            "train/val/calibration set."
+        ),
+    )
+    parser.add_argument(
         "--model-folder",
         type=Path,
         default=Path("SMPLer-X/common/utils/human_model_files"),
@@ -245,6 +255,8 @@ def main() -> None:
         "--device", default="cuda" if torch.cuda.is_available() else "cpu"
     )
     args = parser.parse_args()
+    if args.splits is None:
+        args.splits = ["train", "val", "calibration"]
     print(json.dumps(build(args), indent=2, sort_keys=True))
 
 

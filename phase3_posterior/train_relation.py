@@ -6,7 +6,7 @@ import argparse
 import json
 
 import torch
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 
 from phase3_posterior.config import load_config
 from phase3_posterior.data.dataset import Phase3Dataset, collate_phase3
@@ -38,12 +38,25 @@ def main() -> None:
         seed=seed,
         identity_target=bool(config["data"].get("identity_target", False)),
     )
-    loader = DataLoader(
-        dataset,
+    loader_kwargs = dict(
         batch_size=int(config["training"].get("batch_size", 4)),
         shuffle=True,
         num_workers=int(config["training"].get("workers", 0)),
         collate_fn=collate_phase3,
+    )
+    loader = DataLoader(dataset, **loader_kwargs)
+    generic_indices = [
+        index
+        for index, entry in enumerate(dataset.entries)
+        if entry.source in {"arctic", "interhand26m"}
+    ]
+    generic_steps = int(config["training"].get("generic_warmup_steps", 0))
+    if generic_steps and not generic_indices:
+        raise RuntimeError("R2 generic warm-up requested but no generic clips exist")
+    generic_loader = (
+        DataLoader(Subset(dataset, generic_indices), **loader_kwargs)
+        if generic_steps
+        else loader
     )
     model = RelationGraphEncoder(
         int(config["model"].get("relation_width", 128)),
@@ -57,15 +70,48 @@ def main() -> None:
     max_steps = int(config["training"]["max_steps"])
     scheduler = cosine_warmup_scheduler(optimizer, max_steps)
     ema = ExponentialMovingAverage(model, float(config["training"].get("ema", 0.9999)))
-    iterator = iter(loader)
+    active_loader = generic_loader if generic_steps else loader
+    iterator = iter(active_loader)
+    curriculum_stage = "generic_warmup" if generic_steps else "joint_adaptation"
     accumulation = int(config["training"].get("gradient_accumulation", 1))
+    checkpoint_interval = int(config["training"].get("checkpoint_interval", 1000))
+
+    def checkpoint_payload(step: int) -> dict:
+        return {
+            "model": model.state_dict(),
+            "ema_model": ema.state,
+            "optimizer": optimizer.state_dict(),
+            "scheduler": scheduler.state_dict(),
+            "step": step,
+            "config": config,
+            "rng_state": rng_state(),
+            "curriculum": curriculum_stage,
+        }
+
     optimizer.zero_grad(set_to_none=True)
     for micro_step in range(1, max_steps * accumulation + 1):
         step = (micro_step + accumulation - 1) // accumulation
+        requested_stage = (
+            "generic_warmup" if step <= generic_steps else "joint_adaptation"
+        )
+        if requested_stage != curriculum_stage:
+            curriculum_stage = requested_stage
+            active_loader = loader
+            iterator = iter(active_loader)
+            print(
+                json.dumps(
+                    {
+                        "event": "relation_curriculum",
+                        "stage": curriculum_stage,
+                        "step": step,
+                    }
+                ),
+                flush=True,
+            )
         try:
             batch = next(iterator)
         except StopIteration:
-            iterator = iter(loader)
+            iterator = iter(active_loader)
             batch = next(iterator)
         batch = {
             key: value.to(device) if torch.is_tensor(value) else value
@@ -96,21 +142,16 @@ def main() -> None:
                 json.dumps(
                     {
                         "step": step,
+                        "curriculum": curriculum_stage,
                         "loss": float(loss.detach()),
                         **{key: float(value.detach()) for key, value in losses.items()},
                     }
                 ),
                 flush=True,
             )
-    payload = {
-        "model": model.state_dict(),
-        "ema_model": ema.state,
-        "optimizer": optimizer.state_dict(),
-        "scheduler": scheduler.state_dict(),
-        "step": max_steps,
-        "config": config,
-        "rng_state": rng_state(),
-    }
+        if step % checkpoint_interval == 0:
+            save_checkpoint(output / "last.pt", checkpoint_payload(step))
+    payload = checkpoint_payload(max_steps)
     save_checkpoint(output / "last.pt", payload)
     save_checkpoint(output / "best.pt", payload)
 

@@ -1,0 +1,31 @@
+{
+  "audit_date": "2026-08-03",
+  "intended_use": "non-commercial academic research",
+  "records": [
+    {
+      "dataset": "ARCTIC",
+      "license_id": "ARCTIC_REGISTERED_RESEARCH_ACCESS_LOCAL_COPY_V1",
+      "local_root": "/home/haipd/DexAvatar/data/ARCTIC",
+      "status": "local_registered-access copy present",
+      "source": "https://arctic.is.tue.mpg.de/",
+      "notes": "The official project distributes data through registered access. This record documents the already-present local research copy; it does not grant redistribution rights. The CC BY-SA notice on the public website is not treated as the dataset license."
+    },
+    {
+      "dataset": "InterHand2.6M",
+      "license_id": "CC-BY-NC-4.0:INTERHAND26M:OFFICIAL_REPOSITORY",
+      "local_root": "/home/haipd/DexAvatar/data/InterHand2.6M",
+      "status": "verified from official repository",
+      "source": "https://github.com/facebookresearch/InterHand2.6M",
+      "notes": "Non-commercial terms apply; attribution is required."
+    },
+    {
+      "dataset": "How2Sign",
+      "license_id": "CC-BY-NC-4.0:HOW2SIGN:OFFICIAL_DATASET_PAGE",
+      "local_root": "/home/shared_data/sign_language/How2Sign",
+      "status": "verified from official dataset page",
+      "source": "https://how2sign.github.io/index.html",
+      "notes": "Non-commercial terms apply; attribution and change disclosure are required."
+    }
+  ],
+  "redistribution_authorized": false
+}

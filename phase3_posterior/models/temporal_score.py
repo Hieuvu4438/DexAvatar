@@ -151,10 +151,16 @@ class TemporalScoreNetwork(nn.Module):
         relation_width: int = 128,
         max_frames: int = 64,
         activation_checkpointing: bool = True,
+        masked_rotation_hints: bool = False,
     ) -> None:
         super().__init__()
         self.state = nn.Linear(6, width)
         self.observation = nn.Linear(observation_dim, width)
+        self.corruption_observation = (
+            nn.Linear(18, width, bias=False) if masked_rotation_hints else None
+        )
+        if self.corruption_observation is not None:
+            nn.init.zeros_(self.corruption_observation.weight)
         self.time = nn.Sequential(
             nn.Linear(width, width), nn.SiLU(), nn.Linear(width, width)
         )
@@ -178,10 +184,24 @@ class TemporalScoreNetwork(nn.Module):
         relation_token: torch.Tensor,
         frame_valid: torch.Tensor,
         condition_mask: torch.Tensor | None = None,
+        rotation_hint_mask: torch.Tensor | None = None,
     ) -> torch.Tensor:
+        hint = None
+        if rotation_hint_mask is not None:
+            if self.corruption_observation is None:
+                raise ValueError(
+                    "rotation_hint_mask requires masked_rotation_hints=true"
+                )
+            if rotation_hint_mask.shape != observation.shape[:-1]:
+                raise ValueError("rotation_hint_mask must have shape (B,T,51)")
+            hint = observation[..., :18] * rotation_hint_mask[..., None].to(
+                observation.dtype
+            )
         if condition_mask is not None:
             observation = observation * condition_mask[..., None].to(observation.dtype)
         token = self.state(state) + self.observation(observation)
+        if hint is not None:
+            token = token + self.corruption_observation(hint)
         token = (
             token
             + self.time(timestep_embedding(time, token.shape[-1]))[:, None, None, :]

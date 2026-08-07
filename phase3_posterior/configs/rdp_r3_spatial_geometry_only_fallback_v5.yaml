@@ -1,0 +1,9 @@
+base: rdp_r3_spatial_geometry_only_fallback_v4b.yaml
+output_dir: outputs/phase3_training/rdp_r3_spatial_geometry_only_v5_seed42
+model:
+  reset_conditioning_projections_on_init: false
+  masked_rotation_hints: true
+  warm_start_conditioning: conditional_v4b
+training:
+  masked_rotation_corruption_degrees: 35.0
+  hint_only_steps: 5000

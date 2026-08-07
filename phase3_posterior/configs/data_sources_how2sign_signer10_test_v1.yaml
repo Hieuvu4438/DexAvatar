@@ -1,0 +1,9 @@
+# Sealed How2Sign official-test signer 10. Never use this index for tuning.
+sources:
+  - name: how2sign
+    domain: sign_pseudo_target
+    license_id: CC-BY-NC-4.0:HOW2SIGN:OFFICIAL_DATASET_PAGE
+    signer_resolver: how2sign_filename_v1
+    target_weight: 0.35
+    splits:
+      test: cache/phase3/how2sign_signer_splits_v3/test.json

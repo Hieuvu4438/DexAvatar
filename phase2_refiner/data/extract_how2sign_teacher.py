@@ -1,7 +1,7 @@
 """Extract ordered full SMPL-X pseudo-targets from How2Sign without copying frames.
 
 This command must run in the ``smpler_x`` conda environment.  It uses the
-official How2Sign train/dev directories only, selects clips deterministically,
+official How2Sign train/dev/test directories, selects clips deterministically,
 decodes uniformly sampled source-video frames in memory, and uses the supplied
 133-keypoint tracks to crop the signer.  Outputs are compact, resumable NPZ
 files in a new directory; source videos and pose tracks are never modified.
@@ -46,7 +46,20 @@ def _split_paths(root: Path, split: str) -> tuple[Path, Path]:
         return root / "train" / "raw_videos", root / "train" / "train_pose"
     if split == "val":
         return root / "eval" / "raw_videos", root / "eval" / "eval_pose"
-    raise ValueError("Only official train and val/dev splits are permitted")
+    if split == "test":
+        return root / "test" / "raw_videos", root / "test" / "test_pose"
+    raise ValueError("Only official train, val/dev, and test splits are permitted")
+
+
+def _signer_id(clip_id: str) -> int:
+    """Return the official terminal How2Sign signer identity."""
+    suffix = clip_id.rsplit("-", 2)
+    if len(suffix) != 3 or suffix[-1] != "rgb_front":
+        raise ValueError(f"Cannot parse signer identity from {clip_id!r}")
+    try:
+        return int(suffix[-2])
+    except ValueError as error:
+        raise ValueError(f"Cannot parse signer identity from {clip_id!r}") from error
 
 
 def _hash_order(name: str, seed: int) -> str:
@@ -75,9 +88,12 @@ def _selection(
     max_clips: int,
     frames_per_clip: int,
     seed: int,
+    signers: frozenset[int] | None = None,
 ) -> list[dict]:
     candidates = []
     for pose_path in pose_dir.glob("*.pkl"):
+        if signers is not None and _signer_id(pose_path.stem) not in signers:
+            continue
         video_path = video_dir / f"{pose_path.stem}.mp4"
         if not video_path.is_file():
             continue
@@ -238,8 +254,14 @@ def parse_args() -> argparse.Namespace:
         "--root", type=Path, default=Path("/home/shared_data/sign_language/How2Sign")
     )
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--split", choices=("train", "val"), required=True)
+    parser.add_argument("--split", choices=("train", "val", "test"), required=True)
     parser.add_argument("--max-clips", type=int, required=True)
+    parser.add_argument(
+        "--signer",
+        type=int,
+        action="append",
+        help="Restrict extraction to one or more signer IDs; repeat as needed.",
+    )
     parser.add_argument("--frames-per-clip", type=int, default=32)
     parser.add_argument("--batch-size", type=int, default=32)
     parser.add_argument(
@@ -264,13 +286,14 @@ def main() -> None:
     if args.frames_per_clip < 16:
         raise ValueError("Phase 2 sequences require at least 16 ordered frames")
     if (
-        args.max_clips <= 0
+        args.max_clips < 0
         or args.batch_size <= 0
         or args.clips_per_batch <= 0
         or args.decode_workers <= 0
     ):
         raise ValueError(
-            "max-clips, batch-size, clips-per-batch, and decode-workers must be positive"
+            "max-clips must be non-negative and batch-size, clips-per-batch, "
+            "and decode-workers must be positive"
         )
     if args.amp:
         raise ValueError(
@@ -279,10 +302,16 @@ def main() -> None:
     root = args.root.resolve()
     output = args.output.resolve()
     video_dir, pose_dir = _split_paths(root, args.split)
+    signers = frozenset(args.signer) if args.signer else None
     selected = _selection(
-        video_dir, pose_dir, args.max_clips, args.frames_per_clip, args.seed
+        video_dir,
+        pose_dir,
+        args.max_clips,
+        args.frames_per_clip,
+        args.seed,
+        signers,
     )
-    if len(selected) < args.max_clips:
+    if args.max_clips > 0 and len(selected) < args.max_clips:
         raise ValueError(
             f"Only {len(selected)} eligible clips; requested {args.max_clips}"
         )
@@ -293,6 +322,7 @@ def main() -> None:
         "teacher": MODEL_NAME,
         "frames_per_clip": args.frames_per_clip,
         "seed": args.seed,
+        "signer_filter": sorted(signers) if signers is not None else None,
         "clips": selected,
     }
     _write_selection(output / args.split / "selection.json", selection_payload)

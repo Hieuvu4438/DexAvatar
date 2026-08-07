@@ -1,0 +1,12 @@
+base: rdp_r3_spatial_geometry_only_fallback_v4b.yaml
+output_dir: outputs/phase3_training/rdp_r3_spatial_geometry_only_v4c_validation_smoke
+training:
+  max_steps: 1
+  batch_size: 1
+  gradient_accumulation: 1
+  workers: 0
+  checkpoint_interval: 1
+  validation_interval: 1
+  validation_batch_size: 1
+  validation_max_batches: 1
+  validation_sampling_steps: 1

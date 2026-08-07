@@ -15,6 +15,7 @@ from phase2_refiner.data.dataset import SequenceCacheDataset, collate_sequences
 from phase3_posterior.data.cache_schema import load_index, load_relation_sidecar
 from phase3_posterior.geometry.relation_anchors import (
     EDGE_FEATURE_DIM,
+    build_observation_edge_features,
     default_edge_index,
 )
 from phase3_posterior.geometry.state_adapter import matrices_to_state
@@ -29,6 +30,7 @@ class Phase3Dataset(Dataset):
         seed: int = 42,
         input_dim: int = 45,
         identity_target: bool = False,
+        require_relation_targets: bool = False,
     ) -> None:
         self.entries = load_index(index_path)
         # Construct a private read-only view while retaining the proven Phase 2 item loader.
@@ -39,11 +41,18 @@ class Phase3Dataset(Dataset):
         self.base.identity_target = identity_target
         self.base.input_dim = input_dim
         self.base.reprojection_residual_scale = 10.0
+        self.base.physical_time_motion = False
+        self.base.motion_reference_seconds = 0.04
+        self.base.require_phase2r_semantics = False
         self.base.rng = np.random.default_rng(seed)
-        self.base.lengths = [
-            len(load_cache_clip(path).frame_names) for path in self.base.paths
-        ]
+        # Reading only the uncompressed frame-name member avoids inflating every
+        # full cache tensor during startup for large Phase 3 indexes.
+        self.base.lengths = []
+        for path in self.base.paths:
+            with np.load(path, allow_pickle=False) as payload:
+                self.base.lengths.append(len(payload["frame_names"]))
         self.max_frames = max_frames
+        self.require_relation_targets = require_relation_targets
 
     def __len__(self) -> int:
         return len(self.entries)
@@ -63,8 +72,16 @@ class Phase3Dataset(Dataset):
         contact_valid = torch.zeros_like(contact_target)
         persistence_target = torch.zeros_like(contact_target)
         depth_target = torch.ones(self.max_frames, edge_count, dtype=torch.long)
+        target_edge_features = torch.zeros(
+            self.max_frames, edge_count, EDGE_FEATURE_DIM
+        )
         if entry.relation_path:
             relation = load_relation_sidecar(entry.relation_path)
+            if self.require_relation_targets and relation.target_edge_features is None:
+                raise ValueError(
+                    "Corrected R2 requires relation schema v2 target features: "
+                    f"{entry.relation_path}"
+                )
             clip = load_cache_clip(entry.clip_path)
             frame_lookup = {
                 str(name): frame_index
@@ -85,6 +102,12 @@ class Phase3Dataset(Dataset):
                 relation.persistence_target[window]
             )
             depth_target[:length] = torch.from_numpy(relation.depth_target[window])
+            target_features = (
+                relation.edge_features
+                if relation.target_edge_features is None
+                else relation.target_edge_features
+            )
+            target_edge_features[:length] = torch.from_numpy(target_features[window])
         item.update(
             edge_index=edges,
             edge_features=edge_features,
@@ -93,7 +116,19 @@ class Phase3Dataset(Dataset):
             contact_valid=contact_valid,
             persistence_target=persistence_target,
             depth_target=depth_target,
+            target_edge_features=target_edge_features,
         )
+        observation_edge_features, observation_edge_valid = (
+            build_observation_edge_features(
+                item["features"][..., 26:28],
+                item["features"][..., 28] > 0.5,
+                item["features"][..., 29],
+                edges,
+                item["features"][..., 43:45],
+            )
+        )
+        item["observation_edge_features"] = observation_edge_features
+        item["observation_edge_valid"] = observation_edge_valid
         return item
 
 
@@ -110,6 +145,9 @@ def collate_phase3(items: list[dict[str, Any]]) -> dict[str, Any]:
         "contact_valid",
         "persistence_target",
         "depth_target",
+        "target_edge_features",
+        "observation_edge_features",
+        "observation_edge_valid",
     )
     batch.update(
         {key: torch.stack([item[key] for item in items]) for key in tensor_keys}

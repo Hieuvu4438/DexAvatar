@@ -1,0 +1,38 @@
+base: rdp_r2_relation_corrected_v2.yaml
+seed: 42
+output_dir: outputs/phase3_training/rdp_r2_contact_recovery_v3_seed42
+initialization:
+  path: outputs/phase3_training/rdp_r2_relation_corrected_v2b_seed42/best.pt
+  sha256: 69852e0d88a166bff65326ae22eb6359aada658458384b5f3c879709131d33b9
+model:
+  temporal_contact:
+    type: bidirectional_gru_residual
+    hidden: 128
+    persistence_fusion_weight: 2.0
+training:
+  max_steps: 20000
+  learning_rate: 0.0001
+  weight_decay: 0.01
+  batch_size: 8
+  gradient_accumulation: 4
+  workers: 4
+  validation_batch_size: 8
+  joint_mixture:
+    how2sign: 0.70
+    arctic: 0.20
+    interhand26m: 0.10
+  contact_positive_alpha: 0.75
+  sign_contact_clip_probability: 0.65
+  sign_hand_body_weight: 4.0
+  sign_hard_negative_ratio: 8
+  checkpoint_interval: 1000
+  validation_interval: 1000
+  early_stop_patience: 8
+loss:
+  contact: 1.0
+  sign_contact: 4.0
+  persistence: 1.0
+evaluation:
+  contact_threshold: 0.5
+  graph_contact_score: guided_contact_logits
+  threshold_policy: frozen_before_v3_validation

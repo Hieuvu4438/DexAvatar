@@ -23,6 +23,11 @@ def stage_decision(gate: str, metrics: dict[str, Any]) -> dict[str, Any]:
     checks: dict[str, dict[str, Any]] = {}
     if gate == "g0":
         checks = {
+            "cache_audit_passed": _check(
+                bool(metrics.get("cache_audit_passed")),
+                metrics.get("cache_audit_passed"),
+                "true",
+            ),
             "no_leakage": _check(
                 bool(metrics.get("no_leakage")), metrics.get("no_leakage"), "true"
             ),
@@ -69,6 +74,26 @@ def stage_decision(gate: str, metrics: dict[str, Any]) -> dict[str, Any]:
                 float(metrics.get("sign_contact_f1", -np.inf)) >= 0.60,
                 metrics.get("sign_contact_f1"),
                 ">=0.60",
+            ),
+            "depth_order_accuracy": _check(
+                float(metrics.get("depth_order_accuracy", -np.inf)) >= 0.80,
+                metrics.get("depth_order_accuracy"),
+                ">=0.80",
+            ),
+            "contact_slip_gain": _check(
+                float(metrics.get("contact_slip_gain", -np.inf)) >= 0.15,
+                metrics.get("contact_slip_gain"),
+                ">=0.15",
+            ),
+            "contact_slip_comparison_available": _check(
+                bool(metrics.get("contact_slip_comparison_available")),
+                metrics.get("contact_slip_comparison_available"),
+                "true",
+            ),
+            "relation_only_reconstruction_unchanged": _check(
+                bool(metrics.get("relation_only_reconstruction_unchanged")),
+                metrics.get("relation_only_reconstruction_unchanged"),
+                "true",
             ),
             "max_regression": _check(
                 float(metrics.get("max_region_regression", np.inf)) <= 0.01,
@@ -233,7 +258,9 @@ def main() -> None:
     else:
         if args.metrics is None:
             raise ValueError("--metrics is required for P3-G0 through P3-G7")
-        decision = stage_decision(args.gate, json.loads(args.metrics.read_text()))
+        payload = json.loads(args.metrics.read_text())
+        metrics = payload.get("metrics_for_gate", payload)
+        decision = stage_decision(args.gate, metrics)
     if args.output.exists():
         raise FileExistsError(f"Refusing to overwrite: {args.output}")
     atomic_json(args.output, decision)

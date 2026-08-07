@@ -1496,3 +1496,1036 @@ the 300-clip manual target/contact report. Then build `cache/phase3/v1`, run the
 formal P3-G0 and P3-G1 audits, and stop if either remains NO-GO. Only after both pass
 should R2 be launched in tmux with append-only `logs/phase3/` output and the four-CPU
 thread cap.
+
+---
+
+## 31. R0 blocker resolution and R2 launch report (2026-08-03)
+
+This section supersedes the R0 status in Section 30.3. The work remained additive:
+no Phase 1/Phase 2 cache, legacy method, author-evaluation input, or Lane-L artifact
+was modified or read for tuning.
+
+### 31.1 Correctness fixes
+
+- The deterministic sampler now integrates the exact sub-VP probability-flow ODE,
+  including the sub-VP discount and the required one-half score coefficient.
+- Observation anchoring is scaled by the absolute integration step, so changing the
+  number of sampler steps no longer changes anchor strength by construction.
+- A 51-joint conditioning mask is mapped to the fixed 32 relation nodes. Every edge
+  with a hidden endpoint is invalidated and zeroed before graph conditioning, and
+  hidden edges are excluded from contact/depth supervision.
+- The relation graph now has an explicit mixed-precision accumulator contract. A
+  CUDA BF16 autocast regression test covers the failure found during launch.
+- The Phase 3 read-only adapter initializes all current Phase 2 dataset attributes;
+  a real-index item smoke test passed before relaunch.
+
+### 31.2 Data, signer, and geometry result
+
+How2Sign signer identity is parsed from the terminal signer field in the official
+clip name. Because the previous official train/validation/calibration manifests
+shared signers, Phase 3 uses signer-component splits without changing Phase 2:
+
+| Phase 3 split | signer IDs | clips |
+|---|---:|---:|
+| train | 3, 5, 8 | 10,643 |
+| validation | 1, 2 | 754 |
+| calibration | 4, 9, 11 | 420 |
+
+The split has 2,242 source-video groups, zero source-group overlap, and zero signer
+overlap. The final append-only cache contains 14,142 train, 1,312 validation, and
+420 calibration clips (15,874 total).
+
+Relation inputs and labels use separate providers. ARCTIC and How2Sign initializer
+and target poses are decoded independently through the frozen neutral SMPL-X model.
+InterHand uses its official world-coordinate 3D joints, retaining true two-hand
+placement instead of placing MANO rotations on a neutral SMPL-X body. Contact uses
+decoded centre distance minus fixed, recorded anatomical proxy radii; these radii
+only label candidate contact and are not reconstruction targets.
+
+| source | node/keypoint coverage | torso coverage | wrist/hand coverage | edge coverage | valid contact labels | positive contact rate |
+|---|---:|---:|---:|---:|---:|---:|
+| ARCTIC | 100.00% | 100.00% | 100.00% | 100.00% | 95.06% | 0.4892% |
+| InterHand2.6M | 75.00% | 20.00% | 100.00% | 23.46% | 20.99% | 7.1087% |
+| How2Sign | 100.00% | 100.00% | 100.00% | 100.00% | 95.06% | 1.5358% |
+
+InterHand torso coverage is intentionally limited to the two observed wrists; its
+official annotations do not contain a torso, and no torso target was fabricated.
+
+### 31.3 Visual audit and formal P3-G0
+
+A deterministic 300-clip audit sampled 100 clips per source and inspected four
+frames per clip in both XY and XZ projections. The reviewer was Codex, delegated by
+the project owner. Every evidence image and relation sidecar is hash-bound in
+`cache/phase3/v1/manual_quality_300.json`.
+
+- reviewed clips: **300**;
+- catastrophic failures: **0**;
+- failure rate: **0.0000**, requirement `< 0.10`;
+- missing/changed evidence hashes: **0**.
+
+The first formal run was preserved as
+`outputs/phase3_gates/g0/r0_cache_audit_failed_float_boundary.json`. Its only
+blocker was `0.1999999999999958 < 0.20` from floating-point accumulation. The
+comparison was fixed with a `1e-9` numerical tolerance without changing the 0.20
+requirement. The repeated audit reports:
+
+| P3-G0 check | result |
+|---|---|
+| complete relation sidecars and hashes | GO |
+| source/signer/video disjoint | GO |
+| forbidden author/SGNify source scan | GO |
+| recorded license evidence | GO |
+| relation coverage contract | GO |
+| 300-clip review and `<10%` failure | GO (0.00%) |
+| blocker count | **0** |
+
+Formal decision: **P3-G0 GO**.
+
+### 31.4 R1 route and R7 artifact dependency
+
+The external DPoser-X contract remains unavailable, so P3-G1 is not re-labelled as
+a pretrained-prior GO. The already declared `from_scratch` fallback route is used,
+and no pretrained-prior claim is made. R2 relation pretraining does not consume a
+DPoser checkpoint.
+
+`outputs/phase3_training/rdp_r6_observation_seed42/selector_train.npz` cannot be
+created before R6: its evidence rows must be sampled from the frozen R6 posterior,
+and creating the R6 output directory early would also violate the append-only run
+contract. `phase3_posterior.data.build_selector_features` is now implemented to
+create the artifact after R6. A synthetic or random-posterior placeholder was not
+fabricated and is not an R0 blocker.
+
+### 31.5 R2 training launch
+
+The frozen R2 curriculum is 30,000 generic warm-up steps on ARCTIC + InterHand,
+followed by 20,000 joint-adaptation steps. The combined phase retains approximately
+25% generic clips. Physical batch is 8, gradient accumulation is 8, AdamW learning
+rate is `2e-4`, EMA is `0.9999`, and an atomic `last.pt` is written every 1,000
+optimizer steps.
+
+Three fail-closed launch attempts stopped before the first optimizer step: one
+exposed the stale Phase 2 adapter attributes and two successive CUDA checks exposed
+and then fully resolved the BF16 accumulator type mismatch. Their output directories
+and logs are preserved with explicit `failed_*` names. After the fixes and complete
+regression suite, the accepted launch is:
+
+- tmux session: `phase3_r2_relation`;
+- log: `logs/phase3/rdp_r2_relation_seed42_v4.txt`;
+- output: `outputs/phase3_training/rdp_r2_relation_seed42`;
+- initial stage: `generic_warmup`;
+- step 1 total/contact/persistence/depth loss:
+  **0.590228 / 0.124783 / 0.157754 / 1.007812**;
+- step 200 total/contact/persistence/depth loss:
+  **0.179023 / 0.013691 / 0.017824 / 0.396484**;
+- observed Phase 3 GPU allocation: approximately **680 MiB**;
+- Phase 3 CPU use at launch: approximately **187%**, below the 500% ceiling.
+
+Validation after the final fixes:
+
+```text
+ruff check phase2_refiner phase3_posterior                    PASS
+pytest -q phase2_refiner/tests phase3_posterior/tests         85 passed
+python -m compileall -q phase2_refiner phase3_posterior       PASS
+git diff --check                                               PASS
+```
+
+### 31.6 Primary artifact hashes
+
+| artifact | SHA-256 |
+|---|---|
+| `cache/phase3/v1/manifest.json` | `fa71eb2f82b49689c1c62d611e9b4edac05b84ceeda9b04469790eaec4196581` |
+| `cache/phase3/how2sign_signer_splits_v1/report.json` | `60545a8188875c2e73a4d55115d1b7f60437b8833fed0b118e114208bec30782` |
+| `cache/phase3/v1/manual_quality_300.json` | `aca58ce9d9e0219eb4f08df1730fa4b3f91913cd99bffb26c120134173ebfb30` |
+| `outputs/phase3_gates/g0/r0_cache_audit.json` | `f8a05cd439e79914aff7569ede9152861fb010bb8c109bcf2b55730b8a403df5` |
+| `outputs/phase3_gates/g0/decision.json` | `f56784b35c6ad01274598bddcd802f4ef9a91a4e28eb5a8168b172ae56ce6682` |
+| Phase 3 data-license evidence | `0bf83eb4b9d7c4d5dfd661211da1da2fda5deb249128d4764a6c5bc58163239f` |
+| R2 config | `10f022a1c23a624442b886ea0a1b31471a12a84a8ab15d4a7884ef18f7d9ee07` |
+
+P3-G2 and later accuracy gates remain **PENDING**. Step-1 optimization and P3-G0
+GO are readiness results, not claims that relation/contact accuracy or full Phase 3
+has passed.
+
+## 32. R2 completion and fail-closed P3-G2 result (2026-08-04)
+
+### 32.1 Completed training artifact
+
+The R2 relation/contact run completed its frozen 50,000-update budget and exited
+normally. It used the frozen 30,000-step ARCTIC+InterHand generic warm-up followed
+by 20,000 joint-adaptation steps; it did not use Lane-L. The deployable weights are
+the checkpoint's EMA state, consistent with `phase3_posterior.training.load_weights`.
+
+| Item | Value |
+|---|---|
+| checkpoint | `outputs/phase3_training/rdp_r2_relation_seed42/best.pt` |
+| completed update | 50,000 |
+| final logged training loss | 0.049974 |
+| final contact / persistence / depth losses | 0.004957 / 0.003900 / 0.108398 |
+| checkpoint SHA-256 | `03bb7bff28a27c44c7745117f8a22943b46f728c3f5eb869ae0f9325b50a10b4` |
+| frozen config SHA-256 | `10f022a1c23a624442b886ea0a1b31471a12a84a8ab15d4a7884ef18f7d9ee07` |
+
+### 32.2 Source-disjoint validation measurement
+
+The EMA state was evaluated deterministically on all 1,312 clips in the immutable
+source/signer-disjoint validation manifest (511 ARCTIC, 47 InterHand2.6M, and 754
+How2Sign clips), with 32-frame windows and the predeclared 0.5 contact threshold.
+This is an evaluation of geometry-derived relation sidecars, not a final mesh-error
+benchmark.
+
+| Validation subset | Contact precision | Contact recall | Contact F1 | Non-ambiguous depth-order accuracy |
+|---|---:|---:|---:|---:|
+| all valid contact edges | 0.6373 | 0.7599 | **0.6932** | **0.9873** |
+| ARCTIC | 0.5532 | 0.9251 | 0.6924 | 0.9973 |
+| InterHand2.6M | 0.9746 | 0.6738 | 0.7967 | 0.9924 |
+| How2Sign, all valid edges | 0.6442 | 0.7448 | 0.6908 | 0.9805 |
+| How2Sign hand--body edges | 0.5372 | 0.4469 | **0.4879** | n/a |
+
+The all-edge contact confusion counts are TP=30,201, FP=17,189, and FN=9,541.
+For the required How2Sign hand--body subset they are TP=101, FP=87, and FN=125.
+
+### 32.3 Formal decision: P3-G2 NO-GO
+
+**NO-GO.** The overall contact-F1 condition passes (0.6932 >= 0.65), and the
+proposal's depth-order condition passes (98.73% >= 80%). However, the mandatory
+sign hand--body contact F1 is 0.4879, below its 0.60 requirement by 0.1121.
+
+In addition, this first R2 implementation did not train/evaluate the required
+geometry-only MLP comparator, relation-distance MAE, no-persistence ablation/contact
+slip, or frozen-reconstruction regional-safety measurement. It also saves the final
+state as `best.pt` rather than selecting it against a validation score. Those missing
+measurements must be implemented before a formal machine-readable P3-G2 decision can
+be emitted; they must not be represented as passes. Per the Stage R2 policy, do not
+start R3 from this checkpoint. Retain its safe relative-geometry features for a
+corrected R2 experiment, and keep contact energy disabled until the sign-contact gate
+and all required comparator/safety measurements pass.
+
+## 33. Corrected R2 v2 execution (2026-08-04)
+
+### 33.1 Root causes and additive fixes
+
+The first R2 run was not repaired by threshold tuning. Its implementation lacked
+continuous target relation features, left the surface-gap input channel at zero,
+diluted extremely sparse sign hand--body positives, and did not implement the
+proposal's geometry-only comparator, persistence ablation, periodic validation, or
+best-checkpoint selection. The original v1 cache, checkpoint, and configuration are
+preserved.
+
+The additive corrected path introduces:
+
+- relation schema v2 with decoded initializer and independent target edge features;
+- a nonzero fixed anatomical surface-gap feature and a learned distance residual;
+- the frozen `55% How2Sign / 30% ARCTIC / 15% InterHand` joint mixture;
+- a 35% positive-contact-clip stratum inside the How2Sign allocation, justified by
+  a measured natural positive-clip rate of approximately 9.3%;
+- focal positive balancing and a fixed sign hand--body edge weight;
+- a geometry-only MLP trained at the same update budget;
+- an identically initialized no-persistence graph ablation;
+- deterministic validation every 2,000 updates and EMA best-checkpoint selection;
+- explicit depth, slip-availability, relation-only safety, and distance-gain gate
+  checks; and
+- an end-to-end two-step smoke run that exercised optimization, validation, and
+  checkpoint serialization before the long run.
+
+No Lane-L data was opened or used for these changes.
+
+### 33.2 Corrected cache audit
+
+`cache/phase3/r2_relation_targets_v2` contains 15,874 clips: 14,142 train,
+1,312 validation, and 420 calibration. The fail-closed audit at
+`outputs/phase3_gates/g0/r2_relation_targets_v2_audit.json` reports:
+
+| Check | Result |
+|---|---:|
+| blocker count | **0** |
+| clips with relation schema v2 | 15,874 / 15,874 |
+| How2Sign independent target provider | 11,817 / 11,817 |
+| finite continuous target values | 745,950,384 |
+| How2Sign hand--body positive / valid edge-frames | 2,757 / 22,688,640 |
+| How2Sign hand--body positive rate | 0.01215% |
+
+Primary hashes:
+
+| Artifact | SHA-256 |
+|---|---|
+| corrected cache manifest | `b166eae34f4d68528d4b30a578afc28cc1f5a211374096112bfc87f27843cfca` |
+| corrected cache audit | `adbcbef71167807e83e01f3767f5561eab17e4356304680065fe5a1d35fef165` |
+| accepted v2b configuration | `4609e27c9330b6ec0c4492211f212c21cb30a25e7f3e627b970d95deb6e7a9f4` |
+
+### 33.3 Accepted training run and early validation
+
+An initial 100-step launch was preserved as
+`rdp_r2_relation_corrected_v2_seed42_superseded_effective_batch64` after profiling
+revealed that inherited accumulation produced effective batch 64 rather than the
+proposal's required 32. This was corrected before the first checkpoint, without
+observing Lane-L or changing a numerical gate.
+
+The accepted run is:
+
+- tmux: `phase3_r2_relation_v2b`;
+- log: `logs/phase3/rdp_r2_relation_corrected_v2b_seed42.txt`;
+- output: `outputs/phase3_training/rdp_r2_relation_corrected_v2b_seed42`;
+- physical batch / accumulation / effective batch: `8 / 4 / 32`;
+- curriculum: 30,000 generic warm-up updates, then 20,000 joint-adaptation updates;
+- CPU use: approximately 200%, below the 500% ceiling;
+- test baseline: **87 passed**, with Phase 3 lint and compilation passing.
+
+At update 2,000, while still in generic-only warm-up, the first external validation
+reported depth-order accuracy 85.52%, contact F1 0.0, sign hand--body F1 0.0,
+relation-MAE gain -64.81%, and unavailable slip comparison because the EMA graph had
+no true-positive contacts. This is an expected early **NO-GO snapshot**, not a final
+decision. The sign-positive curriculum does not begin until update 30,001. The run
+continues in tmux; P3-G2 remains **PENDING/NO-GO until a complete checkpoint passes
+every formal condition**.
+
+## 34. Corrected R2 v2b completion and formal P3-G2 decision (2026-08-04)
+
+The corrected 50,000-update run completed normally. The predeclared selection rule
+chose the EMA checkpoint at update 36,000 rather than the final update. Evaluation
+used the immutable v2 source/signer-disjoint validation manifest and the fixed 0.5
+contact threshold; Lane-L was not opened.
+
+| P3-G2 condition | Best-checkpoint result | Requirement | Decision |
+|---|---:|---:|---|
+| relation distance MAE gain over geometry-only MLP | **15.61%** | >=10% | GO |
+| overall contact F1 | **0.7049** | >=0.65 | GO |
+| How2Sign hand--body contact F1 | **0.4667** | >=0.60 | **NO-GO** |
+| depth-order accuracy | **98.43%** | >=80% | GO |
+| slip decrease versus no-persistence ablation | **0.72%** | >=15% | **NO-GO** |
+| relation-only reconstruction regression | **0.00%** | <=1% | GO |
+| slip comparator available | true | true | GO |
+
+The selected graph's contact confusion counts are TP=29,392, FP=14,254, and
+FN=10,350 overall. On the required How2Sign hand--body subset they are TP=91,
+FP=73, and FN=135. The failure is principally insufficient sign-contact recall,
+and persistence changes predicted-contact slip by only 0.72%, far short of the
+15% requirement.
+
+**Formal P3-G2 decision: NO-GO.** The corrected relation graph is retained as a
+useful relative-geometry component because it passes the distance and overall-contact
+conditions. Contact energy remains disabled for later posterior stages: the sign
+contact and persistence evidence does not justify enabling it. Do not start R3--R8
+as a claimed Phase 3 progression from this checkpoint.
+
+| Artifact | SHA-256 |
+|---|---|
+| selected `best.pt` (step 36,000) | `69852e0d88a166bff65326ae22eb6359aada658458384b5f3c879709131d33b9` |
+| final `last.pt` (step 50,000) | `5ff34cf359795e0918a85c490f0d6993ae0f1cfd2fb116e78af33130c56affaa` |
+| source-disjoint evaluation | `0854bf70b8c345f840f6219e7e096b14af9da1437cecfefb99fbdcb4783600cb` |
+| formal G2 decision | `5cceb65aca11d026d057d4d172dd435a81de71edc9aac7840d35ab6b986c18e8` |
+
+## 35. Option-A geometry-only R3 progression (2026-08-04)
+
+### 35.1 Frozen fallback decision
+
+P3-G2 remains **NO-GO**. The failed conditions are unchanged: How2Sign hand--body
+contact F1 is 0.4667 versus the 0.60 requirement, and predicted-contact slip improves
+0.72% versus the required 15%. The selected update-36,000 checkpoint is used only as
+a frozen relative-geometry/depth feature extractor. Its contact and persistence
+predictions are not accepted downstream.
+
+The diagnostic pipeline ID is `R2_geometry_only_R3_progression`. Its shared fallback
+configuration enforces all of the following for R3--R8 descendants:
+
+```yaml
+fallback:
+  mode: geometry_only
+  contact_energy_enabled: false
+  force_coupling_enabled: false
+  persistence_constraints_enabled: false
+model:
+  contact_energy_enabled: false
+  freeze_relation_backbone: true
+loss:
+  contact: 0.0
+  persistence: 0.0
+```
+
+The model removes contact and persistence logits from its fallback output contract,
+while retaining `relation_token`, edge tokens, distance, and depth-order predictions.
+This makes accidental contact-energy or persistence use fail closed rather than
+depending only on a zero scalar weight. The sampler contains no force-coupling or
+contact-attraction step.
+
+### 35.2 R3 data and initialization
+
+R3 uses clean Tier A/B sources only. The additive manifest
+`cache/phase3/r3_geometry_only_tier_ab_v1` contains 3,499 training clips and 558
+validation clips from ARCTIC and InterHand2.6M. Source, signer, and source-group
+identities remain disjoint. How2Sign Tier C pseudo targets are excluded from masked
+spatial training and Lane-L remains unopened.
+
+Strict initialization loads all 34 relation-backbone tensors from
+`outputs/phase3_training/rdp_r2_relation_corrected_v2b_seed42/best.pt`. A two-step
+GPU smoke run verified that all 34 tensors remain bit-identical after R3 optimization.
+
+The first launch exposed an unweighted high-noise auxiliary-motion loss before any
+checkpoint was written. It is preserved as
+`rdp_r3_spatial_geometry_only_seed42_superseded_unweighted_aux`. The implementation
+was corrected to apply the proposal's SNR-clipped auxiliary geometry weighting with
+`gamma=5`; the revised smoke loss fell from 100.39 to 20.02. A corrected batch-4
+pilot began with finite total loss 2.3401, but profiling showed unnecessarily low
+throughput. It was stopped before its first checkpoint and preserved as
+`rdp_r3_spatial_geometry_only_v2_seed42_superseded_batch4`. The accepted run changes
+only the physical/accumulated batch split from 4/8 to 8/4, preserving effective
+batch 32 and every optimizer, loss, model, data, and gate setting. Its batch-8 smoke
+run completed with finite loss 1.4247, and the accepted long run began with finite
+loss 4.5623.
+
+### 35.3 Preflight, launch, and hashes
+
+The revised preflight reports **GO with zero blockers** for the fallback execution
+contract. The regression baseline is **90 passed**, with lint, compilation, and the
+Phase 3 scoped whitespace check passing.
+
+| Item | Value |
+|---|---|
+| tmux | `phase3_r3_geometry_only_v3` |
+| log | `logs/phase3/rdp_r3_spatial_geometry_only_v3_seed42.txt` |
+| output | `outputs/phase3_training/rdp_r3_spatial_geometry_only_v3_seed42` |
+| maximum updates | 75,000 |
+| physical / accumulated / effective batch | 8 / 4 / 32 |
+| relation checkpoint SHA-256 | `69852e0d88a166bff65326ae22eb6359aada658458384b5f3c879709131d33b9` |
+| fallback base config SHA-256 | `afb3dd0ab17f4f11dbf5daa64d56c3febb9c884bf427fd408e6f4d0a946a43f2` |
+| R3 config SHA-256 | `e1d3a61efe955e004b70f1d7dfcad1ca2ff672f6e0938bd8fee3b44e96d43feb` |
+| Tier A/B manifest SHA-256 | `926935184b46c5a922e52bce05d5b6d7170013035a4f693a0681aa171d886a0d` |
+| accepted preflight SHA-256 | `0bc6fde6f94d54da4efecf890cab65f2a90f3e9522d89684c32354bc526bd7df` |
+
+R3 training is an authorized diagnostic fallback progression, not a reversal of the
+P3-G2 decision. P3-G3 remains pending until decoded masked-recovery and clean-safety
+evaluation completes.
+
+The accepted tmux process was confirmed alive through update 200. At that snapshot,
+the score loss had decreased from 1.0064 at update 1 to 0.5053; contact energy was
+false and the relation backbone was frozen in every logged record. The process used
+approximately 1.5 GiB VRAM and approximately 150% aggregate CPU, below the 500% CPU
+ceiling. Periodic atomic recovery checkpoints begin at update 1,000.
+
+### 35.4 Separate future R2 retraining backlog
+
+A future contact-focused R2 run is kept separate from this frozen fallback. Before
+that run, acquire or double-review sign hand--body contact labels, hard-mine false
+negatives and confusing near-contact negatives, use a predeclared contact-positive
+curriculum, and train a persistence-specific temporal head against the same-position
+no-persistence ablation. It must repeat the complete source-disjoint P3-G2 decision;
+no R3 result may retroactively relabel the current R2 contact NO-GO.
+
+## 36. R3 formal evaluation repair and conditional v4b retraining (2026-08-05)
+
+### 36.1 Completed v3 result and formal P3-G3 decision
+
+The geometry-only v3 run completed all 75,000 updates without a numerical error.
+Its final checkpoint was evaluated on all 558 immutable Tier A/B validation clips
+using 30-step conditional sub-VP sampling, deterministic 35-degree corruptions,
+fixed upper-body/hand/finger/wrist masks, and decoded SMPL-X regional vertices.
+The corrected evaluator clamps every non-corrupted initializer joint, including
+unlabelled body ancestors in hand-only InterHand samples.
+
+| P3-G3 condition | v3 result | Requirement | Decision |
+|---|---:|---:|---|
+| upper-body recovery | **-105.99%** | >=30% | **NO-GO** |
+| left-hand worst-mask recovery | **-177.32%** | >=30% | **NO-GO** |
+| right-hand worst-mask recovery | **-239.48%** | >=30% | **NO-GO** |
+| maximum clean regression | **0.00%** | <1% | GO |
+| validation coverage | **558 / 558 clips** | 558 / 558 | GO |
+
+**Formal P3-G3 decision for v3: NO-GO.** R4 remains blocked. The negative values
+mean that the sampled result increased, rather than removed, the injected regional
+error. Clean preservation passes because fully observed joints are restored exactly
+after reverse integration.
+
+### 36.2 Root cause
+
+`joint_valid` in these caches describes optional decoded 3D joint-position targets;
+it is not pose-observation validity. It is 0% for upper body, left hand, and right
+hand across the 558-clip validation split. The original R3 trainer used this field
+to construct the conditioning mask, so every observation token was zero and every
+relation edge was removed. The 75,000-update v3 model therefore learned an
+unconditional score model despite its masked-spatial configuration.
+
+Two additional correctness repairs were required:
+
+1. reverse diffusion now passes the joint mask into the score network, removes
+   relation edges touching hidden endpoints, follows a fixed forward-noise path for
+   observed joints, and restores those joints exactly at the end; and
+2. hand-only samples retain all non-corrupted initializer rotations as conditioning,
+   even where target supervision is unavailable, preventing random body ancestors
+   from translating otherwise clean hand vertices.
+
+The evaluator fail-closes on incomplete coverage and injects deterministic
+corruptions before computing recovery, avoiding the undefined zero-error baseline
+that results from the clean Tier A/B identity targets.
+
+### 36.3 Validation-based checkpoint selection
+
+Future R3 training now runs deterministic EMA validation every 2,500 updates,
+writes an immutable `validation_<step>.json`, and updates `best.pt` only when the
+predeclared equal-region score improves. `last.pt` is no longer copied blindly to
+`best.pt`. Eight consecutive non-improving validations trigger early stopping.
+The in-training selector uses a fixed masked SO(3) proxy for affordable checkpoint
+ranking; the final P3-G3 decision still requires the complete decoded-vertex
+evaluation above.
+
+### 36.4 Accepted v4b corrective run
+
+The first conditional warm-start pilot exposed dormant random observation/relation
+projection weights: its step-1 loss was 72.63 and it was stopped before a checkpoint.
+It is preserved as
+`rdp_r3_spatial_geometry_only_v4_seed42_superseded_uncalibrated_conditioning`.
+For v4b, only those two projection weight matrices are initialized to zero; their
+biases and the complete learned v3 prior remain unchanged. This makes update zero
+exactly reproduce the stable unconditional score while allowing conditioning to
+learn. The calibrated smoke step had total loss 0.1085 instead of 72.63.
+
+The accepted run is active with:
+
+| Item | Value |
+|---|---|
+| tmux | `phase3_r3_geometry_only_v4b` |
+| log | `logs/phase3/rdp_r3_spatial_geometry_only_v4b_seed42.txt` |
+| output | `outputs/phase3_training/rdp_r3_spatial_geometry_only_v4b_seed42` |
+| initialization | v3 EMA geometry prior plus exact frozen R2 step-36,000 graph |
+| first update total / score loss | `0.12046 / 0.01263` |
+| contact energy | disabled |
+| relation backbone | frozen |
+| regression suite | **31 passed**, lint and compilation passed |
+| final preflight | **GO, 0 blockers, 16/16 checks** |
+
+P3-G3 remains **NO-GO/PENDING** until the v4b validation-selected checkpoint passes
+the complete 558-clip decoded evaluation. Do not start R4 from v3 or from an
+unevaluated v4b checkpoint.
+
+| Artifact | SHA-256 |
+|---|---|
+| v3 `best.pt` | `f3825c40e7cc00bd318cccaef2b6eaae9efeca40a43402be2068b88b6aec6e14` |
+| corrected full v3 G3 evaluation | `f28328d35b62e749cb0bd8d28e327c2839ad7c370f4086a55087d743b4dafd05` |
+| corrected formal v3 G3 decision | `fdb65ddd6be2c2475b59ac5f024a30aa92a9f528e0626e9523dc18f13db5128d` |
+| accepted v4b configuration | `c06eff40e7767902164817cb92a002a5f31de6057932121af562aaf50372b003` |
+| accepted v4b preflight | `cd3b5660159658f232be85a5f483cb64ff6f48aeebaaffdfb4fb36347148c13b` |
+
+### 36.5 v4b completion and formal P3-G3 decision
+
+The corrected v4b run stopped at update 30,000 under the predeclared patience rule.
+The SO(3) checkpoint-selection score improved through update 10,000, then failed to
+improve for eight consecutive 2,500-update validations. Therefore `best.pt` is the
+EMA checkpoint at update 10,000; `last.pt` is the stopped update-30,000 state.
+
+| Validation item | Result |
+|---|---:|
+| best update | **10,000** |
+| best selection score | **2.46289** |
+| update-10k upper-body proxy recovery | -64.58% |
+| update-10k left-hand proxy recovery | -158.10% |
+| update-10k right-hand proxy recovery | -141.18% |
+| validations without improvement at stop | 8 |
+
+The selected checkpoint was evaluated with the complete immutable 558-clip,
+30-step, decoded-SMPL-X protocol:
+
+| P3-G3 condition | v4b result | Requirement | Decision |
+|---|---:|---:|---|
+| upper-body recovery | **-52.81%** | >=30% | **NO-GO** |
+| left-hand worst-mask recovery | **-171.05%** | >=30% | **NO-GO** |
+| right-hand worst-mask recovery | **-158.42%** | >=30% | **NO-GO** |
+| maximum clean regression | **0.00%** | <1% | GO |
+| validation coverage | **558 / 558 clips** | 558 / 558 | GO |
+
+Mask-level decoded errors were:
+
+| Mask | Initial corruption | v4b prediction | Recovery |
+|---|---:|---:|---:|
+| upper body | 186.31 mm | 284.69 mm | -52.81% |
+| left full hand | 9.98 mm | 27.05 mm | -171.05% |
+| left finger chain | 2.05 mm | 4.64 mm | -126.44% |
+| left wrist attachment | 25.51 mm | 44.13 mm | -73.03% |
+| right full hand | 10.10 mm | 26.11 mm | -158.42% |
+| right finger chain | 2.01 mm | 4.47 mm | -122.15% |
+| right wrist attachment | 25.33 mm | 44.26 mm | -74.78% |
+
+**Formal P3-G3 decision for v4b: NO-GO.** Conditional training materially reduced
+several decoded prediction errors relative to v3, most notably upper body, right
+full hand, both wrist-attachment cases, and both finger chains. It nevertheless
+did not recover the injected pose in any required region. The remaining failure is
+not a coverage or clean-safety issue. It is a posterior-quality failure: the current
+zero spatial prior and Gaussian-to-pose probability-flow path produce samples worse
+than the modest 35-degree corrupted initializer. Do not proceed to R4. The next R3
+attempt must de-risk the spatial prior/score mapping and an initializer-centred
+conditional bridge on external Tier A/B validation without changing the gate.
+
+| Artifact | SHA-256 |
+|---|---|
+| v4b selected `best.pt` (update 10,000) | `30c312674214ac4f32d25b5d1012600e52689d9c31862c0715463cc6649d75b4` |
+| v4b stopped `last.pt` (update 30,000) | `948c76d1f8a570fca158c9dec511f053c98326e0416b7be58d83705397a6f8ba` |
+| v4b append-only training log | `f1bdf3f5942b5b153df4c70d8d4ac05bfd4880917b8fbdb4167dc4ef1c797ee2` |
+| v4b full decoded G3 evaluation | `105023d0d79af2e2f3d3c0ad29acafc1cbd1f086ffdc65188fdb2109fd066203` |
+| v4b formal G3 decision | `2c32bb5cc63d930e4f0ff1de88261c317379421c631a18f8a014e9d869876b2a` |
+
+## 37. R3 initializer-centred residual completion (v5, 2026-08-05)
+
+### 37.1 Root cause and corrective boundary
+
+The v4b gate baseline and the learned posterior did not solve the same difficulty.
+The P3-G3 evaluator perturbs selected initializer rotations by at most 35 degrees,
+so its input is already a strong near-target estimate. In contrast, v4b erased the
+corrupted rotations, velocities, and accelerations and initialized those joints from
+Gaussian noise. It therefore attempted unconditional completion of the hardest
+regions and was structurally unlikely to beat the mildly corrupted initializer.
+Sampler tuning cannot repair this information mismatch.
+
+V5 implements conditional residual completion without exposing clean targets. The
+evaluator and trainer first inject the same bounded SO(3) corruption into the
+initializer, recompute its rotation/motion features, and expose only those corrupted
+features through a distinct `corruption_observation` projection. The normal
+observation path remains restricted to trusted joints, relation edges touching a
+hidden endpoint remain masked, and the two masks must be disjoint. Target-invalid
+but non-corrupted initializer joints remain trusted so that hand-only samples retain
+their body ancestors. The new projection is zero-initialized; consequently the v5
+model exactly reproduces the selected v4b posterior before learning the residual
+hint. A 5,000-update head-only warm-up prevents the pretrained geometry prior from
+drifting while that input path calibrates.
+
+This repair does not weaken any gate or use Lane-L. Training and selection remain on
+the immutable Tier A/B ARCTIC/InterHand split. Contact energy, contact loss, force
+coupling, persistence constraints, and persistence loss remain disabled; the R2
+step-36,000 relation model remains a frozen geometry/depth feature extractor.
+
+### 37.2 Verification and launch
+
+The implementation passes Ruff, bytecode compilation, and **34/34 Phase 3 tests**.
+New regression coverage verifies corruption/conditioning-mask disjointness, CFG
+dropout behavior, zero initialization, finite sampling, and nonzero gradient flow to
+the hint projection. A two-update GPU smoke run completed with finite losses and the
+hint-only optimization path active.
+
+The fail-closed v5 preflight reports **GO with 0 blockers and 16/16 checks passing**:
+3,499 Tier A/B training clips, 558 source/signer/source-group-disjoint validation
+clips, strict frozen relation initialization, validation-based checkpoint selection,
+and the complete geometry-only fallback contract.
+
+| Item | Value |
+|---|---|
+| tmux | `phase3_r3_geometry_only_v5` |
+| append-only log | `logs/phase3/rdp_r3_spatial_geometry_only_v5_seed42.txt` |
+| output | `outputs/phase3_training/rdp_r3_spatial_geometry_only_v5_seed42` |
+| initialization | selected v4b update-10,000 checkpoint |
+| frozen geometry extractor | R2 step-36,000 checkpoint |
+| hint-only warm-up | 5,000 updates |
+| first update total / score loss | `0.09333 / 0.01236` |
+| first update hint fraction | `0.09804` |
+| contact energy / relation backbone | disabled / frozen |
+| CPU cap | 4 threads |
+
+| Artifact | SHA-256 |
+|---|---|
+| v5 config | `587d998dafed8bcb7f6061a534bff82b5fcd30a7e3396d4b6ee8847dfde6b256` |
+| v5 preflight | `17c40b6c76dacfb25da1c3057bb9dcc6133b7fd5499b244c171ca65bd00b371f` |
+| v4b initialization checkpoint | `30c312674214ac4f32d25b5d1012600e52689d9c31862c0715463cc6649d75b4` |
+| frozen R2 geometry checkpoint | `69852e0d88a166bff65326ae22eb6359aada658458384b5f3c879709131d33b9` |
+| frozen P3-G2 decision | `5cceb65aca11d026d057d4d172dd435a81de71edc9aac7840d35ab6b986c18e8` |
+
+P3-G3 remains formally **NO-GO** until a validation-selected v5 checkpoint passes
+the complete 558-clip decoded evaluation: at least 30% recovery in upper body and
+both worst-case hands, less than 1% clean regression, and full coverage. R4 remains
+blocked. This launch is a root-cause correction, not a claim that the numerical gate
+has already passed.
+
+### 37.3 Completed v5 training and formal P3-G3 result
+
+V5 early-stopped at update 70,000 after eight consecutive validation checks without
+improvement. The immutable validation selector chose the EMA checkpoint at update
+50,000, before the later regressions. Its 10-step SO(3) proxy recovered 56.03% upper
+body, 44.97% left hand, and 44.78% right hand, with selection score 0.642568 and no
+clean regression.
+
+The selected checkpoint was then evaluated once with the complete 558-clip Tier A/B
+validation set, seven formal masks, 30 reverse steps, seed 3042, and decoded SMPL-X
+regional vertices. Lane-L was not opened.
+
+| P3-G3 condition | v5 result | Requirement | Decision |
+|---|---:|---:|---|
+| upper-body recovery | **65.88%** | >=30% | **GO** |
+| left-hand worst-mask recovery | **48.29%** | >=30% | **GO** |
+| right-hand worst-mask recovery | **48.55%** | >=30% | **GO** |
+| maximum clean regression | **0.00%** | <1% | **GO** |
+| validation coverage | **558 / 558 clips** | 558 / 558 | **GO** |
+
+The complete decoded mask results are:
+
+| Mask | Initial corruption | v5 prediction | Recovery |
+|---|---:|---:|---:|
+| upper body | 187.12 mm | 63.84 mm | **65.88%** |
+| left full hand | 9.95 mm | 5.08 mm | **48.91%** |
+| left finger chain | 2.04 mm | 1.05 mm | **48.29%** |
+| left wrist attachment | 25.72 mm | 11.65 mm | **54.69%** |
+| right full hand | 10.04 mm | 5.16 mm | **48.55%** |
+| right finger chain | 2.06 mm | 1.04 mm | **49.33%** |
+| right wrist attachment | 25.64 mm | 11.88 mm | **53.68%** |
+
+**Formal P3-G3 decision: GO.** This resolves the masked-spatial recovery blocker.
+R4 may now begin under the same geometry-only fallback boundary: contact energy,
+contact loss, force coupling, and persistence constraints remain disabled. The
+P3-G2 contact decision remains NO-GO and is not overridden by this result.
+
+| Artifact | SHA-256 |
+|---|---|
+| v5 selected `best.pt` (update 50,000) | `9c871f259be4be3b8c4f1d3dfe368a175a8b50c760626c230dc15c3a3a1b3fc3` |
+| v5 stopped `last.pt` (update 70,000) | `6885963402d20b19d5817fd726f6a50408c7006d4e28b62b5ff73b7e5461e5b1` |
+| v5 append-only training log | `1ed3d00e5910d8c67773c7f9e86b768c71943a1883e3bca7ef2b941861e5ab95` |
+| v5 formal evaluation log | `4d2d2dac76b0b9d58881574124cec6bf8a368d0862d3b2fe402ce86350c84b11` |
+| v5 full decoded P3-G3 evaluation | `e493ec07b1706a053cd9058bae4702f8931b61aa8679b10805d6a197268cb475` |
+| v5 standalone P3-G3 decision | `c920917ed4cfe37c97cb2e6b0271739b0c6bb5f8f0da618bd00d670ba6049fa4` |
+
+## 38. P3-G2 temporal-contact recovery strategy (v3, 2026-08-06)
+
+### 38.1 Frozen starting point and failure diagnosis
+
+This is a separate contact-retraining branch. It does not modify or invalidate the
+geometry-only R3 GO checkpoint. The source P3-G2 decision remains NO-GO with overall
+contact F1 0.7049, sign hand--body F1 0.4667, and only 0.72% slip improvement. The
+v2b update-36,000 checkpoint is the immutable initialization.
+
+The observed failures have three direct causes:
+
+1. **Extreme within-domain imbalance.** How2Sign training contains 2,506 positive
+   hand--body edge-frames among 20,434,560 valid ones (0.0123%). The old 4x domain
+   weight multiplies positive and negative sign edges equally and therefore does not
+   balance this classification problem. Validation has only 226 positives.
+2. **Frame-independent persistence.** The v2b graph processes every frame
+   independently. Its persistence head has no temporal state, despite persistence
+   being defined across adjacent frames.
+3. **Objective/inference disconnect.** Persistence was supervised over all valid
+   edges, where the trivial non-contact class dominates, and its logit was never used
+   to select contacts. Slip could improve only indirectly through shared features.
+   Conditional on a true sign hand--body contact, 49.1% of training labels are
+   persistent, which supplies a much healthier temporal target.
+
+Threshold sweeps on the old model are retained only as diagnosis. V3 does not tune a
+threshold on the formal validation set: the threshold is frozen at 0.5 before the
+new run.
+
+### 38.2 Additive v3 architecture and losses
+
+The geometry/depth relation backbone is loaded from v2b and permanently frozen. Its
+distance, depth, edge-token, and relation-token outputs bypass the new contact
+adapter, so the already-passing 15.61% distance-MAE gain and 98.43% depth accuracy
+cannot drift during contact recovery.
+
+Each fixed edge receives a bidirectional GRU over its 32-frame sequence. A
+zero-initialized residual projection makes the temporal adapter an exact identity at
+update zero. A copied contact/persistence head is then optimized with:
+
+- the original overall focal contact loss;
+- a separately normalized sign hand--body loss containing all positives and at most
+  eight hardest negatives per positive;
+- contact-conditional persistence focal loss, evaluated only on true contacts; and
+- explicit persistence-aware scoring
+  `guided_contact_logit = contact_logit + 2 * persistence_logit`.
+
+The no-persistence comparator has the same temporal architecture, the same frozen
+v2b initialization, sampling, optimizer, and contact losses. Its only differences
+are zero persistence loss and zero fusion weight. This makes the slip ablation
+causal rather than comparing unrelated checkpoints.
+
+### 38.3 Data, curriculum, and frozen hyperparameters
+
+The source/signer/source-group-disjoint v2 relation cache is reused without mutation.
+Lane-L and author evaluation data remain forbidden. Training samples 70% How2Sign,
+20% ARCTIC, and 10% InterHand; 65% of sampled How2Sign clips are contact-positive.
+This changes sampling frequency but never relabels an edge.
+
+| Parameter | Frozen value |
+|---|---:|
+| maximum updates | 20,000 |
+| physical / accumulated / effective batch | 8 / 4 / 32 |
+| learning rate / weight decay | 1e-4 / 0.01 |
+| temporal hidden width | 128 bidirectional |
+| sign-contact loss weight | 4.0 |
+| hard negatives per sign positive | 8 |
+| conditional persistence weight | 1.0 |
+| persistence fusion weight | 2.0 |
+| contact threshold | 0.5, frozen |
+| validation interval / patience | 1,000 / 8 validations |
+| CPU workers | 4 |
+
+Checkpoint selection remains fail closed on the complete P3-G2 vector. Formal GO
+still requires relation MAE gain >=10%, overall contact F1 >=0.65, sign hand--body F1
+>=0.60, depth accuracy >=0.80, slip gain >=15%, a valid no-persistence comparator,
+and <=1% regional regression. No individual metric may substitute for this decision.
+
+### 38.4 Verification and launch readiness
+
+Ruff, compilation, and **36/36 Phase 3 tests** pass. Tests cover exact identity
+initialization, frozen geometry outputs, finite stratified contact gradients, and
+contact-conditional persistence gradients. The two-update GPU smoke completed a
+full 1,312-clip validation twice. Its update-2 diagnostic retained 15.61% relation
+MAE gain, 98.43% depth accuracy, zero reconstruction regression, and measured 5.32%
+slip separation before meaningful temporal training.
+
+The fail-closed recovery preflight reports **GO, 13/13 checks, 0 blockers**, with
+14,142 training clips, 1,312 validation clips, 2,506 training and 226 validation sign
+hand--body positive edge-frames, locked update-36,000 initialization, disjoint
+identities, frozen threshold, and no Lane-L path.
+
+| Artifact | Value |
+|---|---|
+| config | `phase3_posterior/configs/rdp_r2_contact_recovery_v3.yaml` |
+| output | `outputs/phase3_training/rdp_r2_contact_recovery_v3_seed42` |
+| tmux | `phase3_r2_contact_recovery_v3` |
+| log | `logs/phase3/rdp_r2_contact_recovery_v3_seed42.txt` |
+| config SHA-256 | `14ed63e8346cb31961f2aaaab2442ba6d41fa0128908939db077b2e2d2a912bc` |
+| frozen v2b SHA-256 | `69852e0d88a166bff65326ae22eb6359aada658458384b5f3c879709131d33b9` |
+| source P3-G2 decision SHA-256 | `5cceb65aca11d026d057d4d172dd435a81de71edc9aac7840d35ab6b986c18e8` |
+
+This section freezes the recovery strategy before any v3 formal validation result.
+P3-G2 remains NO-GO until the complete numerical decision passes every condition.
+
+### 38.5 V3 and v4 execution results
+
+V3 validated the temporal-persistence hypothesis but not the sign-contact
+classification hypothesis. The selected update-7,000 checkpoint passed slip with
+20.73% gain and retained overall F1 0.6614, but sign F1 was only 0.4644. Later
+updates increased slip while reducing both overall and sign contact quality. The run
+was stopped after update 8,000 rather than spending the remaining budget on the
+wrong trade-off.
+
+V4 gave contact a trainable copy of the relation encoder while preserving the
+separate frozen geometry/depth provider. Its fail-closed preflight passed 15/15
+checks after catching and repairing a copied `requires_grad=False` flag. The invalid
+smoke is preserved as `rdp_r2_contact_recovery_v4_smoke_superseded_frozen_encoder`.
+The accepted smoke and **37/37 tests** passed.
+
+V4 selected update 1,500. The complete source-disjoint formal evaluation is:
+
+| P3-G2 condition | V4 result | Requirement | Decision |
+|---|---:|---:|---|
+| relation-distance MAE gain | **15.61%** | >=10% | GO |
+| overall contact F1 | **0.6537** | >=0.65 | GO |
+| sign hand--body contact F1 | **0.4673** | >=0.60 | **NO-GO** |
+| depth-order accuracy | **98.43%** | >=80% | GO |
+| slip gain vs no-persistence | **23.06%** | >=15% | GO |
+| slip comparator available | true | true | GO |
+| maximum reconstruction regression | **0.00%** | <=1% | GO |
+
+The sign confusion counts are TP=132, FP=207, FN=94: precision 0.3894 and recall
+0.5841. **Formal V4 P3-G2 decision: NO-GO**, with sign contact as the sole failed
+condition. Contact energy remains disabled. R3's geometry-only GO result remains
+valid and unchanged.
+
+### 38.6 Evidence-domain blocker
+
+Further capacity or threshold tuning is not justified on the current cache. A
+diagnostic threshold sweep of the selected temporal model cannot exceed sign F1
+0.49. The two dominant sign edges have initializer-gap ROC-AUC approximately 0.994,
+but their extreme class imbalance leaves average precision only 0.58 and 0.47. A
+nonlinear 49-feature temporal probe trained on all 2,506 sign positives reached
+training F1 0.958, then collapsed on unseen validation signers to F1 0.268 (217 TP,
+1,178 FP, 9 FN). This is strong evidence of cross-signer target/evidence shift, not
+an optimizer or threshold problem.
+
+The current geometry-derived sign targets are also too sparse for a paper-grade
+contact claim: only 2,506 positive train edge-frames and 226 validation edge-frames,
+concentrated mainly on two fingertip--chest proxy edges. The 420-clip calibration
+split has only 25 positive sign hand--body edge-frames. It cannot support stable
+threshold or edge-specific calibration. Reusing formal validation to choose these
+values would be leakage.
+
+### 38.7 Data-centric strategy required for a defensible P3-G2 GO
+
+The next attempt is **R2 sign-contact target v3**, and it must stop at each ordered
+gate below rather than launching another model on the current labels.
+
+1. **D0: contact audit and annotation.** Build at least 300 source/signer-disjoint
+   How2Sign/PHOENIX clips, deliberately stratified over hand--face, hand--torso,
+   two-hand, near-contact negative, fast transition, occlusion, and no-contact cases.
+   Double-review at least 10%; require catastrophic target error below 10% and
+   inter-review agreement (Cohen's kappa >=0.75). Record onset, persistence, release,
+   contacted body region, and visibility. **NO-GO** if agreement/support fails.
+2. **D1: mesh-surface targets.** Replace fixed joint-sphere proxies with nearest
+   hand-vertex to body-surface distance, body-part identity, surface normal alignment,
+   tangential velocity, and the frozen 12/20-mm onset/release hysteresis. Use video
+   evidence to reject depth-only pseudo contacts. Preserve original v2 sidecars;
+   materialize a new cache and audit every hash.
+3. **D2: supported signer-disjoint splits.** Require at least 2,000 positive training,
+   500 calibration, and 1,000 validation sign contact edge-frames, with at least 50
+   positive clips per represented signer group. Freeze calibration and validation
+   before feature/model experiments. **NO-GO** if any positive-support minimum fails.
+4. **D3: frozen observation features.** Use only deployable Phase-1 evidence:
+   WiLoR/HaMeR hand geometry, SMPLer-X body geometry, Sapiens 2D/body confidence,
+   hand/body crop embeddings already available locally, endpoint reliability,
+   surface gap, approach velocity, and visibility. Do not use R3 output or GT at
+   inference, avoiding circular R2-to-R3 ordering.
+5. **D4: feature sufficiency probe.** Train a small contact probe on train only and
+   freeze its threshold on calibration. It must obtain sign F1 >=0.65 and precision
+   and recall each >=0.60 on the untouched signer-disjoint validation split.
+   **NO-GO** here means improve targets/features; do not launch the relation graph.
+6. **D5: relation/contact retraining.** Pretrain geometry on ARCTIC/InterHand, then
+   run sign-balanced adaptation with contact-positive clip sampling, per-region hard
+   negatives, an AUPRC/listwise ranking term, contact-conditional persistence, and
+   the identical no-persistence comparator. Keep geometry/depth bypassed and frozen.
+   Select checkpoints on calibration, never on formal validation.
+7. **D6: formal P3-G2.** Freeze threshold, fusion, and checkpoint; run the existing
+   complete gate once on the untouched signer-disjoint validation set. Require every
+   numerical condition, then repeat seeds 123 and 456 as a robustness audit. Contact
+   energy may be enabled downstream only if all formal conditions pass and the sign
+   F1 seed standard deviation is below 0.03.
+
+This strategy does not block geometry-only R4 progression, but it does block any
+claim that contact energy is safe. The correct immediate action is target/evidence
+construction through D0--D4, not additional hyperparameter tuning on the 226-positive
+formal validation set.
+
+| Artifact | SHA-256 |
+|---|---|
+| v3 config | `14ed63e8346cb31961f2aaaab2442ba6d41fa0128908939db077b2e2d2a912bc` |
+| v3 preflight | `cead29ed0f6baab79a017aeef423b6a899bf55c73f404bb02ad1be60acb01856` |
+| v3 selected checkpoint | `ba50500c7b0d4f7403040dc913d47a042867e0e47926de48a6ca393593e821ee` |
+| v4 config | `f5d2e7582158b2abc9a93c9a7bf9ce2487447a68840c8ea7bbe35eaa7b009a31` |
+| v4 preflight | `d0e3ecfb7fa659e03b69ae58a8750c216e5ee7a3e6df776c66baabf3e640ad91` |
+| v4 selected checkpoint | `5021cc6295780e72e1348467707fa00c00c3c1b84f9a9c60e4fd7af9463fd754` |
+| v4 formal evaluation | `1ed880906175ebdceb2e6d8b82e8f9250a4b72088161a0ea64450717104dc90f` |
+| v4 formal P3-G2 decision | `47eb07d253801d76bddb96845bf8cedcb4e51278f100fa6584aa9496383c7909` |
+
+## 39. Observation-branch recovery and sealed signer-10 audit (2026-08-06)
+
+### 39.1 Root cause and additive data repair
+
+The V4 failure was not caused by insufficient network capacity or by the frozen
+0.5 threshold. Threshold sweeps of the old model remained below 0.49 sign-contact
+F1, while a high-capacity diagnostic probe reached 0.958 training F1 and only 0.268
+on unseen signers. The original How2Sign training partition contained only the
+connected signer component `{3, 5, 8}`. Signers 1 and 2 share source-video groups,
+so treating them as independent source groups would also violate the required
+source-disjoint contract.
+
+The deployable signal missing from the temporal-contact model was the Phase-2
+observed-minus-projected 2D residual. A train-only sufficiency audit quantified the
+effect before model construction:
+
+| Diagnostic evidence | Unseen-signer sign F1 |
+|---|---:|
+| relation features only | 0.4459 |
+| + observed 2D motion/reliability | 0.5475 |
+| + regional reprojection residual | 0.5726 |
+
+The residual is useful but not sufficient by itself. It was therefore introduced
+through a contained contextual graph branch: the passing V4 base is frozen, the
+new branch is zero-initialized, and an exactly zero residual leaves the old logits
+unchanged. V6 established that the former EMA value of 0.9999 lagged the contained
+branch severely (at update 1,000, live delta norm 0.0774 versus EMA delta norm
+0.00268). V7 changes only this recovery mechanism to EMA 0.99 and trains the
+observation branch while leaving the geometry/depth provider and base contact path
+frozen. V8 hand-body-only containment was implemented and smoke-tested as a reserve,
+but was deliberately **not trained** after V7 crossed the development gate.
+
+All changes are additive. Legacy Phase 2/3 caches, configs, checkpoints, and methods
+were not overwritten. Lane-L and the author's 1,493-frame evaluation set were not
+read, trained on, or used for selection.
+
+### 39.2 Source/signer-disjoint expansion and sealed test construction
+
+Official How2Sign test signer 10 was extracted independently. Of 247 eligible clips
+(7,904 frames), 220 passed temporal target refinement and reprojection enrichment;
+27 were rejected by the existing fail-closed quality rules. The final partition is:
+
+| Partition | Signers | Relation clips | Role |
+|---|---|---:|---|
+| train | 3, 4, 5, 8, 9, 11 plus generic ARCTIC/InterHand | 14,562 | fitting |
+| development validation | 1, 2 plus generic ARCTIC/InterHand | 1,312 | selection |
+| sealed How2Sign test | 10 only | 220 | one-time transfer audit |
+
+The sealed set contains 38 contact-positive clips and 123 positive hand--body
+edge-frames among 422,400 valid edge-frames. Train, development, and test signer and
+source groups are disjoint. The test manifest was hashed before evaluation. It was
+opened exactly once after the V7 update-5,000 checkpoint, EMA policy, score fusion,
+threshold, and formal P3-G2 decision code had all been frozen.
+
+### 39.3 V5--V7 development results
+
+V5 allowed the new evidence to update the full contact encoder. It improved neither
+the transfer feature nor containment and remained NO-GO. V6 froze the base but was
+stopped after confirming EMA lag; it is diagnostic and has no formal claim. V7 is
+the accepted contained-branch experiment.
+
+| P3-G2 condition | V5 | V7 development | Requirement |
+|---|---:|---:|---:|
+| relation-distance MAE gain | 15.61% | **15.61%** | >=10% |
+| overall contact F1 | 0.6501 | **0.6619** | >=0.65 |
+| sign hand--body F1 | 0.4783 | **0.6032** | >=0.60 |
+| depth-order accuracy | 98.43% | **98.43%** | >=80% |
+| slip gain | 24.08% | **26.79%** | >=15% |
+| maximum reconstruction regression | 0.00% | **0.00%** | <=1% |
+
+The fail-closed V7 preflight had zero blockers, and the complete development
+decision passed every condition. This is recorded as **P3-G2 development GO**, not
+as full transfer GO, because the old validation split had already been used during
+the recovery investigation.
+
+### 39.4 One-time sealed signer-10 result
+
+The immutable signer-10 evaluation completed all 220 clips. Its formal gate uses
+`contact_logits + 2.0 * persistence_logits`, exactly as frozen before the test.
+
+| P3-G2 condition | Sealed result | Requirement | Decision |
+|---|---:|---:|---|
+| relation-distance MAE gain | **-3.81%** | >=10% | **NO-GO** |
+| overall contact F1 | **0.6188** | >=0.65 | **NO-GO** |
+| sign hand--body F1 | **0.5669** | >=0.60 | **NO-GO** |
+| depth-order accuracy | **97.45%** | >=80% | GO |
+| slip gain vs no-persistence | **13.92%** | >=15% | **NO-GO** |
+| slip comparator available | true | true | GO |
+| maximum reconstruction regression | **0.00%** | <=1% | GO |
+| relation-only reconstruction unchanged | true | true | GO |
+
+The contact-only diagnostic (persistence fusion disabled) obtains sign F1 0.6108,
+but it is not the predeclared gate score and cannot replace it after observing the
+test. The graph hand--hand MAE is 0.03331 m versus 0.03209 m for the frozen geometry
+MLP, which explains the negative relation gain. Together with the development-to-
+test drops in contact and slip, this identifies a signer/domain geometry shift and
+a persistence-fusion transfer failure rather than a remaining optimizer bug.
+
+**Final P3-G2 status: sealed-transfer NO-GO.** Contact energy and all contact-driven
+attraction, persistence, and force-coupling constraints remain disabled. The earlier
+geometry-only P3-G3 GO result remains valid and may continue downstream under the
+documented fallback.
+
+### 39.5 Valid next recovery experiment
+
+Signer 10 is now consumed and must never become a tuning or checkpoint-selection
+set. A defensible next attempt must create a new development/test protocol before
+training:
+
+1. materialize PHOENIX hand/body observations and mesh-surface contact targets, then
+   split by signer and connected source-video component;
+2. reserve one component as a newly sealed final audit and use the remaining
+   PHOENIX components only for feature sufficiency and checkpoint selection;
+3. normalize 2D residuals by torso scale and camera crop, augment camera/crop noise,
+   and require train-only probes to pass F1 >=0.65 with both precision and recall
+   >=0.60 on the new development component;
+4. pretrain the contained observation/persistence branches across How2Sign and
+   PHOENIX, keeping relation geometry bypassed and frozen; select fusion and threshold
+   on development only;
+5. require three development seeds to pass the complete P3-G2 vector before opening
+   the new sealed component once.
+
+No V8 training or post-test V7 tuning was launched in this cycle. This stop is
+intentional: another run selected from signer-10 feedback could produce a number
+above threshold but would no longer be a valid transfer result.
+
+### 39.6 Verification and immutable artifacts
+
+Ruff passes for `phase2_refiner` and `phase3_posterior`; both packages compile.
+Tests pass **67/67** for Phase 2 and **42/42** for Phase 3.
+
+| Artifact | SHA-256 |
+|---|---|
+| V7 config | `84a93772a47b74ecd84ea83e30ee21ccd548678aa93c881adff336f477f91d56` |
+| V7 selected checkpoint (update 5,000) | `da398ab1aa6399c38705d14d6559150d152a55a2495729292c149aee7d3a840a` |
+| V7 preflight | `eac48e2ba041b1478bbc9fd5ba6ade3b4a93a6cadf200814a25f281eed4a761b` |
+| V7 development evaluation | `569ab1575787fb0400f1376372c1466334431b9abcff62472951023966be9b2c` |
+| V7 development decision | `d3eb3927a037d8794b17f965f76b31ab2f4655a6b2dc99673985c77b74bbb5ba` |
+| expanded train manifest | `eeda81b36c79eafa6dcb6c7fecac89380c2bb7b44ba548166b7e18801ca5c4ca` |
+| expanded development manifest | `6827f7148a4e28ca35b735e075e08ddff49692cc4267da6e0e81b55e8cd46ef6` |
+| sealed signer-10 manifest | `17921e781ccd586a198f47399a120d43c608222172d916848b7d2370a93f3fb7` |
+| signer-10 relation-cache manifest | `056ec93ef42b2ed8f1e46fc1cdf4fa3b80442748aa26a6ddbc078af5e7eada17` |
+| signer-10 reprojection report | `908bee45f972e9f5d42d857b510bf461464e05ebb1592341d786fb8b6fcc5723` |
+| sealed evaluation | `cfc02fd8d829dde6a1628cdff3f20b92595ae5fb66de970a19511826d3df45d7` |
+| sealed formal decision | `ebb46861f75c7b2a729b7e0cd64bd1e394aed9bd26f349dac8934bb676f2a9e6` |
+| sealed append-only log | `9438b389e3cd17cc9aa4962de4cc9ceaa5e1b55786927ec52e1e0a3df4b708cc` |

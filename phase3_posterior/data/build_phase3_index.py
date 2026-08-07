@@ -4,19 +4,25 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
 import yaml
+import torch
 
 from phase2_refiner.data.cache_schema import load_cache_clip
+from phase2_refiner.render import create_smplx_model
 from phase3_posterior.data.cache_schema import (
     SCHEMA_VERSION,
     Phase3IndexEntry,
     reject_forbidden_path,
 )
-from phase3_posterior.data.build_relation_targets import build_sidecar
+from phase3_posterior.data.build_relation_targets import (
+    InterHandJointProvider,
+    build_sidecar,
+)
 from phase3_posterior.data.cache_schema import save_relation_sidecar
 from phase3_posterior.provenance import atomic_json, sha256_file
 from phase3_posterior.data.quality_filter import assess_clip
@@ -44,21 +50,46 @@ def _metadata(clip: Any) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
 
 
-def build_index(sources_path: Path, output: Path) -> dict[str, Any]:
-    if output.exists():
+def _resolve_signer(source: dict[str, Any], metadata: dict[str, Any]) -> str:
+    signer = str(metadata.get("signer", metadata.get("subject", "unknown")))
+    if signer != "unknown":
+        return signer
+    if source.get("signer_resolver") != "how2sign_filename_v1":
+        return signer
+    source_clip = str(metadata.get("source_clip", ""))
+    match = re.search(r"-(\d+)-rgb_front$", source_clip)
+    if match is None:
+        raise ValueError(f"Cannot parse How2Sign signer from {source_clip!r}")
+    return f"how2sign_signer_{int(match.group(1)):02d}"
+
+
+def build_index(
+    sources_path: Path,
+    output: Path,
+    model_folder: Path | None = None,
+    device: str = "cuda",
+    resume: bool = False,
+) -> dict[str, Any]:
+    if output.exists() and not resume:
         raise FileExistsError(f"Refusing to overwrite Phase 3 cache: {output}")
     with sources_path.open("r", encoding="utf-8") as handle:
         config = yaml.safe_load(handle) or {}
     sources = config.get("sources", [])
     if not sources:
         raise ValueError("data source configuration contains no sources")
-    output.mkdir(parents=True)
+    output.mkdir(parents=True, exist_ok=resume)
     by_split: dict[str, list[Phase3IndexEntry]] = defaultdict(list)
     group_splits: dict[str, str] = {}
     signer_splits: dict[str, str] = {}
     unknown_signers: list[str] = []
     source_report: list[dict[str, Any]] = []
     relation_sources: dict[Path, str] = {}
+    model = (
+        create_smplx_model(model_folder, torch.device(device))
+        if model_folder is not None
+        else None
+    )
+    interhand_provider = InterHandJointProvider()
     for source in sources:
         license_id = str(source.get("license_id", "")).strip()
         if not license_id:
@@ -75,7 +106,7 @@ def build_index(sources_path: Path, output: Path) -> dict[str, Any]:
                 group = str(
                     metadata.get("source_group", metadata.get("video_id", clip.clip_id))
                 )
-                signer = str(metadata.get("signer", metadata.get("subject", "unknown")))
+                signer = _resolve_signer(source, metadata)
                 group_identity = f"{source['name']}:{group}"
                 previous_split = group_splits.setdefault(group_identity, split)
                 if previous_split != split:
@@ -103,14 +134,23 @@ def build_index(sources_path: Path, output: Path) -> dict[str, Any]:
                         f"Non-unique clip_id maps different clips to {relation}"
                     )
                 if not relation.exists():
-                    save_relation_sidecar(relation, build_sidecar(clip_path))
+                    save_relation_sidecar(
+                        relation,
+                        build_sidecar(
+                            clip_path,
+                            model=model,
+                            device=device,
+                            interhand_provider=interhand_provider,
+                        ),
+                    )
                 quality = assess_clip(clip_path)
                 quality_path = (
                     output / "quality" / str(source["name"]) / f"{clip.clip_id}.json"
                 )
-                if quality_path.exists():
+                if quality_path.exists() and not resume:
                     raise FileExistsError(f"Duplicate quality artifact: {quality_path}")
-                atomic_json(quality_path, quality)
+                if not quality_path.exists():
+                    atomic_json(quality_path, quality)
                 quality_counts[str(quality["band"])] += 1
                 entry = Phase3IndexEntry(
                     clip_id=clip.clip_id,
@@ -133,6 +173,18 @@ def build_index(sources_path: Path, output: Path) -> dict[str, Any]:
                 entry.validate()
                 by_split[str(split)].append(entry)
                 source_count += 1
+                if source_count == 1 or source_count % 100 == 0:
+                    print(
+                        json.dumps(
+                            {
+                                "event": "phase3_cache_progress",
+                                "source": source["name"],
+                                "clips": source_count,
+                                "split": split,
+                            }
+                        ),
+                        flush=True,
+                    )
         source_report.append(
             {
                 "name": source["name"],
@@ -171,8 +223,23 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--sources", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--model-folder", type=Path)
+    parser.add_argument("--device", default="cuda")
+    parser.add_argument("--resume", action="store_true")
     args = parser.parse_args()
-    print(json.dumps(build_index(args.sources, args.output), indent=2, sort_keys=True))
+    print(
+        json.dumps(
+            build_index(
+                args.sources,
+                args.output,
+                model_folder=args.model_folder,
+                device=args.device,
+                resume=args.resume,
+            ),
+            indent=2,
+            sort_keys=True,
+        )
+    )
 
 
 if __name__ == "__main__":

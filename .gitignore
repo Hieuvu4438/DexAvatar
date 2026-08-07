@@ -53,6 +53,7 @@ data/paper/*.pdf
 *.pt
 *.ckpt
 *.npy
+*.npz
 *.pkl
 *.h5
 *.hdf5
@@ -121,3 +122,4 @@ logs/
 scratch/
 cache/
 data/phase2_*
+data/phase3_*

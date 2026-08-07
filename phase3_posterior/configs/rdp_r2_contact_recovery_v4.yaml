@@ -1,0 +1,22 @@
+base: rdp_r2_contact_recovery_v3.yaml
+output_dir: outputs/phase3_training/rdp_r2_contact_recovery_v4_seed42
+adapter_initialization:
+  path: outputs/phase3_training/rdp_r2_contact_recovery_v3_seed42/best.pt
+  sha256: ba50500c7b0d4f7403040dc913d47a042867e0e47926de48a6ca393593e821ee
+model:
+  temporal_contact:
+    type: bidirectional_gru_residual_trainable_contact_encoder
+    hidden: 128
+    persistence_fusion_weight: 2.0
+    train_contact_encoder: true
+training:
+  max_steps: 12000
+  sign_contact_clip_probability: 0.70
+  sign_hard_negative_ratio: 2
+  validation_interval: 500
+  checkpoint_interval: 500
+  early_stop_patience: 8
+loss:
+  contact: 1.5
+  sign_contact: 6.0
+  persistence: 0.25

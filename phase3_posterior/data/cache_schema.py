@@ -16,6 +16,7 @@ from phase3_posterior.geometry.relation_anchors import (
 
 
 SCHEMA_VERSION = 1
+RELATION_SCHEMA_VERSION = 2
 FORBIDDEN_SOURCE_PARTS = ("data/smplx_gt", "data/evaluation_from_author")
 
 
@@ -69,6 +70,7 @@ class RelationSidecar:
     contact_valid: np.ndarray
     persistence_target: np.ndarray
     depth_target: np.ndarray
+    target_edge_features: np.ndarray | None = None
     metadata_json: str = "{}"
 
     def validate(self) -> None:
@@ -94,6 +96,15 @@ class RelationSidecar:
             value = getattr(self, name)
             if value.shape != shape:
                 raise ValueError(f"{name}: expected {shape}, got {value.shape}")
+        if self.target_edge_features is not None and self.target_edge_features.shape != (
+            t,
+            edges,
+            EDGE_FEATURE_DIM,
+        ):
+            raise ValueError(
+                "target_edge_features: expected "
+                f"{(t, edges, EDGE_FEATURE_DIM)}, got {self.target_edge_features.shape}"
+            )
         if t == 0:
             raise ValueError("relation sidecar cannot be empty")
         if (
@@ -101,7 +112,10 @@ class RelationSidecar:
             or self.edge_index.max(initial=0) >= NUM_RELATION_NODES
         ):
             raise ValueError("edge_index contains an invalid node")
-        for name in ("node_positions", "edge_features"):
+        finite_names = ["node_positions", "edge_features"]
+        if self.target_edge_features is not None:
+            finite_names.append("target_edge_features")
+        for name in finite_names:
             if not np.isfinite(getattr(self, name)).all():
                 raise ValueError(f"{name} contains NaN or Inf")
         if not np.isin(self.depth_target, (0, 1, 2)).all():
@@ -122,16 +136,20 @@ def save_relation_sidecar(path: str | Path, sidecar: RelationSidecar) -> None:
     target.parent.mkdir(parents=True, exist_ok=True)
     temporary = target.with_suffix(target.suffix + ".tmp")
     with temporary.open("wb") as handle:
-        np.savez_compressed(
-            handle, **asdict(sidecar), schema_version=np.asarray(SCHEMA_VERSION)
-        )
+        payload = asdict(sidecar)
+        if payload["target_edge_features"] is None:
+            payload.pop("target_edge_features")
+            version = 1
+        else:
+            version = RELATION_SCHEMA_VERSION
+        np.savez_compressed(handle, **payload, schema_version=np.asarray(version))
     temporary.replace(target)
 
 
 def load_relation_sidecar(path: str | Path) -> RelationSidecar:
     with np.load(path, allow_pickle=False) as data:
         version = int(data["schema_version"])
-        if version != SCHEMA_VERSION:
+        if version not in {1, RELATION_SCHEMA_VERSION}:
             raise ValueError(f"Unsupported Phase 3 relation schema: {version}")
         sidecar = RelationSidecar(
             clip_id=str(data["clip_id"]),
@@ -144,6 +162,11 @@ def load_relation_sidecar(path: str | Path) -> RelationSidecar:
             contact_valid=data["contact_valid"],
             persistence_target=data["persistence_target"],
             depth_target=data["depth_target"],
+            target_edge_features=(
+                data["target_edge_features"]
+                if "target_edge_features" in data.files
+                else None
+            ),
             metadata_json=str(data["metadata_json"]),
         )
     sidecar.validate()

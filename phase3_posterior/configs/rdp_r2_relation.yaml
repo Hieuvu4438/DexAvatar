@@ -5,3 +5,5 @@ model:
 training:
   max_steps: 50000
   batch_size: 8
+  generic_warmup_steps: 30000
+  checkpoint_interval: 1000

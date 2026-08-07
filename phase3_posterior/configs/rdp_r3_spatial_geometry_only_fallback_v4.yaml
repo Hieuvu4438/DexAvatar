@@ -1,0 +1,10 @@
+base: rdp_r3_spatial_geometry_only_fallback.yaml
+output_dir: outputs/phase3_training/rdp_r3_spatial_geometry_only_v4_seed42
+training:
+  conditioning_validity: frame_valid_initializer
+  validation_interval: 2500
+  validation_batch_size: 8
+  validation_max_batches: 8
+  validation_sampling_steps: 10
+  validation_seed: 2042
+  early_stop_patience: 8

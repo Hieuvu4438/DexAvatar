@@ -1,0 +1,27 @@
+base: rdp_base.yaml
+fallback:
+  pipeline_id: R2_geometry_only_R3_progression
+  mode: geometry_only
+  source_gate: P3-G2
+  source_gate_decision: NO-GO
+  source_gate_decision_path: outputs/phase3_gates/g2/rdp_r2_relation_corrected_v2b_seed42_decision.json
+  source_gate_decision_sha256: 5cceb65aca11d026d057d4d172dd435a81de71edc9aac7840d35ab6b986c18e8
+  relation_checkpoint: outputs/phase3_training/rdp_r2_relation_corrected_v2b_seed42/best.pt
+  relation_checkpoint_sha256: 69852e0d88a166bff65326ae22eb6359aada658458384b5f3c879709131d33b9
+  relation_checkpoint_step: 36000
+  contact_energy_enabled: false
+  force_coupling_enabled: false
+  persistence_constraints_enabled: false
+  future_r2_retraining_required: true
+model:
+  predict_distance: true
+  edge_identity: true
+  contact_energy_enabled: false
+  freeze_relation_backbone: true
+loss:
+  auxiliary_snr_gamma: 5.0
+  contact: 0.0
+  persistence: 0.0
+  depth: 0.0
+sampling:
+  contact_energy_enabled: false
