@@ -51,7 +51,9 @@ data/paper/*.pdf
 *.tar.gz
 *.pth
 *.pt
+*.pt2
 *.ckpt
+*.safetensors
 *.npy
 *.npz
 *.pkl
