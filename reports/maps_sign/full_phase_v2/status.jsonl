@@ -1,0 +1,16 @@
+{"event":"seed_start","seed":42,"utc":"2026-08-12T07:48:15Z"}
+{"event":"seed_complete","seed":42,"utc":"2026-08-12T08:24:13Z","checkpoint":"checkpoint_epoch_020.pt"}
+{"event":"seed_start","seed":314,"utc":"2026-08-12T08:24:13Z"}
+{"event":"seed_complete","seed":314,"utc":"2026-08-12T09:05:18Z","checkpoint":"checkpoint_epoch_017.pt"}
+{"event":"seed_start","seed":2026,"utc":"2026-08-12T09:05:18Z"}
+{"event":"seed_complete","seed":2026,"utc":"2026-08-12T09:45:27Z","checkpoint":"checkpoint_epoch_020.pt"}
+{"event":"training_sweep_complete","utc":"2026-08-12T09:45:27Z"}
+{"event":"tmux_exit","code":0,"utc":"2026-08-12T09:45:27Z"}
+{"event":"watcher_verified_complete","utc":"2026-08-12T09:45:43Z"}
+{"event":"recovery_watcher_exit","code":0,"utc":"2026-08-12T09:45:43Z"}
+{"event":"finalize_start","utc":"2026-08-12T09:46:00Z"}
+{"event":"full_phase_evaluation_complete","utc":"2026-08-12T10:15:47Z"}
+{"event":"finalize_exit","code":0,"utc":"2026-08-12T10:15:47Z"}
+{"event":"guarded_inference_start","utc":"2026-08-12T10:29:32Z"}
+{"event":"guarded_evaluation_complete","utc":"2026-08-12T10:30:57Z"}
+{"event":"guarded_tmux_exit","code":0,"utc":"2026-08-12T10:30:57Z"}

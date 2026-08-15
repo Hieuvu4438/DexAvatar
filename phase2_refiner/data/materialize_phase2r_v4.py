@@ -45,7 +45,9 @@ def _target_quality(clip, metadata: dict) -> np.ndarray:
     quality = np.zeros((len(clip.frame_names), 51), dtype=np.float32)
     target = metadata.get("target_quality", {})
     final = target.get("final_reprojection", {}) if isinstance(target, dict) else {}
-    accepted = bool(target.get("accepted", False)) if isinstance(target, dict) else False
+    accepted = (
+        bool(target.get("accepted", False)) if isinstance(target, dict) else False
+    )
     for start, end, name in REGIONS:
         error = float(final.get(name, math.inf))
         # 0.05 is 5% of normalized image width. This is a quality prior, not a
@@ -73,10 +75,13 @@ def adapt_clip(source: Path, destination: Path, source_manifest: Path) -> dict:
     clip.interpolated_observation = np.zeros_like(clip.track_valid)
     clip.target_quality = _target_quality(clip, metadata)
     component = str(metadata.get("initializer_expert", "smplerx_h32")).replace(" ", "_")
-    clip.initializer_component = np.full(len(clip.frame_names), component, dtype=str)
-    clip.fallback_reason = np.full(len(clip.frame_names), "", dtype=str)
-    clip.camera_model = np.full(
-        len(clip.frame_names), "legacy_projection_intrinsics_unavailable", dtype=str
+    clip.initializer_component = np.asarray(
+        [component] * len(clip.frame_names), dtype=str
+    )
+    clip.fallback_reason = np.asarray([""] * len(clip.frame_names), dtype=str)
+    clip.camera_model = np.asarray(
+        ["legacy_projection_intrinsics_unavailable"] * len(clip.frame_names),
+        dtype=str,
     )
     clip.hand_activity = np.stack(
         (
@@ -114,7 +119,9 @@ def run(args: argparse.Namespace) -> dict:
     source_root = args.source_root.resolve()
     output_root = args.output_root.resolve()
     if output_root.exists() and any(output_root.iterdir()) and not args.resume:
-        raise FileExistsError(f"Refusing non-empty output without --resume: {output_root}")
+        raise FileExistsError(
+            f"Refusing non-empty output without --resume: {output_root}"
+        )
     (output_root / "splits").mkdir(parents=True, exist_ok=True)
     report = {"adapter": "how2sign-proxy-to-phase2r-v1", "splits": {}}
     for split in ("train", "val", "calibration"):
@@ -158,7 +165,11 @@ def run(args: argparse.Namespace) -> dict:
         "split_disjoint_verified": True,
         "evidence_tier": "H32 same-view 2D proxy; not formal exact-A1R evidence",
     }
-    for split, key in (("train", "train"), ("val", "validation"), ("calibration", "calibration")):
+    for split, key in (
+        ("train", "train"),
+        ("val", "validation"),
+        ("calibration", "calibration"),
+    ):
         item = report["splits"][split]
         audit[key] = {
             "passed": True,

@@ -77,9 +77,7 @@ def _draw_tracks(
     return image
 
 
-def _project_vertices(
-    vertices: np.ndarray, bbox: np.ndarray
-) -> np.ndarray:
+def _project_vertices(vertices: np.ndarray, bbox: np.ndarray) -> np.ndarray:
     x, y, width, height = bbox.astype(np.float64)
     focal_x = 5000.0 / 192.0 * width
     focal_y = 5000.0 / 256.0 * height
@@ -113,11 +111,17 @@ def _overlay_mesh(
     return cv2.addWeighted(frame, 0.58, overlay, 0.42, 0.0)
 
 
-def _side_view(vertices: np.ndarray, size: tuple[int, int]) -> np.ndarray:
+def _side_view(
+    vertices: np.ndarray,
+    size: tuple[int, int],
+    label: str = "teacher side view",
+) -> np.ndarray:
     width, height = size
     canvas = np.full((height, width, 3), 245, dtype=np.uint8)
     centered = vertices - np.median(vertices, axis=0, keepdims=True)
-    vertical_span = float(np.quantile(centered[:, 1], 0.99) - np.quantile(centered[:, 1], 0.01))
+    vertical_span = float(
+        np.quantile(centered[:, 1], 0.99) - np.quantile(centered[:, 1], 0.01)
+    )
     scale = 0.82 * height / max(vertical_span, 1e-6)
     x = centered[:, 2] * scale + width * 0.5
     y = centered[:, 1] * scale + height * 0.5
@@ -128,11 +132,15 @@ def _side_view(vertices: np.ndarray, size: tuple[int, int]) -> np.ndarray:
     for index in order[::3]:
         point = (int(round(x[index])), int(round(y[index])))
         if 0 <= point[0] < width and 0 <= point[1] < height:
-            color = (int(220 - 150 * normalized[index]), 70, int(70 + 170 * normalized[index]))
+            color = (
+                int(220 - 150 * normalized[index]),
+                70,
+                int(70 + 170 * normalized[index]),
+            )
             cv2.circle(canvas, point, 1, color, -1)
     cv2.putText(
         canvas,
-        "teacher side view",
+        label,
         (8, 22),
         cv2.FONT_HERSHEY_SIMPLEX,
         0.52,
@@ -205,7 +213,9 @@ def render_queue(
         for local_index, position in enumerate(positions):
             frame_index = int(teacher["sample_indices"][position])
             frame = _read_frame(Path(row["video_path"]), frame_index)
-            frame = _overlay_mesh(frame, vertices[local_index], teacher["bboxes"][position])
+            frame = _overlay_mesh(
+                frame, vertices[local_index], teacher["bboxes"][position]
+            )
             frame = _draw_tracks(
                 frame,
                 teacher["keypoints_2d"][position],
@@ -249,11 +259,15 @@ def render_queue(
         clip_path = clip_dir / f"{row_index + 1:03d}_{row['clip_id']}.jpg"
         cv2.imwrite(str(clip_path), image, [cv2.IMWRITE_JPEG_QUALITY, 92])
         rendered.append(clip_path)
-        print(f"[audit-render] {row_index + 1}/{len(rows)} {row['clip_id']}", flush=True)
+        print(
+            f"[audit-render] {row_index + 1}/{len(rows)} {row['clip_id']}", flush=True
+        )
 
     sheets = []
     for start in range(0, len(rendered), clips_per_sheet):
-        images = [cv2.imread(str(path)) for path in rendered[start : start + clips_per_sheet]]
+        images = [
+            cv2.imread(str(path)) for path in rendered[start : start + clips_per_sheet]
+        ]
         sheet = np.concatenate(images, axis=0)
         sheet_path = sheet_dir / f"sheet_{start // clips_per_sheet + 1:02d}.jpg"
         cv2.imwrite(str(sheet_path), sheet, [cv2.IMWRITE_JPEG_QUALITY, 94])
@@ -305,7 +319,16 @@ def main() -> None:
         args.clips_per_sheet,
         args.limit,
     )
-    print(json.dumps({key: value for key, value in report.items() if key not in {"clip_images", "sheets"}}, indent=2))
+    print(
+        json.dumps(
+            {
+                key: value
+                for key, value in report.items()
+                if key not in {"clip_images", "sheets"}
+            },
+            indent=2,
+        )
+    )
 
 
 if __name__ == "__main__":

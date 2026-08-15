@@ -1,0 +1,6 @@
+{
+  "train": ["3", "5", "8"],
+  "val": ["1", "2"],
+  "calibration": ["4", "9", "11"],
+  "note": "Preflight assignment for the locally encoded How2Sign signer IDs. Cross-check these IDs against the licensed SignAvatars metadata before formal use."
+}

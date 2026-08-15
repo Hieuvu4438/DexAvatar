@@ -1,8 +1,10 @@
 import pytest
 import torch
 
+import phase2_refiner.train as train_module
 from phase2_refiner.train import (
     ExponentialMovingAverage,
+    _geometry_loss_arguments,
     regional_validation_selection_score,
 )
 
@@ -34,3 +36,45 @@ def test_ema_validation_context_restores_training_weights() -> None:
         assert torch.equal(model.weight, torch.full_like(model.weight, 2.0))
 
     assert torch.equal(model.weight, original)
+
+
+def test_geometry_arguments_decode_the_effective_initializer(monkeypatch) -> None:
+    decoded_matrices = []
+
+    def fake_decode(_model, matrix, *_args, **_kwargs):
+        decoded_matrices.append(matrix.clone())
+        shape = (*matrix.shape[:2], 3, 3)
+        return torch.zeros(shape), None
+
+    monkeypatch.setattr(train_module, "decode_smplx_sequence", fake_decode)
+    original = torch.zeros(1, 2, 51, 3, 3)
+    effective = torch.ones_like(original)
+    batch = {
+        "initial_matrix": original,
+        "target_matrix": original + 2.0,
+        "betas": torch.zeros(1, 10),
+        "global_orient": torch.zeros(1, 2, 3),
+        "transl": torch.zeros(1, 2, 3),
+        "jaw_pose": torch.zeros(1, 2, 3),
+        "leye_pose": torch.zeros(1, 2, 3),
+        "reye_pose": torch.zeros(1, 2, 3),
+        "expression": torch.zeros(1, 2, 10),
+    }
+    prediction = {"matrix": original + 3.0}
+
+    _geometry_loss_arguments(
+        {
+            "model": object(),
+            "region_masks": {
+                "ubody": torch.tensor([0]),
+                "lhand": torch.tensor([1]),
+                "rhand": torch.tensor([2]),
+            },
+        },
+        prediction,
+        batch,
+        effective,
+        torch.device("cpu"),
+    )
+
+    assert torch.equal(decoded_matrices[1], effective)

@@ -2533,3 +2533,16 @@ output is overwritten. Verification passes **48/48 Phase 2 tests**, full Ruff
 checks, and Python byte-compilation. The G7 project-scope artifact is
 `outputs/phase2_gates/g7/project_scope_author_1493_v1.json`, SHA-256
 `733612b1a44aee3beeb6da2c59a3b2a3ed276ffc9cca73fe05d4c869a7cd432f`.
+
+---
+
+## 32. Phase 2R full-GO recovery execution — 12 August 2026
+
+The superseding root-cause audit, fail-closed redesign, implementation record,
+current results, and ordered path to full GO are maintained in
+`docs/proposal/DEXAVATAR_PHASE2_FULL_GO_RECOVERY_EXECUTION.md`.
+
+The current decision remains **NO-GO** until that record's formal A1R/3D-target
+contract, causal G5 intervention, and three-seed locked G6 all pass. In
+particular, the existing H32/same-view cache is proxy evidence only and the
+active mesh-aligned seed-42 experiment cannot supersede a formal gate.

@@ -49,16 +49,60 @@ def balanced_region_vertex_loss(
     target: torch.Tensor,
     region_masks: dict[str, torch.Tensor],
     frame_valid: torch.Tensor | None = None,
+    region_frame_weight: dict[str, torch.Tensor] | None = None,
+    translation_centered: bool = False,
 ) -> torch.Tensor:
     """Give upper body, left hand, and right hand equal loss weight."""
-    errors = torch.linalg.vector_norm(prediction - target, dim=-1)
     regions = []
     for name in ("ubody", "lhand", "rhand"):
         if name in region_masks:
-            frame_error = errors[..., region_masks[name]].mean(dim=-1)
-            regions.append(
-                frame_error.mean()
-                if frame_valid is None
-                else masked_mean(frame_error, frame_valid)
+            indices = region_masks[name]
+            predicted_region = prediction[..., indices, :]
+            target_region = target[..., indices, :]
+            if translation_centered:
+                predicted_region = predicted_region - predicted_region.mean(
+                    dim=-2, keepdim=True
+                )
+                target_region = target_region - target_region.mean(dim=-2, keepdim=True)
+            frame_error = torch.linalg.vector_norm(
+                predicted_region - target_region, dim=-1
+            ).mean(dim=-1)
+            weight = None
+            if region_frame_weight is not None:
+                weight = region_frame_weight.get(name)
+            if weight is None:
+                weight = torch.ones_like(frame_error)
+            if frame_valid is not None:
+                weight = weight * frame_valid.to(weight.dtype)
+            regions.append((frame_error * weight).sum() / weight.sum().clamp_min(1.0))
+    return torch.stack(regions).mean() if regions else prediction.new_zeros(())
+
+
+def regional_vertex_errors(
+    prediction: torch.Tensor,
+    target: torch.Tensor,
+    region_masks: dict[str, torch.Tensor],
+    *,
+    translation_centered: bool = True,
+) -> dict[str, torch.Tensor]:
+    """Return per-frame regional vertex errors using the release alignment.
+
+    Values retain the input vertex unit. SMPL-X decoding in this package uses
+    metres, so callers that report millimetres must multiply by 1,000.
+    """
+    result = {}
+    for name in ("ubody", "lhand", "rhand"):
+        if name not in region_masks:
+            continue
+        indices = region_masks[name]
+        predicted_region = prediction[..., indices, :]
+        target_region = target[..., indices, :]
+        if translation_centered:
+            predicted_region = predicted_region - predicted_region.mean(
+                dim=-2, keepdim=True
             )
-    return torch.stack(regions).mean() if regions else errors.new_zeros(())
+            target_region = target_region - target_region.mean(dim=-2, keepdim=True)
+        result[name] = torch.linalg.vector_norm(
+            predicted_region - target_region, dim=-1
+        ).mean(dim=-1)
+    return result

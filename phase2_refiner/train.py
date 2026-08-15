@@ -31,7 +31,9 @@ from phase2_refiner.data.dataset import (
     SequenceCacheDataset,
     collate_sequences,
 )
+from phase2_refiner.data.audit_formal_phase2r import validate_formal_audit_report
 from phase2_refiner.losses import RefinerLoss
+from phase2_refiner.losses.geometry import regional_vertex_errors
 from phase2_refiner.models import WholeSequenceRefiner
 from phase2_refiner.models.pretrained import load_compatible_initialization
 from phase2_refiner.provenance import run_provenance, sha256_file
@@ -129,7 +131,11 @@ def _geometry_context(config: dict, device: torch.device) -> dict | None:
 
 
 def _geometry_loss_arguments(
-    context: dict | None, prediction: dict, batch: dict, device: torch.device
+    context: dict | None,
+    prediction: dict,
+    batch: dict,
+    initial_matrix: torch.Tensor,
+    device: torch.device,
 ) -> dict:
     if context is None:
         return {}
@@ -149,6 +155,14 @@ def _geometry_loss_arguments(
             **face,
         )
         with torch.no_grad():
+            initial_vertices, _ = decode_smplx_sequence(
+                context["model"],
+                initial_matrix.float(),
+                batch["betas"].float(),
+                batch["global_orient"].float(),
+                batch["transl"].float(),
+                **face,
+            )
             target_vertices, _ = decode_smplx_sequence(
                 context["model"],
                 batch["target_matrix"].float(),
@@ -159,6 +173,7 @@ def _geometry_loss_arguments(
             )
     return {
         "predicted_vertices": predicted_vertices,
+        "initial_vertices": initial_vertices.detach(),
         "target_vertices": target_vertices.detach(),
         "vertex_region_masks": context["region_masks"],
     }
@@ -220,10 +235,16 @@ def evaluate(
     geometry_context,
     corruption: dict | None = None,
     corruption_seed: int = 1729,
+    selection_metric: str = "rotation",
+    vertex_translation_centered: bool = False,
 ) -> dict[str, float]:
     model.eval()
     totals: dict[str, list[float]] = {}
     regional_sums = {
+        region: {"baseline": 0.0, "prediction": 0.0, "count": 0}
+        for region in VALIDATION_REGIONS
+    }
+    regional_vertex_sums = {
         region: {"baseline": 0.0, "prediction": 0.0, "count": 0}
         for region in VALIDATION_REGIONS
     }
@@ -253,6 +274,9 @@ def evaluate(
                     batch["refine_mask"],
                     batch["initial_joint_position"],
                 )
+                geometry_arguments = _geometry_loss_arguments(
+                    geometry_context, prediction, batch, initial_matrix, device
+                )
                 losses = loss_fn(
                     prediction,
                     initial_matrix,
@@ -261,9 +285,7 @@ def evaluate(
                     batch["refine_mask"],
                     features[..., U0_RELIABILITY],
                     **_loss_arguments(batch, features),
-                    **_geometry_loss_arguments(
-                        geometry_context, prediction, batch, device
-                    ),
+                    **geometry_arguments,
                 )
             for name, value in losses.items():
                 totals.setdefault(name, []).append(float(value))
@@ -283,17 +305,11 @@ def evaluate(
                 eligible = clip_counts > 0
                 if eligible.any():
                     baseline_clip_mean = (
-                        (baseline_rotation_error[:, :, indices] * valid).sum(
-                            dim=(1, 2)
-                        )
-                        / clip_counts.clamp_min(1)
-                    )
+                        baseline_rotation_error[:, :, indices] * valid
+                    ).sum(dim=(1, 2)) / clip_counts.clamp_min(1)
                     prediction_clip_mean = (
-                        (prediction_rotation_error[:, :, indices] * valid).sum(
-                            dim=(1, 2)
-                        )
-                        / clip_counts.clamp_min(1)
-                    )
+                        prediction_rotation_error[:, :, indices] * valid
+                    ).sum(dim=(1, 2)) / clip_counts.clamp_min(1)
                     regional_sums[region]["baseline"] += float(
                         baseline_clip_mean[eligible].sum()
                     )
@@ -301,6 +317,55 @@ def evaluate(
                         prediction_clip_mean[eligible].sum()
                     )
                     regional_sums[region]["count"] += int(eligible.sum())
+            if geometry_arguments:
+                baseline_vertex_error = regional_vertex_errors(
+                    geometry_arguments["initial_vertices"],
+                    geometry_arguments["target_vertices"],
+                    geometry_arguments["vertex_region_masks"],
+                    translation_centered=vertex_translation_centered,
+                )
+                prediction_vertex_error = regional_vertex_errors(
+                    geometry_arguments["predicted_vertices"],
+                    geometry_arguments["target_vertices"],
+                    geometry_arguments["vertex_region_masks"],
+                    translation_centered=vertex_translation_centered,
+                )
+                for region, indices in VALIDATION_REGIONS.items():
+                    joint_valid = (
+                        batch["target_rotation_valid"][..., indices]
+                        & batch["refine_mask"][:, None, indices]
+                    )
+                    if loss_fn.target_quality_weighting:
+                        quality = batch["target_quality"][..., indices].clamp(0.0, 1.0)
+                        joint_valid = joint_valid & (
+                            quality >= loss_fn.minimum_target_quality
+                        )
+                        frame_weight = (quality * joint_valid).sum(dim=-1) / (
+                            joint_valid.sum(dim=-1).clamp_min(1)
+                        )
+                    else:
+                        frame_weight = joint_valid.any(dim=-1).to(
+                            baseline_vertex_error[region].dtype
+                        )
+                    frame_weight = frame_weight * batch["frame_valid"].to(
+                        frame_weight.dtype
+                    )
+                    clip_weight = frame_weight.sum(dim=1)
+                    eligible = clip_weight > 0
+                    if eligible.any():
+                        baseline_clip_mean = (
+                            baseline_vertex_error[region] * frame_weight
+                        ).sum(dim=1) / clip_weight.clamp_min(1)
+                        prediction_clip_mean = (
+                            prediction_vertex_error[region] * frame_weight
+                        ).sum(dim=1) / clip_weight.clamp_min(1)
+                        regional_vertex_sums[region]["baseline"] += float(
+                            baseline_clip_mean[eligible].sum()
+                        )
+                        regional_vertex_sums[region]["prediction"] += float(
+                            prediction_clip_mean[eligible].sum()
+                        )
+                        regional_vertex_sums[region]["count"] += int(eligible.sum())
             if corruption_mask is not None:
                 mask = corruption_mask & batch["target_rotation_valid"]
                 count = mask.sum().clamp_min(1)
@@ -328,8 +393,29 @@ def evaluate(
         prediction[region] = values["prediction"] / values["count"]
         totals[f"regional_{region}_baseline_radians"] = [baseline[region]]
         totals[f"regional_{region}_prediction_radians"] = [prediction[region]]
+    if selection_metric == "vertex":
+        if geometry_context is None:
+            raise ValueError("Vertex checkpoint selection requires geometry.enabled")
+        selection_baseline = {}
+        selection_prediction = {}
+        for region, values in regional_vertex_sums.items():
+            if not values["count"]:
+                raise ValueError(f"Validation has no vertex targets for {region}")
+            selection_baseline[region] = values["baseline"] / values["count"]
+            selection_prediction[region] = values["prediction"] / values["count"]
+            totals[f"regional_{region}_baseline_vertex_mm"] = [
+                selection_baseline[region] * 1000.0
+            ]
+            totals[f"regional_{region}_prediction_vertex_mm"] = [
+                selection_prediction[region] * 1000.0
+            ]
+    elif selection_metric == "rotation":
+        selection_baseline = baseline
+        selection_prediction = prediction
+    else:
+        raise ValueError("selection_metric must be 'rotation' or 'vertex'")
     selection_score, ratios = regional_validation_selection_score(
-        baseline, prediction
+        selection_baseline, selection_prediction
     )
     totals["selection_score"] = [selection_score]
     for region, ratio in ratios.items():
@@ -444,15 +530,21 @@ def main() -> None:
         data_config["train_glob"] = args.train_glob
     if args.val_glob:
         data_config["val_glob"] = args.val_glob
+    formal_audit = None
+    if data_config.get("formal_evidence", False):
+        expected_manifests = {"train": data_config["train_glob"]}
+        if not args.no_validation:
+            expected_manifests["validation"] = data_config["val_glob"]
+        formal_audit = validate_formal_audit_report(
+            data_config["formal_contract_report"], expected_manifests
+        )
     max_frames = int(config.get("model", {}).get("max_frames", 64))
     input_dim = int(config.get("model", {}).get("input_dim", 43))
     reprojection_residual_scale = float(
         data_config.get("reprojection_residual_scale", 10.0)
     )
     physical_time_motion = bool(data_config.get("physical_time_motion", False))
-    motion_reference_seconds = float(
-        data_config.get("motion_reference_seconds", 0.04)
-    )
+    motion_reference_seconds = float(data_config.get("motion_reference_seconds", 0.04))
     require_phase2r_semantics = bool(
         data_config.get("require_phase2r_semantics", False)
     )
@@ -573,6 +665,14 @@ def main() -> None:
         )
     output.mkdir(parents=True, exist_ok=True)
     provenance = run_provenance(args.config, seed)
+    provenance["formal_evidence"] = bool(data_config.get("formal_evidence", False))
+    if formal_audit is not None:
+        provenance["formal_contract_report"] = str(
+            Path(data_config["formal_contract_report"]).resolve()
+        )
+        provenance["formal_contract_report_sha256"] = sha256_file(
+            data_config["formal_contract_report"]
+        )
     if initialization_report is not None:
         initialization_report["sha256"] = sha256_file(args.spatial_init)
         provenance["spatial_initialization"] = initialization_report
@@ -601,6 +701,11 @@ def main() -> None:
     uncertainty_only_steps = int(train_config.get("uncertainty_only_steps", 0))
     corruption = config.get("corruption", {})
     validation_corruption = config.get("validation_corruption")
+    checkpoint_metric = str(train_config.get("checkpoint_metric", "rotation"))
+    checkpoint_validation = str(train_config.get("checkpoint_validation", "corrupted"))
+    vertex_translation_centered = bool(
+        loss_config.get("vertex_translation_centered", False)
+    )
     best = float("inf")
     validations_without_improvement = 0
     step = micro_step = 0
@@ -672,7 +777,11 @@ def main() -> None:
                     features[..., U0_RELIABILITY],
                     **_loss_arguments(batch, features),
                     **_geometry_loss_arguments(
-                        geometry_context, prediction, batch, device
+                        geometry_context,
+                        prediction,
+                        batch,
+                        initial_matrix,
+                        device,
                     ),
                 )
                 scaled_loss = losses["total"] / accumulation
@@ -715,6 +824,11 @@ def main() -> None:
             if val_loader is not None and (
                 step % validate_every == 0 or step == max_steps
             ):
+                primary_corruption = (
+                    validation_corruption
+                    if checkpoint_validation == "corrupted"
+                    else None
+                )
                 raw_metrics = evaluate(
                     model,
                     loss_fn,
@@ -722,8 +836,10 @@ def main() -> None:
                     device,
                     autocast_context,
                     geometry_context,
-                    corruption=validation_corruption,
+                    corruption=primary_corruption,
                     corruption_seed=seed + 10000,
+                    selection_metric=checkpoint_metric,
+                    vertex_translation_centered=vertex_translation_centered,
                 )
                 with ema.average_parameters(model):
                     metrics = evaluate(
@@ -733,29 +849,37 @@ def main() -> None:
                         device,
                         autocast_context,
                         geometry_context,
-                        corruption=validation_corruption,
+                        corruption=primary_corruption,
                         corruption_seed=seed + 10000,
+                        selection_metric=checkpoint_metric,
+                        vertex_translation_centered=vertex_translation_centered,
                     )
                 score = metrics["selection_score"]
-                print(
-                    f"step={step} val_raw={json.dumps(raw_metrics, sort_keys=True)}"
-                )
-                print(
-                    f"step={step} val_ema={json.dumps(metrics, sort_keys=True)}"
-                )
+                print(f"step={step} val_raw={json.dumps(raw_metrics, sort_keys=True)}")
+                print(f"step={step} val_ema={json.dumps(metrics, sort_keys=True)}")
                 if validation_corruption is not None:
                     with ema.average_parameters(model):
-                        clean_metrics = evaluate(
+                        auxiliary_metrics = evaluate(
                             model,
                             loss_fn,
                             val_loader,
                             device,
                             autocast_context,
                             geometry_context,
+                            corruption=(
+                                None
+                                if checkpoint_validation == "corrupted"
+                                else validation_corruption
+                            ),
+                            corruption_seed=seed + 10000,
+                            selection_metric=checkpoint_metric,
+                            vertex_translation_centered=vertex_translation_centered,
                         )
                     print(
-                        f"step={step} val_clean_ema="
-                        f"{json.dumps(clean_metrics, sort_keys=True)}"
+                        f"step={step} val_"
+                        f"{'clean' if checkpoint_validation == 'corrupted' else 'corrupted'}"
+                        "_ema="
+                        f"{json.dumps(auxiliary_metrics, sort_keys=True)}"
                     )
                 if score < best:
                     best = score

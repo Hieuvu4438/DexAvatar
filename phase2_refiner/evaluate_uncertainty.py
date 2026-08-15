@@ -12,6 +12,7 @@ from torch.utils.data import DataLoader
 
 from phase2_refiner.config import load_config
 from phase2_refiner.data.corruptions import apply_burst_corruption
+from phase2_refiner.data.audit_formal_phase2r import validate_formal_audit_report
 from phase2_refiner.data.dataset import (
     U0_RELIABILITY,
     SequenceCacheDataset,
@@ -48,6 +49,12 @@ def export_residuals(args: argparse.Namespace) -> dict:
 
     real_audit = None
     exact_locked_a1 = False
+    formal_phase2r = False
+    if args.formal_contract_report:
+        validate_formal_audit_report(
+            args.formal_contract_report, {"calibration": args.manifest}
+        )
+        formal_phase2r = True
     if args.real_residual_audit:
         with args.real_residual_audit.open("r", encoding="utf-8") as handle:
             real_audit = json.load(handle)
@@ -68,12 +75,12 @@ def export_residuals(args: argparse.Namespace) -> dict:
             bool((real_audit.get(split) or {}).get("locked_initializer_required"))
             for split in ("train", "validation", "calibration")
         )
-        if not exact_locked_a1 and not args.diagnostic_only:
+        if not exact_locked_a1 and not formal_phase2r and not args.diagnostic_only:
             raise ValueError(
                 "Residual audit is a proxy audit, not an exact locked-A1 audit; "
                 "use --diagnostic-only and do not claim G5"
             )
-    elif not args.diagnostic_only:
+    elif not formal_phase2r and not args.diagnostic_only:
         raise ValueError(
             "A passing --real-residual-audit is required; use --diagnostic-only "
             "only for synthetic engineering checks"
@@ -104,7 +111,9 @@ def export_residuals(args: argparse.Namespace) -> dict:
         collate_fn=collate_sequences,
         num_workers=0,
     )
-    corruption = u1_config.get("validation_corruption") or u1_config.get("corruption", {})
+    corruption = u1_config.get("validation_corruption") or u1_config.get(
+        "corruption", {}
+    )
     corruption = dict(corruption)
     corruption["probability"] = 1.0
     torch.manual_seed(args.seed)
@@ -118,6 +127,10 @@ def export_residuals(args: argparse.Namespace) -> dict:
             "u0_corrupt_error",
             "u1_clean_error",
             "u0_clean_error",
+            "feedback_corrupt_error",
+            "no_feedback_corrupt_error",
+            "feedback_clean_error",
+            "no_feedback_clean_error",
             "group",
         )
     }
@@ -160,6 +173,25 @@ def export_residuals(args: argparse.Namespace) -> dict:
             batch["refine_mask"],
             batch["initial_joint_position"],
         )
+        feedback_setting = u1.uncertainty_feedback
+        u1.uncertainty_feedback = False
+        try:
+            u1_no_feedback_corrupt = u1(
+                corrupt_features,
+                corrupt_initial,
+                batch["frame_valid"],
+                batch["refine_mask"],
+                batch["initial_joint_position"],
+            )
+            u1_no_feedback_clean = u1(
+                clean_features,
+                clean_initial,
+                batch["frame_valid"],
+                batch["refine_mask"],
+                batch["initial_joint_position"],
+            )
+        finally:
+            u1.uncertainty_feedback = feedback_setting
         mask = (
             batch["frame_valid"][:, :, None]
             & batch["target_rotation_valid"]
@@ -178,6 +210,18 @@ def export_residuals(args: argparse.Namespace) -> dict:
             "u0_clean_error": geodesic_distance(
                 u0_clean["matrix"], batch["target_matrix"]
             ),
+            "feedback_corrupt_error": geodesic_distance(
+                u1_corrupt["matrix"], batch["target_matrix"]
+            ),
+            "no_feedback_corrupt_error": geodesic_distance(
+                u1_no_feedback_corrupt["matrix"], batch["target_matrix"]
+            ),
+            "feedback_clean_error": geodesic_distance(
+                u1_clean["matrix"], batch["target_matrix"]
+            ),
+            "no_feedback_clean_error": geodesic_distance(
+                u1_no_feedback_clean["matrix"], batch["target_matrix"]
+            ),
         }
         for key, value in errors.items():
             arrays[key].append(value[mask].cpu().numpy())
@@ -191,16 +235,16 @@ def export_residuals(args: argparse.Namespace) -> dict:
             corrupt_features[..., U0_RELIABILITY].clamp_min(1e-4)
         )
         arrays["u0_log_variance"].append(u0_log_variance[mask].cpu().numpy())
-        group_grid = np.broadcast_to(
-            REGION_GROUP[None, None, :], tuple(mask.shape)
-        )
+        group_grid = np.broadcast_to(REGION_GROUP[None, None, :], tuple(mask.shape))
         arrays["group"].append(group_grid[mask.cpu().numpy()])
 
     payload = {key: np.concatenate(value) for key, value in arrays.items()}
     payload.update(
         {
             "source_kind": np.asarray(
-                "real_residual_exact_a1"
+                "real_residual_formal_phase2r"
+                if formal_phase2r
+                else "real_residual_exact_a1"
                 if exact_locked_a1
                 else (
                     "proxy_residual_diagnostic"
@@ -209,8 +253,11 @@ def export_residuals(args: argparse.Namespace) -> dict:
                 )
             ),
             "split_disjoint_verified": np.asarray(
-                real_audit is not None
-                and bool(real_audit.get("split_disjoint_verified", False))
+                formal_phase2r
+                or (
+                    real_audit is not None
+                    and bool(real_audit.get("split_disjoint_verified", False))
+                )
             ),
             "u1_checkpoint_sha256": np.asarray(sha256_file(args.u1_checkpoint)),
             "u0_checkpoint_sha256": np.asarray(sha256_file(args.u0_checkpoint)),
@@ -218,6 +265,11 @@ def export_residuals(args: argparse.Namespace) -> dict:
             "real_residual_audit_sha256": np.asarray(
                 sha256_file(args.real_residual_audit)
                 if args.real_residual_audit
+                else ""
+            ),
+            "formal_contract_report_sha256": np.asarray(
+                sha256_file(args.formal_contract_report)
+                if args.formal_contract_report
                 else ""
             ),
         }
@@ -240,6 +292,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--u0-config", type=Path, required=True)
     parser.add_argument("--u0-checkpoint", type=Path, required=True)
     parser.add_argument("--real-residual-audit", type=Path)
+    parser.add_argument("--formal-contract-report", type=Path)
     parser.add_argument("--diagnostic-only", action="store_true")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--batch-size", type=int, default=8)

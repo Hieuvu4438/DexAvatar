@@ -16,7 +16,7 @@ from phase2_refiner.config import load_config, validate_config
 from phase2_refiner.data.corruptions import apply_burst_corruption
 from phase2_refiner.data.dataset import SequenceCacheDataset, collate_sequences
 from phase2_refiner.geometry.smplx_decode import decode_smplx_sequence
-from phase2_refiner.infer import _load_model
+from phase2_refiner.infer import _apply_selective_benefit, _load_model
 from phase2_refiner.render import create_smplx_model
 
 
@@ -65,6 +65,23 @@ def _accumulate(
     totals[name]["sum"] += float(selected.sum())
     totals[name]["count"] += int(selected.numel())
     totals[name]["frames"] += int(frame_mask.sum())
+
+
+def _vertex_error(
+    prediction: torch.Tensor,
+    target: torch.Tensor,
+    indices: torch.Tensor,
+    *,
+    translation_centered: bool,
+) -> torch.Tensor:
+    predicted_region = prediction.index_select(-2, indices)
+    target_region = target.index_select(-2, indices)
+    if translation_centered:
+        predicted_region = predicted_region - predicted_region.mean(
+            dim=-2, keepdim=True
+        )
+        target_region = target_region - target_region.mean(dim=-2, keepdim=True)
+    return torch.linalg.vector_norm(predicted_region - target_region, dim=-1) * 1000.0
 
 
 def _means(
@@ -125,9 +142,7 @@ def main() -> None:
         reprojection_residual_scale=float(
             config["data"].get("reprojection_residual_scale", 10.0)
         ),
-        physical_time_motion=bool(
-            config["data"].get("physical_time_motion", False)
-        ),
+        physical_time_motion=bool(config["data"].get("physical_time_motion", False)),
         motion_reference_seconds=float(
             config["data"].get("motion_reference_seconds", 0.04)
         ),
@@ -164,6 +179,12 @@ def main() -> None:
         and precision in {"bf16", "fp16"}
     )
     amp_dtype = torch.bfloat16 if precision == "bf16" else torch.float16
+    benefit_threshold = config.get("inference", {}).get("benefit_threshold")
+    if benefit_threshold is not None:
+        benefit_threshold = float(benefit_threshold)
+    translation_centered = bool(
+        config.get("loss", {}).get("vertex_translation_centered", False)
+    )
 
     def autocast_context():
         if amp_enabled:
@@ -191,19 +212,20 @@ def main() -> None:
                     batch["refine_mask"],
                     batch["initial_joint_position"],
                 )
+            _apply_selective_benefit(
+                clean_prediction, batch["initial_matrix"], benefit_threshold
+            )
             clean_vertices = _decode(body_model, clean_prediction["matrix"], batch)
             for region, ids in vertex_ids.items():
                 valid = batch["target_rotation_valid"][..., REGION_JOINTS[region]].all(
                     -1
                 )
                 valid &= batch["frame_valid"]
-                error = (
-                    torch.linalg.vector_norm(
-                        clean_vertices.index_select(-2, ids)
-                        - target_vertices.index_select(-2, ids),
-                        dim=-1,
-                    )
-                    * 1000.0
+                error = _vertex_error(
+                    clean_vertices,
+                    target_vertices,
+                    ids,
+                    translation_centered=translation_centered,
                 )
                 _accumulate(clean_totals, region, error, valid)
 
@@ -228,6 +250,7 @@ def main() -> None:
                         batch["refine_mask"],
                         batch["initial_joint_position"],
                     )
+                _apply_selective_benefit(prediction, initial_matrix, benefit_threshold)
                 initial_vertices = _decode(body_model, initial_matrix, batch)
                 predicted_vertices = _decode(body_model, prediction["matrix"], batch)
                 for region, ids in vertex_ids.items():
@@ -235,21 +258,17 @@ def main() -> None:
                     frame_mask &= batch["target_rotation_valid"][
                         ..., REGION_JOINTS[region]
                     ].all(-1)
-                    injected = (
-                        torch.linalg.vector_norm(
-                            initial_vertices.index_select(-2, ids)
-                            - target_vertices.index_select(-2, ids),
-                            dim=-1,
-                        )
-                        * 1000.0
+                    injected = _vertex_error(
+                        initial_vertices,
+                        target_vertices,
+                        ids,
+                        translation_centered=translation_centered,
                     )
-                    residual = (
-                        torch.linalg.vector_norm(
-                            predicted_vertices.index_select(-2, ids)
-                            - target_vertices.index_select(-2, ids),
-                            dim=-1,
-                        )
-                        * 1000.0
+                    residual = _vertex_error(
+                        predicted_vertices,
+                        target_vertices,
+                        ids,
+                        translation_centered=translation_centered,
                     )
                     _accumulate(
                         duration_totals[duration]["injected"],
@@ -314,6 +333,8 @@ def main() -> None:
             precision if args.eval_precision == "training" else "fp32"
         ),
         "units": "millimetres",
+        "translation_centered_per_region": translation_centered,
+        "benefit_threshold": benefit_threshold,
         "clean": clean,
         "durations": durations,
         "available_regions": available,

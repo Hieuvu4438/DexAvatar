@@ -66,6 +66,15 @@ def validate_config(
         raise ValueError(
             "loss.target_quality_weighting requires data.require_phase2r_semantics"
         )
+    if data.get("formal_evidence", False):
+        if not data.get("require_phase2r_semantics", False):
+            raise ValueError(
+                "data.formal_evidence requires data.require_phase2r_semantics"
+            )
+        if not data.get("formal_contract_report"):
+            raise ValueError(
+                "data.formal_evidence requires data.formal_contract_report"
+            )
     threshold = config.get("inference", {}).get("benefit_threshold")
     if threshold is not None:
         if not model.get("predict_benefit", False):
@@ -81,15 +90,23 @@ def validate_config(
     if reference_seconds <= 0:
         raise ValueError("data.motion_reference_seconds must be positive")
     loss = config.get("loss", {})
+    benefit_target = str(loss.get("benefit_target", "rotation"))
+    if benefit_target not in {"rotation", "vertex"}:
+        raise ValueError("loss.benefit_target must be 'rotation' or 'vertex'")
+    if benefit_target == "vertex" and not config.get("geometry", {}).get(
+        "enabled", False
+    ):
+        raise ValueError("loss.benefit_target=vertex requires geometry.enabled")
     if "physical_time_motion" in loss and bool(loss["physical_time_motion"]) != bool(
         data.get("physical_time_motion", False)
     ):
         raise ValueError(
             "loss.physical_time_motion must match data.physical_time_motion"
         )
-    if "motion_reference_seconds" in loss and float(
-        loss["motion_reference_seconds"]
-    ) != reference_seconds:
+    if (
+        "motion_reference_seconds" in loss
+        and float(loss["motion_reference_seconds"]) != reference_seconds
+    ):
         raise ValueError(
             "loss.motion_reference_seconds must match data.motion_reference_seconds"
         )
@@ -99,6 +116,22 @@ def validate_config(
         raise ValueError("model.hidden_size must be divisible by model.num_heads")
     if int(model.get("max_frames", 64)) < 2:
         raise ValueError("model.max_frames must be at least 2")
+    checkpoint_metric = str(
+        config.get("training", {}).get("checkpoint_metric", "rotation")
+    )
+    if checkpoint_metric not in {"rotation", "vertex"}:
+        raise ValueError("training.checkpoint_metric must be 'rotation' or 'vertex'")
+    if checkpoint_metric == "vertex" and not config.get("geometry", {}).get(
+        "enabled", False
+    ):
+        raise ValueError("training.checkpoint_metric=vertex requires geometry.enabled")
+    checkpoint_validation = str(
+        config.get("training", {}).get("checkpoint_validation", "corrupted")
+    )
+    if checkpoint_validation not in {"clean", "corrupted"}:
+        raise ValueError(
+            "training.checkpoint_validation must be 'clean' or 'corrupted'"
+        )
     from phase2_refiner.t5_optimize import validate_t5_config
 
     validate_t5_config(config.get("t5", {}))

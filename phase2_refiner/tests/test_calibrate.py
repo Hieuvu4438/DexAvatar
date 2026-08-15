@@ -30,6 +30,47 @@ def test_gate_fails_without_real_residual_and_u0_comparator() -> None:
     assert not gate["checks"]["source_and_signer_disjoint_real_residual"]
 
 
+def test_gate_requires_a_causal_uncertainty_feedback_gain() -> None:
+    metrics = {
+        "spearman": 0.9,
+        "worst_decile_auc": 0.9,
+        "risk_monotonic": True,
+        "nll_before": 1.0,
+        "nll_after": 0.5,
+    }
+    reconstruction = {
+        "u1_corrupt": 0.8,
+        "u0_corrupt": 1.0,
+        "u1_clean": 0.9,
+        "u0_clean": 0.9,
+    }
+    no_effect = {
+        "feedback_corrupt": 0.8,
+        "no_feedback_corrupt": 0.8,
+        "feedback_clean": 0.9,
+        "no_feedback_clean": 0.9,
+    }
+    effect = {**no_effect, "feedback_corrupt": 0.7}
+
+    failed = calibration_gate(
+        metrics,
+        u0_nll=0.6,
+        reconstruction=reconstruction,
+        intervention=no_effect,
+        valid_real_residual=True,
+    )
+    passed = calibration_gate(
+        metrics,
+        u0_nll=0.6,
+        reconstruction=reconstruction,
+        intervention=effect,
+        valid_real_residual=True,
+    )
+
+    assert not failed["passed"]
+    assert passed["passed"]
+
+
 def test_worst_decile_ranking_loss_drives_high_error_variance_up() -> None:
     error = torch.linspace(0.0, 1.0, 2 * 3 * 51).reshape(2, 3, 51)
     log_variance = torch.zeros_like(error, requires_grad=True)

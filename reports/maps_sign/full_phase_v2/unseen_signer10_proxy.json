@@ -1,0 +1,74 @@
+{
+  "checkpoints": [
+    "/home/haipd/DexAvatar/outputs/maps_sign_full/runs_v2/seed_42/checkpoint_epoch_020.pt",
+    "/home/haipd/DexAvatar/outputs/maps_sign_full/runs_v2/seed_314/checkpoint_epoch_017.pt"
+  ],
+  "clips": 220,
+  "manifest": "/home/haipd/DexAvatar/cache/phase2/t2_how2sign_signer10_2d_temporal_reprojection_v1/splits/test.json",
+  "metrics": {
+    "lhand_degrees": 3.166788816304446,
+    "lhand_gain_degrees": 4.309061017047588,
+    "lhand_initial_degrees": 7.475849833352034,
+    "mean_degrees": 2.503704039440331,
+    "mean_gain_degrees": 2.976525895007962,
+    "rhand_degrees": 3.2522278042416377,
+    "rhand_gain_degrees": 4.303964004420061,
+    "rhand_initial_degrees": 7.556191808661699,
+    "ubody_degrees": 1.0920954977749087,
+    "ubody_gain_degrees": 0.31655266355623635,
+    "ubody_initial_degrees": 1.408648161331145
+  },
+  "schema": "maps-sign-proxy-evaluation-v1",
+  "split": "external",
+  "state_decoder": {
+    "min_durations": [
+      3,
+      2,
+      1
+    ],
+    "mode": "coupled",
+    "switch_penalty": 0.35
+  },
+  "state_metrics": {
+    "accuracy": 0.776258111000061,
+    "boundary_counts": {
+      "false_negative": 10551,
+      "false_positive": 351,
+      "true_positive": 12997
+    },
+    "boundary_f1_tolerance_1": 0.7045208152645274,
+    "confusion_target_rows": [
+      [
+        11902,
+        214,
+        3696
+      ],
+      [
+        71,
+        15143,
+        1695
+      ],
+      [
+        1949,
+        3401,
+        11209
+      ]
+    ],
+    "f1_stable_transition_unknown": [
+      0.8005650097531446,
+      0.849132251100457,
+      0.6760758768358515
+    ],
+    "macro_f1": 0.775257712563151,
+    "per_channel_accuracy": [
+      0.7740057110786438,
+      0.7446022629737854,
+      0.7998579740524292,
+      0.7681818008422852,
+      0.7924715876579285,
+      0.7721590995788574,
+      0.7825284004211426
+    ]
+  },
+  "target_quality_policy": "uniform_on_valid_target"
+}

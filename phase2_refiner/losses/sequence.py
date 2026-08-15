@@ -13,6 +13,7 @@ from phase2_refiner.losses.geometry import (
     joint_position_loss,
     masked_mean,
     palm_normal_loss,
+    regional_vertex_errors,
 )
 from phase2_refiner.losses.motion import rotation_motion_losses
 from phase2_refiner.losses.uncertainty import (
@@ -38,6 +39,9 @@ class RefinerLoss(nn.Module):
         uncertainty_ranking_weight: float = 0.0,
         benefit_weight: float = 0.0,
         benefit_margin_degrees: float = 0.0,
+        benefit_target: str = "rotation",
+        benefit_margin_mm: float = 0.0,
+        vertex_translation_centered: bool = False,
         target_quality_weighting: bool = False,
         minimum_target_quality: float = 0.1,
         physical_time_motion: bool = False,
@@ -60,6 +64,13 @@ class RefinerLoss(nn.Module):
             "benefit": benefit_weight,
         }
         self.benefit_margin = torch.deg2rad(torch.tensor(benefit_margin_degrees)).item()
+        self.benefit_target = str(benefit_target)
+        if self.benefit_target not in {"rotation", "vertex"}:
+            raise ValueError("benefit_target must be 'rotation' or 'vertex'")
+        self.benefit_margin_metres = float(benefit_margin_mm) / 1000.0
+        if self.benefit_margin_metres < 0:
+            raise ValueError("benefit_margin_mm must be non-negative")
+        self.vertex_translation_centered = bool(vertex_translation_centered)
         self.target_quality_weighting = bool(target_quality_weighting)
         self.minimum_target_quality = float(minimum_target_quality)
         if not 0.0 <= self.minimum_target_quality <= 1.0:
@@ -87,6 +98,7 @@ class RefinerLoss(nn.Module):
         target_palm_normal: torch.Tensor | None = None,
         target_palm_valid: torch.Tensor | None = None,
         predicted_vertices: torch.Tensor | None = None,
+        initial_vertices: torch.Tensor | None = None,
         target_vertices: torch.Tensor | None = None,
         vertex_region_masks: dict[str, torch.Tensor] | None = None,
         predicted_keypoints_2d: torch.Tensor | None = None,
@@ -111,7 +123,9 @@ class RefinerLoss(nn.Module):
             rotation = masked_mean(rotation_error, mask)
         else:
             rotation_weight = quality * mask
-            rotation = (rotation_error * rotation_weight).sum() / rotation_weight.sum().clamp_min(1.0)
+            rotation = (
+                rotation_error * rotation_weight
+            ).sum() / rotation_weight.sum().clamp_min(1.0)
         velocity, acceleration = rotation_motion_losses(
             output,
             target_matrix,
@@ -134,11 +148,27 @@ class RefinerLoss(nn.Module):
             and target_vertices is not None
             and vertex_region_masks is not None
         ):
+            region_frame_weight = {}
+            for name, (start, end) in {
+                "ubody": (0, 21),
+                "lhand": (21, 36),
+                "rhand": (36, 51),
+            }.items():
+                region_mask = mask[..., start:end]
+                if quality is None:
+                    region_frame_weight[name] = region_mask.any(dim=-1).to(output.dtype)
+                else:
+                    valid_quality = quality[..., start:end] * region_mask
+                    region_frame_weight[name] = valid_quality.sum(dim=-1) / (
+                        region_mask.sum(dim=-1).clamp_min(1)
+                    )
             vertex = balanced_region_vertex_loss(
                 predicted_vertices,
                 target_vertices,
                 vertex_region_masks,
                 frame_valid,
+                region_frame_weight=region_frame_weight,
+                translation_centered=self.vertex_translation_centered,
             )
         predicted_joint = prediction.get("joint_position")
         if (
@@ -203,29 +233,66 @@ class RefinerLoss(nn.Module):
         uncertainty = uncertainty_ranking = benefit = zero
         if "log_variance" in prediction:
             log_variance = prediction["log_variance"].squeeze(-1)
-            uncertainty = heteroscedastic_nll(
-                rotation_error, log_variance, mask
-            )
+            uncertainty = heteroscedastic_nll(rotation_error, log_variance, mask)
             uncertainty_ranking = regional_worst_decile_ranking_loss(
                 rotation_error, log_variance, mask
             )
         if "benefit_logit" in prediction:
-            initial_error = geodesic_distance(initial_matrix, target_matrix).detach()
             group_labels = []
             group_valid = []
-            for start, end in ((0, 21), (21, 36), (36, 51)):
-                region_mask = mask[..., start:end]
-                denominator = region_mask.sum(dim=-1).clamp_min(1)
-                initial_region = (
-                    initial_error[..., start:end] * region_mask
-                ).sum(dim=-1) / denominator
-                output_region = (
-                    rotation_error[..., start:end].detach() * region_mask
-                ).sum(dim=-1) / denominator
-                group_labels.append(
-                    (initial_region - output_region > self.benefit_margin).float()
+            if self.benefit_target == "vertex":
+                if (
+                    predicted_vertices is None
+                    or initial_vertices is None
+                    or target_vertices is None
+                    or vertex_region_masks is None
+                ):
+                    raise ValueError(
+                        "vertex benefit labels require initial/predicted/target "
+                        "vertices and regional masks"
+                    )
+                initial_vertex_error = regional_vertex_errors(
+                    initial_vertices,
+                    target_vertices,
+                    vertex_region_masks,
+                    translation_centered=self.vertex_translation_centered,
                 )
-                group_valid.append(region_mask.any(dim=-1))
+                output_vertex_error = regional_vertex_errors(
+                    predicted_vertices.detach(),
+                    target_vertices,
+                    vertex_region_masks,
+                    translation_centered=self.vertex_translation_centered,
+                )
+                for name, (start, end) in {
+                    "ubody": (0, 21),
+                    "lhand": (21, 36),
+                    "rhand": (36, 51),
+                }.items():
+                    region_valid = mask[..., start:end].any(dim=-1)
+                    group_labels.append(
+                        (
+                            initial_vertex_error[name] - output_vertex_error[name]
+                            > self.benefit_margin_metres
+                        ).float()
+                    )
+                    group_valid.append(region_valid)
+            else:
+                initial_error = geodesic_distance(
+                    initial_matrix, target_matrix
+                ).detach()
+                for start, end in ((0, 21), (21, 36), (36, 51)):
+                    region_mask = mask[..., start:end]
+                    denominator = region_mask.sum(dim=-1).clamp_min(1)
+                    initial_region = (initial_error[..., start:end] * region_mask).sum(
+                        dim=-1
+                    ) / denominator
+                    output_region = (
+                        rotation_error[..., start:end].detach() * region_mask
+                    ).sum(dim=-1) / denominator
+                    group_labels.append(
+                        (initial_region - output_region > self.benefit_margin).float()
+                    )
+                    group_valid.append(region_mask.any(dim=-1))
             benefit_label = torch.stack(group_labels, dim=-1)
             benefit_valid = torch.stack(group_valid, dim=-1) & frame_valid[..., None]
             benefit_error = F.binary_cross_entropy_with_logits(

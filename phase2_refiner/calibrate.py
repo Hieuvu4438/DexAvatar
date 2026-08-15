@@ -86,6 +86,7 @@ def calibration_gate(
     *,
     u0_nll: float | None = None,
     reconstruction: dict | None = None,
+    intervention: dict | None = None,
     valid_real_residual: bool = False,
 ) -> dict:
     auc_threshold = 0.75 if "hand" in group.lower() else 0.70
@@ -104,12 +105,22 @@ def calibration_gate(
             reconstruction["u1_corrupt"] < reconstruction["u0_corrupt"]
         )
         checks["clean_regression_at_most_1pct"] = (
-            reconstruction["u1_clean"]
-            <= reconstruction["u0_clean"] * 1.01 + 1e-12
+            reconstruction["u1_clean"] <= reconstruction["u0_clean"] * 1.01 + 1e-12
         )
     else:
         checks["corrupt_reconstruction_improves_u0"] = False
         checks["clean_regression_at_most_1pct"] = False
+    if intervention is not None:
+        checks["feedback_intervention_improves_corrupt_reconstruction"] = (
+            intervention["feedback_corrupt"] < intervention["no_feedback_corrupt"]
+        )
+        checks["feedback_intervention_clean_regression_at_most_1pct"] = (
+            intervention["feedback_clean"]
+            <= intervention["no_feedback_clean"] * 1.01 + 1e-12
+        )
+    else:
+        checks["feedback_intervention_improves_corrupt_reconstruction"] = False
+        checks["feedback_intervention_clean_regression_at_most_1pct"] = False
     return {"passed": all(checks.values()), "checks": checks}
 
 
@@ -143,19 +154,34 @@ def main() -> None:
             "u0_clean_error",
             "source_kind",
             "split_disjoint_verified",
+            "feedback_corrupt_error",
+            "no_feedback_corrupt_error",
+            "feedback_clean_error",
+            "no_feedback_clean_error",
         }
         missing = sorted(required - set(data.files))
         valid_real_residual = False
         if not missing:
-            valid_real_residual = (
-                str(data["source_kind"].item()) == "real_residual_exact_a1"
-                and bool(data["split_disjoint_verified"].item())
-            )
+            valid_real_residual = str(data["source_kind"].item()) in {
+                "real_residual_exact_a1",
+                "real_residual_formal_phase2r",
+            } and bool(data["split_disjoint_verified"].item())
 
         def reconstruction(selected) -> dict:
             return {
                 key: float(np.mean(data[f"{key}_error"][selected]))
                 for key in ("u1_corrupt", "u0_corrupt", "u1_clean", "u0_clean")
+            }
+
+        def intervention(selected) -> dict:
+            return {
+                key: float(np.mean(data[f"{key}_error"][selected]))
+                for key in (
+                    "feedback_corrupt",
+                    "no_feedback_corrupt",
+                    "feedback_clean",
+                    "no_feedback_clean",
+                )
             }
 
         all_metrics = calibration_metrics(error, log_variance)
@@ -164,17 +190,24 @@ def main() -> None:
             if not missing
             else None
         )
-        all_reconstruction = reconstruction(np.ones(error.shape, dtype=bool)) if not missing else None
+        all_reconstruction = (
+            reconstruction(np.ones(error.shape, dtype=bool)) if not missing else None
+        )
+        all_intervention = (
+            intervention(np.ones(error.shape, dtype=bool)) if not missing else None
+        )
         report = {
             "all": all_metrics,
             "u0_calibrated_nll": u0_nll,
             "reconstruction": all_reconstruction,
+            "intervention": all_intervention,
             "valid_real_residual": valid_real_residual,
             "missing_gate_fields": missing,
             "gate": calibration_gate(
                 all_metrics,
                 u0_nll=u0_nll,
                 reconstruction=all_reconstruction,
+                intervention=all_intervention,
                 valid_real_residual=valid_real_residual,
             ),
         }
@@ -189,9 +222,11 @@ def main() -> None:
             report["groups"] = group_metrics
             report["group_gates"] = {}
             report["group_reconstruction"] = {}
+            report["group_intervention"] = {}
             for group, metrics in group_metrics.items():
                 selected = groups == group
                 group_reconstruction = reconstruction(selected) if not missing else None
+                group_intervention = intervention(selected) if not missing else None
                 group_u0_nll = (
                     calibrated_nll(
                         data["u0_corrupt_error"][selected],
@@ -201,11 +236,13 @@ def main() -> None:
                     else None
                 )
                 report["group_reconstruction"][group] = group_reconstruction
+                report["group_intervention"][group] = group_intervention
                 report["group_gates"][group] = calibration_gate(
                     metrics,
                     group,
                     u0_nll=group_u0_nll,
                     reconstruction=group_reconstruction,
+                    intervention=group_intervention,
                     valid_real_residual=valid_real_residual,
                 )
             report["gate"]["passed"] = report["gate"]["passed"] and all(

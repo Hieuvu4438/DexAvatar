@@ -93,8 +93,8 @@ def _audit_split(
         for marker in FORBIDDEN_TARGET_MARKERS:
             if marker.lower() in searchable.lower():
                 leakage.append({"clip": clip.clip_id, "marker": marker})
-        official = metadata.get("official_split")
-        if official is not None and official != expected_split:
+        declared_split = metadata.get("phase2_split", metadata.get("official_split"))
+        if declared_split is not None and declared_split != expected_split:
             split_mismatch.append(clip.clip_id)
     clips = len(paths)
     return (

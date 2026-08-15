@@ -1,0 +1,625 @@
+{
+  "centering": "per-evaluated-region translation registration",
+  "coverage": {
+    "by_sign": {
+      "Ablehnen": {
+        "expected": 14,
+        "found": 14,
+        "paired": 14
+      },
+      "Akzeptieren": {
+        "expected": 31,
+        "found": 31,
+        "paired": 31
+      },
+      "Arzt": {
+        "expected": 21,
+        "found": 21,
+        "paired": 21
+      },
+      "AufgebenResignieren": {
+        "expected": 34,
+        "found": 34,
+        "paired": 34
+      },
+      "AusgebenGeldVerschwenden": {
+        "expected": 19,
+        "found": 19,
+        "paired": 19
+      },
+      "Auto": {
+        "expected": 35,
+        "found": 35,
+        "paired": 35
+      },
+      "BesuchenEinmischen": {
+        "expected": 19,
+        "found": 19,
+        "paired": 19
+      },
+      "Blitz": {
+        "expected": 24,
+        "found": 24,
+        "paired": 24
+      },
+      "Blume": {
+        "expected": 21,
+        "found": 21,
+        "paired": 21
+      },
+      "Boese": {
+        "expected": 19,
+        "found": 19,
+        "paired": 19
+      },
+      "BroetchenAufschneiden": {
+        "expected": 48,
+        "found": 48,
+        "paired": 48
+      },
+      "Dort": {
+        "expected": 13,
+        "found": 13,
+        "paired": 13
+      },
+      "Duenn": {
+        "expected": 23,
+        "found": 23,
+        "paired": 23
+      },
+      "Einkaufen": {
+        "expected": 21,
+        "found": 21,
+        "paired": 21
+      },
+      "Einnehmen": {
+        "expected": 31,
+        "found": 31,
+        "paired": 31
+      },
+      "EinstellenJob": {
+        "expected": 34,
+        "found": 34,
+        "paired": 34
+      },
+      "EisGefroren": {
+        "expected": 30,
+        "found": 30,
+        "paired": 30
+      },
+      "Empathie": {
+        "expected": 23,
+        "found": 23,
+        "paired": 23
+      },
+      "Entschuldigung": {
+        "expected": 31,
+        "found": 31,
+        "paired": 31
+      },
+      "FestellenDiagnose": {
+        "expected": 28,
+        "found": 28,
+        "paired": 28
+      },
+      "Frech": {
+        "expected": 25,
+        "found": 25,
+        "paired": 25
+      },
+      "Frieren": {
+        "expected": 19,
+        "found": 19,
+        "paired": 19
+      },
+      "Frisch": {
+        "expected": 26,
+        "found": 26,
+        "paired": 26
+      },
+      "Froh": {
+        "expected": 30,
+        "found": 30,
+        "paired": 30
+      },
+      "Glas": {
+        "expected": 18,
+        "found": 18,
+        "paired": 18
+      },
+      "IdiomPffIgnorieren": {
+        "expected": 16,
+        "found": 16,
+        "paired": 16
+      },
+      "Jahr": {
+        "expected": 40,
+        "found": 40,
+        "paired": 40
+      },
+      "Klar": {
+        "expected": 16,
+        "found": 16,
+        "paired": 16
+      },
+      "Kochen": {
+        "expected": 46,
+        "found": 46,
+        "paired": 46
+      },
+      "Lesen": {
+        "expected": 31,
+        "found": 31,
+        "paired": 31
+      },
+      "LiebBitte": {
+        "expected": 14,
+        "found": 14,
+        "paired": 14
+      },
+      "Luegen": {
+        "expected": 17,
+        "found": 17,
+        "paired": 17
+      },
+      "Muell": {
+        "expected": 15,
+        "found": 15,
+        "paired": 15
+      },
+      "Mutter": {
+        "expected": 24,
+        "found": 24,
+        "paired": 24
+      },
+      "Naehen": {
+        "expected": 44,
+        "found": 44,
+        "paired": 44
+      },
+      "Nebel": {
+        "expected": 39,
+        "found": 39,
+        "paired": 39
+      },
+      "Neu": {
+        "expected": 13,
+        "found": 13,
+        "paired": 13
+      },
+      "Operieren": {
+        "expected": 31,
+        "found": 31,
+        "paired": 31
+      },
+      "Regen": {
+        "expected": 39,
+        "found": 39,
+        "paired": 39
+      },
+      "SauerWuetend": {
+        "expected": 22,
+        "found": 22,
+        "paired": 22
+      },
+      "Schnee": {
+        "expected": 43,
+        "found": 43,
+        "paired": 43
+      },
+      "Schreiben": {
+        "expected": 44,
+        "found": 44,
+        "paired": 44
+      },
+      "Schwach": {
+        "expected": 25,
+        "found": 25,
+        "paired": 25
+      },
+      "Schwer": {
+        "expected": 21,
+        "found": 21,
+        "paired": 21
+      },
+      "Sonne": {
+        "expected": 25,
+        "found": 25,
+        "paired": 25
+      },
+      "Sorry": {
+        "expected": 26,
+        "found": 26,
+        "paired": 26
+      },
+      "SparenSparsam": {
+        "expected": 29,
+        "found": 29,
+        "paired": 29
+      },
+      "Spezial": {
+        "expected": 20,
+        "found": 20,
+        "paired": 20
+      },
+      "Tisch": {
+        "expected": 13,
+        "found": 13,
+        "paired": 13
+      },
+      "Treffen": {
+        "expected": 28,
+        "found": 28,
+        "paired": 28
+      },
+      "Vater": {
+        "expected": 27,
+        "found": 27,
+        "paired": 27
+      },
+      "Verschieden": {
+        "expected": 41,
+        "found": 41,
+        "paired": 41
+      },
+      "VorsichtPassAuf": {
+        "expected": 12,
+        "found": 12,
+        "paired": 12
+      },
+      "Waschen": {
+        "expected": 29,
+        "found": 29,
+        "paired": 29
+      },
+      "Widerspruch": {
+        "expected": 14,
+        "found": 14,
+        "paired": 14
+      },
+      "Ziel": {
+        "expected": 30,
+        "found": 30,
+        "paired": 30
+      },
+      "reparieren": {
+        "expected": 22,
+        "found": 22,
+        "paired": 22
+      }
+    },
+    "eligible_complete": true,
+    "expected_pairs": 1493,
+    "found_predictions": 1493,
+    "paired": 1493,
+    "ratio": 1.0
+  },
+  "coverage_policy": "require one prediction for every selected GT mesh",
+  "endpoint_rule": "author script: target numeric stem in [2*start, 2*end]",
+  "manifests": {
+    "face_count": 20908,
+    "mano_regions_sha256": "e5abe70b6574de25470475091e8008314a5b90127eb48c3e63bfa0adf8c04dcf",
+    "pair_manifest_sha256": "62ae7d63077739b36fa49bc03c264480bffacbe5cd830822dbc1950bbd9add6a",
+    "segments_sha256": "e5d9bd504ef8158695a09d2fa279ba33bccda78d43a9575435ee838223d1aac2",
+    "signs_sha256": "bc5b0da75a3af8f6ecf6914bd83d5ce55faba698ab08217fbd0e3979a58d596e",
+    "ubody_f_sha256": "39e3108e1c2ffb3afd08c3a9eafa24d1db9a432bee5fa50db843e5d627087cf6"
+  },
+  "per_sign_mean_mm": {
+    "Ablehnen": {
+      "LHand": 14.445847174153965,
+      "RHand": 11.04031980155338,
+      "UBody-F": 29.124417233354684
+    },
+    "Akzeptieren": {
+      "LHand": 7.494131440421984,
+      "RHand": 6.496597599420392,
+      "UBody-F": 27.330919045345368
+    },
+    "Arzt": {
+      "LHand": 10.040583975049465,
+      "RHand": 8.0677538019172,
+      "UBody-F": 21.616331975449036
+    },
+    "AufgebenResignieren": {
+      "LHand": 10.590468929343045,
+      "RHand": 11.249722603827635,
+      "UBody-F": 30.655036023225648
+    },
+    "AusgebenGeldVerschwenden": {
+      "LHand": 13.357035892105758,
+      "RHand": 12.531305745708499,
+      "UBody-F": 25.78567216683694
+    },
+    "Auto": {
+      "LHand": 11.483132849812957,
+      "RHand": 13.10166751170914,
+      "UBody-F": 24.572581347462688
+    },
+    "BesuchenEinmischen": {
+      "LHand": 16.67605184432251,
+      "RHand": 12.817290581463403,
+      "UBody-F": 24.608213523657323
+    },
+    "Blitz": {
+      "LHand": null,
+      "RHand": 13.327868261633997,
+      "UBody-F": 29.337810664665824
+    },
+    "Blume": {
+      "LHand": 18.80043103210816,
+      "RHand": 10.133093210571504,
+      "UBody-F": 28.19801539439056
+    },
+    "Boese": {
+      "LHand": null,
+      "RHand": 20.023082959214822,
+      "UBody-F": 36.24528857047127
+    },
+    "BroetchenAufschneiden": {
+      "LHand": 12.574498240394943,
+      "RHand": 12.76528096753191,
+      "UBody-F": 31.732894236275126
+    },
+    "Dort": {
+      "LHand": null,
+      "RHand": 13.015851625554385,
+      "UBody-F": 27.054298476313527
+    },
+    "Duenn": {
+      "LHand": null,
+      "RHand": 15.643968112430333,
+      "UBody-F": 27.514720056087956
+    },
+    "Einkaufen": {
+      "LHand": 14.187515525465361,
+      "RHand": 15.005383443832773,
+      "UBody-F": 23.11093207234264
+    },
+    "Einnehmen": {
+      "LHand": 16.537401900269963,
+      "RHand": 12.896616894334697,
+      "UBody-F": 32.99025819256026
+    },
+    "EinstellenJob": {
+      "LHand": 14.706937720016468,
+      "RHand": 8.675624038587483,
+      "UBody-F": 26.769193718228408
+    },
+    "EisGefroren": {
+      "LHand": 10.691750430853569,
+      "RHand": 10.97702673080836,
+      "UBody-F": 28.184648211778967
+    },
+    "Empathie": {
+      "LHand": 12.190565165173027,
+      "RHand": 10.408482031751445,
+      "UBody-F": 32.47548974361556
+    },
+    "Entschuldigung": {
+      "LHand": 13.966189364620769,
+      "RHand": 15.599189156801005,
+      "UBody-F": 22.2256764557985
+    },
+    "FestellenDiagnose": {
+      "LHand": 12.534581231679288,
+      "RHand": 13.452149160436164,
+      "UBody-F": 27.259458089441498
+    },
+    "Frech": {
+      "LHand": null,
+      "RHand": 12.606056458276507,
+      "UBody-F": 39.87670124840089
+    },
+    "Frieren": {
+      "LHand": 11.026151978545201,
+      "RHand": 14.190902275925694,
+      "UBody-F": 26.55840117027558
+    },
+    "Frisch": {
+      "LHand": 12.997989504712239,
+      "RHand": 13.117662879610371,
+      "UBody-F": 41.32868307350456
+    },
+    "Froh": {
+      "LHand": 10.591265147686773,
+      "RHand": 11.050898552630542,
+      "UBody-F": 40.03339228354494
+    },
+    "Glas": {
+      "LHand": 13.258964310109723,
+      "RHand": 13.329633162974305,
+      "UBody-F": 23.404950233510462
+    },
+    "IdiomPffIgnorieren": {
+      "LHand": 13.608746106990608,
+      "RHand": 13.996644223709035,
+      "UBody-F": 21.378652182253695
+    },
+    "Jahr": {
+      "LHand": null,
+      "RHand": 14.90270524725758,
+      "UBody-F": 32.55950262136478
+    },
+    "Klar": {
+      "LHand": null,
+      "RHand": 12.782716936073063,
+      "UBody-F": 35.96319726719399
+    },
+    "Kochen": {
+      "LHand": 11.483060636555773,
+      "RHand": 15.717965772637152,
+      "UBody-F": 23.481443388525605
+    },
+    "Lesen": {
+      "LHand": 9.74829116581658,
+      "RHand": 11.149326603928053,
+      "UBody-F": 29.314612563032824
+    },
+    "LiebBitte": {
+      "LHand": null,
+      "RHand": 13.145390706399441,
+      "UBody-F": 47.726562040920385
+    },
+    "Luegen": {
+      "LHand": null,
+      "RHand": 12.75908538887989,
+      "UBody-F": 38.173376005450905
+    },
+    "Muell": {
+      "LHand": null,
+      "RHand": 15.989810533283032,
+      "UBody-F": 29.3357970063575
+    },
+    "Mutter": {
+      "LHand": null,
+      "RHand": 10.105817945384151,
+      "UBody-F": 38.24765948084208
+    },
+    "Naehen": {
+      "LHand": 16.83023315543699,
+      "RHand": 11.057865200400256,
+      "UBody-F": 22.25795662517966
+    },
+    "Nebel": {
+      "LHand": 9.207056361876917,
+      "RHand": 8.660854485013799,
+      "UBody-F": 26.118678451154466
+    },
+    "Neu": {
+      "LHand": 14.428765252234399,
+      "RHand": 9.577464764647946,
+      "UBody-F": 27.966439893082057
+    },
+    "Operieren": {
+      "LHand": 12.885875069573803,
+      "RHand": 10.768582676782058,
+      "UBody-F": 23.14322814109393
+    },
+    "Regen": {
+      "LHand": 8.811540138826905,
+      "RHand": 10.069856697069472,
+      "UBody-F": 32.13247149262748
+    },
+    "SauerWuetend": {
+      "LHand": null,
+      "RHand": 11.124438390495781,
+      "UBody-F": 38.097879328789716
+    },
+    "Schnee": {
+      "LHand": 8.286767414991834,
+      "RHand": 9.73090879964997,
+      "UBody-F": 27.951074898338007
+    },
+    "Schreiben": {
+      "LHand": 14.38133590110445,
+      "RHand": 8.592884468774434,
+      "UBody-F": 25.320390095774894
+    },
+    "Schwach": {
+      "LHand": 11.005222553345357,
+      "RHand": 10.459394448475662,
+      "UBody-F": 44.4638264493825
+    },
+    "Schwer": {
+      "LHand": 13.532812196751133,
+      "RHand": 15.259773538456876,
+      "UBody-F": 33.23094375772961
+    },
+    "Sonne": {
+      "LHand": null,
+      "RHand": 14.19076047036558,
+      "UBody-F": 23.388460720622167
+    },
+    "Sorry": {
+      "LHand": null,
+      "RHand": 16.326493808251367,
+      "UBody-F": 40.216659881384835
+    },
+    "SparenSparsam": {
+      "LHand": 19.005706707401977,
+      "RHand": 11.627089778159018,
+      "UBody-F": 27.3321680826136
+    },
+    "Spezial": {
+      "LHand": 11.929922801317913,
+      "RHand": 12.192757462595567,
+      "UBody-F": 36.140226280604324
+    },
+    "Tisch": {
+      "LHand": 11.788702455920593,
+      "RHand": 9.569909702971922,
+      "UBody-F": 29.50728463879707
+    },
+    "Treffen": {
+      "LHand": 15.12031117875827,
+      "RHand": 9.60798946030703,
+      "UBody-F": 24.07525536414003
+    },
+    "Vater": {
+      "LHand": null,
+      "RHand": 10.563766747774222,
+      "UBody-F": 37.23888209227644
+    },
+    "Verschieden": {
+      "LHand": 12.62581426351021,
+      "RHand": 14.241937355601172,
+      "UBody-F": 29.676188005741203
+    },
+    "VorsichtPassAuf": {
+      "LHand": 7.557348605664591,
+      "RHand": 10.36418865458573,
+      "UBody-F": 30.722978765587925
+    },
+    "Waschen": {
+      "LHand": 20.00793778362198,
+      "RHand": 15.190686740420796,
+      "UBody-F": 25.69673566166056
+    },
+    "Widerspruch": {
+      "LHand": 16.610919066093594,
+      "RHand": 10.948843096976274,
+      "UBody-F": 28.729209394654994
+    },
+    "Ziel": {
+      "LHand": 13.1508848871301,
+      "RHand": 14.068683645420633,
+      "UBody-F": 29.91428751720114
+    },
+    "reparieren": {
+      "LHand": 15.022065235136521,
+      "RHand": 9.4188610054194,
+      "UBody-F": 24.125078528289905
+    }
+  },
+  "prediction_root": "/home/haipd/DexAvatar/outputs/phase2_gates/g1_views/method_ensemble",
+  "protocol": "sgnify-author-script-reconstruction-v1",
+  "protocol_claim": "independent complete-coverage SGNify TR-V2V implementation",
+  "regions": {
+    "LHand": {
+      "base_vertex_count": 778,
+      "evaluated_frames": 1163,
+      "frame_macro_mean_mm": 12.824892806669837,
+      "frame_median_mm": 12.761733941107293,
+      "frame_p90_mm": 17.40722860119374,
+      "micro_mean_mm": 12.824892806669837
+    },
+    "RHand": {
+      "base_vertex_count": 778,
+      "evaluated_frames": 1493,
+      "frame_macro_mean_mm": 12.112852218518432,
+      "frame_median_mm": 11.873512320292065,
+      "frame_p90_mm": 16.05921148069415,
+      "micro_mean_mm": 12.112852218518432
+    },
+    "UBody-F": {
+      "base_vertex_count": 7279,
+      "evaluated_frames": 1493,
+      "frame_macro_mean_mm": 29.653172583114127,
+      "frame_median_mm": 27.344115666701367,
+      "frame_p90_mm": 40.72473900645957,
+      "micro_mean_mm": 29.534720122909032
+    }
+  },
+  "target_root": "/home/haipd/DexAvatar/data/smplx_gt",
+  "units": "millimetres"
+}

@@ -26,6 +26,11 @@ def _identity_transforms(shape: tuple[int, ...]) -> np.ndarray:
     return np.broadcast_to(np.eye(4, dtype=np.float32), shape + (4, 4)).copy()
 
 
+def _filled_strings(length: int, value: str) -> np.ndarray:
+    """Create a fixed-width string vector without NumPy's U1 truncation."""
+    return np.asarray([value] * length, dtype=str)
+
+
 @dataclass
 class CacheClip:
     clip_id: str
@@ -92,9 +97,9 @@ class CacheClip:
         if self.image_size is None:
             self.image_size = np.ones((t, 2), dtype=np.int32)
         if self.frame_sha256 is None:
-            self.frame_sha256 = np.full(t, "", dtype=str)
+            self.frame_sha256 = _filled_strings(t, "")
         if self.source_sha256 is None:
-            self.source_sha256 = np.full(t, "", dtype=str)
+            self.source_sha256 = _filled_strings(t, "")
         if self.keypoints_3d is None:
             self.keypoints_3d = np.zeros((t, NUM_JOINTS, 3), dtype=np.float32)
         if self.keypoint_3d_valid is None:
@@ -156,11 +161,11 @@ class CacheClip:
         if self.target_quality is None:
             self.target_quality = np.zeros((t, NUM_JOINTS), dtype=np.float32)
         if self.initializer_component is None:
-            self.initializer_component = np.full(t, "unknown", dtype=str)
+            self.initializer_component = _filled_strings(t, "unknown")
         if self.fallback_reason is None:
-            self.fallback_reason = np.full(t, "", dtype=str)
+            self.fallback_reason = _filled_strings(t, "")
         if self.camera_model is None:
-            self.camera_model = np.full(t, "unknown", dtype=str)
+            self.camera_model = _filled_strings(t, "unknown")
         if self.camera_intrinsics is None:
             self.camera_intrinsics = np.broadcast_to(
                 np.eye(3, dtype=np.float32), (t, 3, 3)
@@ -282,7 +287,12 @@ class CacheClip:
             raise ValueError("target_axis_angle contains NaN or Inf")
         if not np.all((self.u0_reliability >= 0.0) & (self.u0_reliability <= 1.0)):
             raise ValueError("u0_reliability must be within [0, 1]")
-        for name in ("raw_confidence", "calibrated_confidence", "target_quality", "hand_activity"):
+        for name in (
+            "raw_confidence",
+            "calibrated_confidence",
+            "target_quality",
+            "hand_activity",
+        ):
             value = getattr(self, name)
             if not np.all((value >= 0.0) & (value <= 1.0)):
                 raise ValueError(f"{name} must be within [0, 1]")
@@ -299,7 +309,9 @@ def validate_phase2r_semantics(clip: CacheClip) -> None:
     metadata = json.loads(clip.metadata_json)
     policy = metadata.get("coordinate_policy")
     if not isinstance(policy, dict) or not policy.get("keypoints_2d"):
-        raise ValueError("Phase 2R cache metadata requires coordinate_policy.keypoints_2d")
+        raise ValueError(
+            "Phase 2R cache metadata requires coordinate_policy.keypoints_2d"
+        )
     if np.any(clip.track_valid & ~clip.detector_present):
         raise ValueError("track_valid cannot be true when detector_present is false")
     if np.any(clip.interpolated_observation & clip.detector_present):
@@ -440,9 +452,7 @@ def load_cache_clip(path: str | Path) -> CacheClip:
             torso_to_camera=_get(data, "torso_to_camera", None),
             wrist_to_torso=_get(data, "wrist_to_torso", None),
             u0_reliability=_get(data, "u0_reliability", None),
-            reprojection_residual_2d=_get(
-                data, "reprojection_residual_2d", None
-            ),
+            reprojection_residual_2d=_get(data, "reprojection_residual_2d", None),
             target_joint_positions=(
                 data["target_joint_positions"] if has_target_joints else None
             ),
@@ -455,9 +465,7 @@ def load_cache_clip(path: str | Path) -> CacheClip:
             track_valid=_get(data, "track_valid", None),
             in_frame=_get(data, "in_frame", None),
             copied_observation=_get(data, "copied_observation", None),
-            interpolated_observation=_get(
-                data, "interpolated_observation", None
-            ),
+            interpolated_observation=_get(data, "interpolated_observation", None),
             target_quality=_get(data, "target_quality", None),
             initializer_component=(
                 data["initializer_component"].astype(str)

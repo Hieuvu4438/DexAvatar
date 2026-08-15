@@ -1,0 +1,26 @@
+{
+  "benchmark_conditioning": false,
+  "configuration": {
+    "dexavatar_fitting/cfg_files/fit_smplx_vposer_x_ensemble.yaml": "d33e9593ebdc2479a9fac6d734fbdcf44ee553c7110f0b82a7febcb8304cefd2"
+  },
+  "contract_version": "a1r-portable-v1",
+  "frozen": true,
+  "portable": true,
+  "provider_code": {
+    "phase2_refiner/data/a1r_contract.py": "0fdd00a5130ce547e9a2c8cf4f3c75bd9c0a4d15e6f58d6485dba194317fbadc",
+    "phase2_refiner/data/run_a1r_fitting.py": "290e1cb662ab05f8ff6f19ced72339c7649955e0755aac74c02bb04695cc09d2",
+    "phase2_refiner/scripts/run_a1r_portable_preflight.sh": "b35ac95f8b829942a63bd3f9ff26f3ebf08554c7f2fc33dfac09205f72233293",
+    "scripts/M3_ensemble_init.sh": "2990ad6bc2d408e33797a16736416559109599ff204fe7f32fab69c910232e42"
+  },
+  "provider_id": "dexavatar-a1r-smplerx-wilor-sapiens-ensemble-v1",
+  "repository_root": "../..",
+  "weights": {
+    "WiLoR/pretrained_models/detector.pt": "5ef3df44e42d2db52d4ffe91f83a22ce9925e2acc9abebf453f2c5d22e380033",
+    "WiLoR/pretrained_models/wilor_final.ckpt": "3e97aafc7dd08d883a4cc5a027df61fdb6fda6136dbd1319405413862ada6bb2",
+    "checkpoints/smpler_x_h32.pth.tar": "3d40511141fa1ef0d022c095c470b7ad2710e390aea68ce87ac0361911af133b",
+    "dexavatar_fitting/smplifyx/signbposer/snapshots/TR00_E078.pt": "feb7799e9ce3951c2aa7bd64aac36771e2e12ac7e96c11da20ac51f1b8692168",
+    "dexavatar_fitting/smplifyx/signhposer/signhposer/snapshots/TR00_E100.pt": "4f217e72172f8470a7ba56d257a939d13cee69841688de648593a5a2c157bac6",
+    "sapiens/lite/torchscript/detector/checkpoints/rtmpose/rtmdet_m_8xb32-100e_coco-obj365-person-235e8209.pth": "b66b27072c6a3cd4f093882df440921987076131fb78a7df7b1cf92d67f41509",
+    "sapiens/lite/torchscript/pose/checkpoints/sapiens_1b/sapiens_1b_coco_wholebody_best_coco_wholebody_AP_727_torchscript.pt2": "911c4a26dbede2d21fa1a3bffb8d1b5ecac6bcb4983951408ba80092bc07b054"
+  }
+}
