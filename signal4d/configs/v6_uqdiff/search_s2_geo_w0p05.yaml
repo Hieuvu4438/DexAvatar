@@ -1,0 +1,30 @@
+schema_version: "1.0"
+method_name: signal4d_v6_search_s2_geo_w0p05
+base_method_config: signal4d/configs/method/m1_a1_v5.yaml
+warm_start_root: signal4d/runs/signal4d_v5_full1493_20260820/predictions
+dposer:
+  source_root: DPoser-X
+  source_commit: c373fce3d364a4a0946e8445fdea5cbfd490e837
+  checkpoint_registry: signal4d/configs/v6_uqdiff/dposer_x_registry.json
+  data_root: DPoser-X/data
+  mode: geodesic
+  time_strategy: linear
+  time_min: 0.08
+  time_max: 0.12
+  noise_seed: 12345
+  refresh_denoised_target_every: 5
+refinement:
+  open_body_joints: [left_collar, right_collar, left_shoulder, right_shoulder, left_elbow, right_elbow, left_wrist, right_wrist]
+  max_steps: 45
+  learning_rate: 0.0005
+  observation_weight: 1.0
+  rotation_observation_weight: 0.1
+  v5_anchor_weight: 0.1
+  temporal_weight: 0.001
+  temporal_rotation_weight: 0.001
+  diffusion_weight: 0.05
+  seam_weight: 0.0
+  uncertainty_aware: true
+  change_aware: true
+safe_gate: {enabled: false}
+
