@@ -122,6 +122,7 @@ def _parser() -> argparse.ArgumentParser:
     gate_application.add_argument("--cache-root", required=True)
     gate_application.add_argument("--artifact", required=True)
     gate_application.add_argument("--output-root", required=True)
+    gate_application.add_argument("--method-name", default="signal4d_m1_gt_free_gate")
 
     multi_gate_build = subparsers.add_parser("build-multigate")
     multi_gate_build.add_argument("--config", required=True)
@@ -367,6 +368,7 @@ def main(argv: list[str] | None = None) -> None:
             args.cache_root,
             args.artifact,
             args.output_root,
+            args.method_name,
         )
         print(json.dumps(report, indent=2, sort_keys=True))
     elif args.command == "build-multigate":

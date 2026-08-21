@@ -243,7 +243,12 @@ def run(config_path: str, output: str) -> dict[str, Any]:
     metadata = {
         "seed": seed,
         "target_metric": metric,
-        "target_definition": "candidate_minus_strongest_legacy_baseline_per_frame_mm",
+        "target_definition": str(
+            config.get(
+                "target_definition",
+                "candidate_minus_strongest_legacy_baseline_per_frame_mm",
+            )
+        ),
         "training_frames": len(y),
         "training_clips": len(set(group_array)),
         "folds": folds,

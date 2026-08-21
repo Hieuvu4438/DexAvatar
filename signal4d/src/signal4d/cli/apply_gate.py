@@ -24,6 +24,7 @@ def run(
     cache_root: str,
     artifact_root: str,
     output_root: str,
+    method_name: str = "signal4d_m1_gt_free_gate",
 ) -> dict[str, Any]:
     artifact = ExtraTreesArtifact.load(artifact_root)
     output = Path(output_root)
@@ -55,7 +56,7 @@ def run(
             output / "predictions" / item.clip_id,
             {
                 "schema_version": "1.0",
-                "method_name": "signal4d_m1_gt_free_gate",
+                "method_name": method_name,
                 "clip_id": item.clip_id,
                 "manifest_item_sha256": item.sha256,
                 "smplx_model_sha256": candidate_meta.get("smplx_model_sha256"),
@@ -87,6 +88,7 @@ def run(
         writer.writerows(selection_rows)
     report = {
         "schema_version": "1.0",
+        "method_name": method_name,
         "clips": len(clips),
         "frames": len(selection_rows),
         "candidate_frames": sum(row["selected_candidate"] for row in selection_rows),
