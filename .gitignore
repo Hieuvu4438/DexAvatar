@@ -71,6 +71,7 @@ sapiens/
 WiLoR/
 OSX/
 frankmocap/
+HandFlow/
 # New: cloned SOKE and DPoser-X repos (added by VQVAE+DPoserX prior work)
 SOKE/
 DPoser-X/
@@ -125,3 +126,16 @@ scratch/
 cache/
 data/phase2_*
 data/phase3_*
+
+# SIGNAL-4D local runtime and licensed/generated material
+# Keep source, configs, manifests, compact calibration/gating metadata, and
+# reports versioned.  The paths below contain caches, predictions, logs,
+# meshes/images, or symlinks back to licensed legacy outputs.
+signal4d/.pytest_cache/
+signal4d/.ruff_cache/
+signal4d/logs/
+signal4d/runs/
+signal4d/third_party/
+signal4d/artifacts/cache/
+signal4d/artifacts/gt_cache/
+signal4d/artifacts/legacy_*/
