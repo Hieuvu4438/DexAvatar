@@ -1,0 +1,2 @@
+clip_id,frames,method,one_handed_class_0,tr_all_mm,tr_left_hand_mm,tr_right_hand_mm,tr_upper_body_minus_face_mm,tr_upper_body_minus_head_mm,tr_upper_body_mm,v2v_left_wrist_mm,v2v_right_wrist_mm
+Ablehnen,14,A1,False,44.697523058248464,13.416478052246706,11.563530267079269,29.127918833883033,46.63952735568212,24.84200294179461,13.416478052246706,11.563530267079269

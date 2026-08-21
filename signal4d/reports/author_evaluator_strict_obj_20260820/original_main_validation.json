@@ -1,0 +1,24 @@
+{
+  "author_source_sha256": "400bfbd736fc59fcc1867af7650188b61772136982f64b623df31494e6116877",
+  "comparison": "rounded-to-4-decimals equality with the unmodified author main() output",
+  "methods": {
+    "A1": {
+      "log": "signal4d/logs/author_original_main_strict_central_A1.log",
+      "pass": true,
+      "tr_all_mm": 42.1632,
+      "tr_left_hand_mm": 12.5624,
+      "tr_right_hand_mm": 12.0760,
+      "tr_upper_body_mm": 26.5917
+    },
+    "M1_v5_multigate_revealed": {
+      "log": "signal4d/logs/author_original_main_strict_central_M1_v5.log",
+      "pass": true,
+      "tr_all_mm": 42.1661,
+      "tr_left_hand_mm": 11.9978,
+      "tr_right_hand_mm": 12.0777,
+      "tr_upper_body_mm": 26.6117
+    }
+  },
+  "protocol": "author-central",
+  "status": "PASS"
+}

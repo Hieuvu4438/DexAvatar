@@ -1,0 +1,7 @@
+{
+  "candidate_minus_baseline": -0.23205632866127593,
+  "ci_high": 0.21955095819612502,
+  "ci_low": -0.7089080940086395,
+  "metric": "tr_v2v_right_hand_mm",
+  "replicates": 10000
+}

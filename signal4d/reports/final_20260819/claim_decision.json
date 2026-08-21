@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "release_freeze_sha256": "351f36aa64f7615c40a6d0c8f8cfacf219ffb0c3d88dc3a59a1aa922db5748d7",
+  "candidate": "signal4d_m1",
+  "baseline": "legacy_full_fallback",
+  "gates": {
+    "coverage_100_percent": true,
+    "reproducibility": true,
+    "upper_body_noninferiority_0_5_mm": true,
+    "right_hand_noninferiority_0_5_mm": true,
+    "dynamics_no_regression_2_percent": true,
+    "left_hand_ci_upper_below_zero": false,
+    "left_hand_practical_improvement_0_5_mm": false
+  },
+  "left_hand_delta_mm": -0.20431113202719522,
+  "left_hand_ci_95_mm": [-0.6908482127015433, 0.26918945784300274],
+  "overall_geometry_sota_claim_permitted": false,
+  "permitted_claim": "Improves frozen-test temporal dynamics while preserving geometry within registered non-inferiority margins; hand-geometry superiority is not demonstrated."
+}

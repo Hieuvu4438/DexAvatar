@@ -1,0 +1,18 @@
+{
+  "clips": 1,
+  "exact_artifacts": 1,
+  "maximum_tensor_absolute_error": 0.0,
+  "metric_relative_error": {
+    "acceleration_error": 0.0,
+    "coverage": 0.0,
+    "jerk_error": 0.0,
+    "tr_v2v_left_hand_mm": 0.0,
+    "tr_v2v_right_hand_mm": 0.0,
+    "tr_v2v_upper_body_mm": 0.0,
+    "velocity_error": 0.0
+  },
+  "metric_relative_tolerance": 0.05,
+  "passed": true,
+  "schema_version": "1.0",
+  "tensor_absolute_tolerance": 1e-06
+}

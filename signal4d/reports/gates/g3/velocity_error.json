@@ -1,0 +1,7 @@
+{
+  "candidate_minus_baseline": -0.040064397545752604,
+  "ci_high": -0.030580611459829873,
+  "ci_low": -0.04999777867550655,
+  "metric": "velocity_error",
+  "replicates": 10000
+}

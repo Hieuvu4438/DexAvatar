@@ -1,0 +1,44 @@
+{
+  "acceleration": {
+    "candidate_minus_baseline": -0.8929191982963005,
+    "ci_high": -0.43531395352359536,
+    "ci_low": -1.2830928363317875,
+    "metric": "acceleration_error",
+    "replicates": 10000
+  },
+  "jerk": {
+    "candidate_minus_baseline": -21.585110032632844,
+    "ci_high": -7.172415105045342,
+    "ci_low": -34.85384178683986,
+    "metric": "jerk_error",
+    "replicates": 10000
+  },
+  "left_hand": {
+    "candidate_minus_baseline": -2.1411212690013106,
+    "ci_high": -1.4190853147745395,
+    "ci_low": -2.9546529114372637,
+    "metric": "tr_v2v_left_hand_mm",
+    "replicates": 10000
+  },
+  "right_hand": {
+    "candidate_minus_baseline": 0.0020144269035011447,
+    "ci_high": 0.0042303735196891215,
+    "ci_low": -0.00024408424271305437,
+    "metric": "tr_v2v_right_hand_mm",
+    "replicates": 10000
+  },
+  "upper_body": {
+    "candidate_minus_baseline": -1.074490374519088,
+    "ci_high": -0.6002130640531849,
+    "ci_low": -1.597459155134981,
+    "metric": "tr_v2v_upper_body_mm",
+    "replicates": 10000
+  },
+  "velocity": {
+    "candidate_minus_baseline": -0.014273569145998468,
+    "ci_high": 0.0012852663893357073,
+    "ci_low": -0.026451891418683388,
+    "metric": "velocity_error",
+    "replicates": 10000
+  }
+}

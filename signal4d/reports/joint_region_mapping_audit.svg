@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="430" viewBox="0 0 980 430">
+  <rect width="980" height="430" fill="#ffffff"/>
+  <text x="28" y="36" font-family="sans-serif" font-size="22" font-weight="bold">SIGNAL-4D canonical hand/region mapping audit</text>
+  <text x="28" y="64" font-family="sans-serif" font-size="14">WiLoR 21-joint output → SMPL-X wrist + 15 articulated joints (fingertips excluded)</text>
+  <rect x="28" y="92" width="420" height="92" rx="8" fill="#eef4ff" stroke="#2457c5"/>
+  <text x="48" y="120" font-family="monospace" font-size="14">WiLoR indices</text>
+  <text x="48" y="150" font-family="monospace" font-size="15">0,1,2,3,5,6,7,9,10,11,13,14,15,17,18,19</text>
+  <line x1="448" y1="138" x2="530" y2="138" stroke="#444" stroke-width="3"/>
+  <polygon points="530,138 514,130 514,146" fill="#444"/>
+  <rect x="532" y="92" width="420" height="92" rx="8" fill="#effaf5" stroke="#11a579"/>
+  <text x="552" y="120" font-family="monospace" font-size="14">SMPL-X hand chain</text>
+  <text x="552" y="150" font-family="monospace" font-size="15">wrist + thumb/index/middle/ring/pinky × 3</text>
+  <rect x="28" y="214" width="280" height="90" rx="8" fill="#fff7e8" stroke="#f2b701"/>
+  <text x="48" y="242" font-family="sans-serif" font-size="15" font-weight="bold">Left-hand convention</text>
+  <text x="48" y="270" font-family="monospace" font-size="14">points: x ← -x</text>
+  <text x="48" y="292" font-family="monospace" font-size="14">rotations: R ← S R S</text>
+  <rect x="350" y="214" width="280" height="90" rx="8" fill="#f8eff5" stroke="#e73f74"/>
+  <text x="370" y="242" font-family="sans-serif" font-size="15" font-weight="bold">Frozen vertex regions</text>
+  <text x="370" y="270" font-family="sans-serif" font-size="14">upper body · left hand · right hand</text>
+  <text x="370" y="292" font-family="sans-serif" font-size="14">pinned index-array hashes in release</text>
+  <rect x="672" y="214" width="280" height="90" rx="8" fill="#f2f2f2" stroke="#555"/>
+  <text x="692" y="242" font-family="sans-serif" font-size="15" font-weight="bold">Numerical guards</text>
+  <text x="692" y="270" font-family="sans-serif" font-size="14">proper SO(3), alignment firewall,</text>
+  <text x="692" y="292" font-family="sans-serif" font-size="14">legacy axis-angle equivalence tests</text>
+  <text x="28" y="350" font-family="sans-serif" font-size="14">Canonical space: OpenCV x-right, y-down, z-forward · length unit: meter · evaluation: pelvis translation-only alignment</text>
+  <text x="28" y="382" font-family="sans-serif" font-size="13">Model SHA-256: 376021446ddc86e99acacd795182bbef903e61d33b76b9d8b359c2b0865bd992</text>
+  <text x="28" y="408" font-family="sans-serif" font-size="13">Validated by test_geometry.py and test_wilor_left_canonicalization.py; corrected mapping audit RL-S4D-011.</text>
+</svg>

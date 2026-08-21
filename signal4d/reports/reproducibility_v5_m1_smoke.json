@@ -1,0 +1,11 @@
+{
+  "first_files": 3,
+  "first_root": "signal4d/runs/m1_a1_v5_dev/predictions/Ablehnen",
+  "hash_mismatches": [],
+  "missing_from_first": [],
+  "missing_from_second": [],
+  "passed": true,
+  "schema_version": "1.0",
+  "second_files": 3,
+  "second_root": "signal4d/runs/repro_v5_m1_smoke/predictions/Ablehnen"
+}

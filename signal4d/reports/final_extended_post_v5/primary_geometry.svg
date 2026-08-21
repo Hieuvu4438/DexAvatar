@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="240" viewBox="0 0 900 240">
+<rect width="100%" height="100%" fill="white"/>
+<text x="20" y="28" font-family="sans-serif" font-size="18">Frozen-test TR-V2V (lower is better)</text>
+<text x="20" y="70" font-family="sans-serif" font-size="13">a1_baseline</text>
+<rect x="220" y="55" width="540.00" height="12" fill="#2457C5"/>
+<text x="770.00" y="66" font-family="sans-serif" font-size="11">upper: 39.802</text>
+<rect x="220" y="71" width="338.84" height="12" fill="#11A579"/>
+<text x="568.84" y="82" font-family="sans-serif" font-size="11">left: 24.975</text>
+<rect x="220" y="87" width="178.21" height="12" fill="#F2B701"/>
+<text x="408.21" y="98" font-family="sans-serif" font-size="11">right: 13.136</text>
+<text x="20" y="140" font-family="sans-serif" font-size="13">signal4d_v5</text>
+<rect x="220" y="125" width="525.42" height="12" fill="#2457C5"/>
+<text x="755.42" y="136" font-family="sans-serif" font-size="11">upper: 38.728</text>
+<rect x="220" y="141" width="309.79" height="12" fill="#11A579"/>
+<text x="539.79" y="152" font-family="sans-serif" font-size="11">left: 22.834</text>
+<rect x="220" y="157" width="178.24" height="12" fill="#F2B701"/>
+<text x="408.24" y="168" font-family="sans-serif" font-size="11">right: 13.138</text>
+</svg>

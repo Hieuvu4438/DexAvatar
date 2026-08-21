@@ -1,0 +1,72 @@
+{
+  "legacy_acceleration": {
+    "candidate_minus_baseline": -1.5694964551704806,
+    "ci_high": -1.2581291663202872,
+    "ci_low": -1.8924181908105835,
+    "metric": "acceleration_error",
+    "replicates": 10000
+  },
+  "legacy_body": {
+    "candidate_minus_baseline": -0.006755510674326004,
+    "ci_high": 0.004494871059270639,
+    "ci_low": -0.01909036171007354,
+    "metric": "tr_v2v_upper_body_mm",
+    "replicates": 10000
+  },
+  "legacy_jerk": {
+    "candidate_minus_baseline": -38.9511305002789,
+    "ci_high": -28.900723763863496,
+    "ci_low": -49.43423798138789,
+    "metric": "jerk_error",
+    "replicates": 10000
+  },
+  "legacy_left": {
+    "candidate_minus_baseline": -0.20431113202719522,
+    "ci_high": 0.26918945784300274,
+    "ci_low": -0.6908482127015433,
+    "metric": "tr_v2v_left_hand_mm",
+    "replicates": 10000
+  },
+  "legacy_left_aurc": {
+    "candidate_minus_baseline": -0.2247856855392456,
+    "ci_high": 0.20694305896759027,
+    "ci_low": -0.6725392897923788,
+    "metric": "aurc_left_hand",
+    "replicates": 10000
+  },
+  "legacy_right": {
+    "candidate_minus_baseline": -0.0011242256079637691,
+    "ci_high": 0.0015121708318491347,
+    "ci_low": -0.004045047741573963,
+    "metric": "tr_v2v_right_hand_mm",
+    "replicates": 10000
+  },
+  "legacy_velocity": {
+    "candidate_minus_baseline": -0.037838278189021524,
+    "ci_high": -0.029698329686567156,
+    "ci_low": -0.04629862008223493,
+    "metric": "velocity_error",
+    "replicates": 10000
+  },
+  "m0_body": {
+    "candidate_minus_baseline": 1.6124103277369797,
+    "ci_high": 3.416077550215427,
+    "ci_low": -0.13734107765288853,
+    "metric": "tr_v2v_upper_body_mm",
+    "replicates": 10000
+  },
+  "m0_left": {
+    "candidate_minus_baseline": -13.659687827519662,
+    "ci_high": -7.625290464500925,
+    "ci_low": -19.2894442602289,
+    "metric": "tr_v2v_left_hand_mm",
+    "replicates": 10000
+  },
+  "m0_right": {
+    "candidate_minus_baseline": -8.950810296199991,
+    "ci_high": -5.623737249675275,
+    "ci_low": -12.697606567980127,
+    "metric": "tr_v2v_right_hand_mm",
+    "replicates": 10000
+  }
+}

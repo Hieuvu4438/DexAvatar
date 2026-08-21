@@ -1,0 +1,27 @@
+{
+  "comparisons": [
+    "acceleration",
+    "jerk",
+    "left_hand",
+    "right_hand",
+    "upper_body",
+    "velocity"
+  ],
+  "methods": [
+    "a1_baseline",
+    "signal4d_v5"
+  ],
+  "schema_version": "1.0",
+  "sources": {
+    "a1_baseline": "signal4d/runs/extended_post_a1_baseline/evaluation/summary.json",
+    "comparison:acceleration": "signal4d/runs/extended_post_confirmatory_v5/comparisons/acceleration_error.json",
+    "comparison:jerk": "signal4d/runs/extended_post_confirmatory_v5/comparisons/jerk_error.json",
+    "comparison:left_hand": "signal4d/runs/extended_post_confirmatory_v5/comparisons/tr_v2v_left_hand_mm.json",
+    "comparison:right_hand": "signal4d/runs/extended_post_confirmatory_v5/comparisons/tr_v2v_right_hand_mm.json",
+    "comparison:upper_body": "signal4d/runs/extended_post_confirmatory_v5/comparisons/tr_v2v_upper_body_mm.json",
+    "comparison:velocity": "signal4d/runs/extended_post_confirmatory_v5/comparisons/velocity_error.json",
+    "signal4d_v5": "signal4d/runs/extended_post_a1_multiscale_v5/evaluation/summary.json"
+  },
+  "status": "generated_from_raw_evaluator_outputs",
+  "stress_slices": null
+}

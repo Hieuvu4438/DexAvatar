@@ -1,0 +1,38 @@
+{
+  "comparisons": [
+    "legacy_acceleration",
+    "legacy_body",
+    "legacy_jerk",
+    "legacy_left",
+    "legacy_left_aurc",
+    "legacy_right",
+    "legacy_velocity",
+    "m0_body",
+    "m0_left",
+    "m0_right"
+  ],
+  "methods": [
+    "m0_raw",
+    "legacy_full_fallback",
+    "signal4d_m1"
+  ],
+  "schema_version": "1.0",
+  "sources": {
+    "comparison:legacy_acceleration": "/home/haipd/DexAvatar/signal4d/runs/test_20260819_m1/comparisons_vs_legacy/acceleration_error.json",
+    "comparison:legacy_body": "/home/haipd/DexAvatar/signal4d/runs/test_20260819_m1/comparisons_vs_legacy/tr_v2v_upper_body_mm.json",
+    "comparison:legacy_jerk": "/home/haipd/DexAvatar/signal4d/runs/test_20260819_m1/comparisons_vs_legacy/jerk_error.json",
+    "comparison:legacy_left": "/home/haipd/DexAvatar/signal4d/runs/test_20260819_m1/comparisons_vs_legacy/tr_v2v_left_hand_mm.json",
+    "comparison:legacy_left_aurc": "/home/haipd/DexAvatar/signal4d/runs/test_20260819_m1/comparisons_vs_legacy/aurc_left_hand.json",
+    "comparison:legacy_right": "/home/haipd/DexAvatar/signal4d/runs/test_20260819_m1/comparisons_vs_legacy/tr_v2v_right_hand_mm.json",
+    "comparison:legacy_velocity": "/home/haipd/DexAvatar/signal4d/runs/test_20260819_m1/comparisons_vs_legacy/velocity_error.json",
+    "comparison:m0_body": "/home/haipd/DexAvatar/signal4d/runs/test_20260819_m1/comparisons_vs_m0/tr_v2v_upper_body_mm.json",
+    "comparison:m0_left": "/home/haipd/DexAvatar/signal4d/runs/test_20260819_m1/comparisons_vs_m0/tr_v2v_left_hand_mm.json",
+    "comparison:m0_right": "/home/haipd/DexAvatar/signal4d/runs/test_20260819_m1/comparisons_vs_m0/tr_v2v_right_hand_mm.json",
+    "legacy_full_fallback": "/home/haipd/DexAvatar/signal4d/runs/test_20260819_legacy_full_fallback/evaluation/summary.json",
+    "m0_raw": "/home/haipd/DexAvatar/signal4d/runs/test_20260819_m0_raw/evaluation/summary.json",
+    "signal4d_m1": "/home/haipd/DexAvatar/signal4d/runs/test_20260819_m1/evaluation/summary.json",
+    "stress_slices": "/home/haipd/DexAvatar/signal4d/configs/protocol/stress_slices.json"
+  },
+  "status": "generated_from_raw_evaluator_outputs",
+  "stress_slices": "signal4d/configs/protocol/stress_slices.json"
+}
