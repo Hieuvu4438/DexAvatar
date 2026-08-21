@@ -28,6 +28,7 @@ def safe_acceptance_mask(
     uncertainty_ratio: torch.Tensor,
     *,
     require_objective_improvement: bool,
+    minimum_objective_improvement: float = 0.0,
     max_rotation_delta_rad: float,
     max_uncertainty_ratio: float,
     transition_radius: int,
@@ -37,11 +38,13 @@ def safe_acceptance_mask(
     diagnostics = (candidate_objective, max_rotation_delta, uncertainty_ratio)
     if any(value.shape != shape for value in diagnostics):
         raise ValueError("safe-gate diagnostics must share shape [T]")
+    if minimum_objective_improvement < 0:
+        raise ValueError("minimum objective improvement must be non-negative")
     accept = (max_rotation_delta <= max_rotation_delta_rad) & (
         uncertainty_ratio <= max_uncertainty_ratio
     )
     if require_objective_improvement:
-        accept &= candidate_objective < base_objective
+        accept &= candidate_objective + minimum_objective_improvement < base_objective
     if transition_radius > 0 and accept.numel() > 0:
         reject = (~accept).to(dtype=torch.float32)[None, None]
         reject = functional.max_pool1d(

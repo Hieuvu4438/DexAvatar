@@ -61,6 +61,7 @@ class RefinementConfig(BaseModel):
 class SafeGateConfig(BaseModel):
     enabled: bool = True
     require_objective_improvement: bool = True
+    minimum_objective_improvement: float = Field(default=0.0, ge=0)
     max_rotation_delta_rad: float = Field(default=0.35, gt=0)
     max_uncertainty_ratio: float = Field(default=1.5, gt=0)
     transition_radius: int = Field(default=2, ge=0)

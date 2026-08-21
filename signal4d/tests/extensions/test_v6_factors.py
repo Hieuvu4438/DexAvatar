@@ -85,6 +85,21 @@ def test_safe_gate_dilates_rejections_and_falls_back_exactly() -> None:
     torch.testing.assert_close(gated[0], candidate[0])
 
 
+def test_safe_gate_requires_configured_objective_margin() -> None:
+    accept = safe_acceptance_mask(
+        torch.ones(3),
+        torch.tensor([0.8, 0.94, 1.1]),
+        torch.zeros(3),
+        torch.ones(3),
+        require_objective_improvement=True,
+        minimum_objective_improvement=0.075,
+        max_rotation_delta_rad=0.2,
+        max_uncertainty_ratio=1.5,
+        transition_radius=0,
+    )
+    assert accept.tolist() == [True, False, False]
+
+
 def test_closed_parameter_guard_rejects_drift() -> None:
     base, candidate = _identity(1), _identity(1)
     candidate[:, 10] = exp_map(torch.tensor([[0.1, 0.0, 0.0]]))

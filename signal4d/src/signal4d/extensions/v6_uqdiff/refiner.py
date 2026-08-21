@@ -355,6 +355,9 @@ def refine_v5_clip(
             delta.max(1).values,
             uncertainty_ratio,
             require_objective_improvement=config.safe_gate.require_objective_improvement,
+            minimum_objective_improvement=(
+                config.safe_gate.minimum_objective_improvement
+            ),
             max_rotation_delta_rad=config.safe_gate.max_rotation_delta_rad,
             max_uncertainty_ratio=config.safe_gate.max_uncertainty_ratio,
             transition_radius=config.safe_gate.transition_radius,
