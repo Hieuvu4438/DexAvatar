@@ -76,3 +76,34 @@ Primary success criterion is lower UBody-F than frozen V6 (29.5194 mm).
 Secondary constraints are lower UBody and no material hand regression. A
 failure is retained and reported as a valid negative result; it is not tuned
 away on this benchmark.
+
+## Post-lock outcome
+
+The algorithm/configuration lock is commit
+`d2d57476c89acc2ce961cfe4b2f876b1b8bc982b`. Commit
+`354d438aa57c54a5486f7c88c60389a52017cd4b` subsequently added only the
+metadata fields required by the strict evaluator. Selection and every tensor
+were verified identical before and after that format-only repair.
+
+The frozen gate selected 1/1,493 frames (`Regen/150`). The unmodified author
+protocol with `frame-policy=manifest` produced:
+
+| Method | All | UBody | UBody-F | LHand | RHand |
+|---|---:|---:|---:|---:|---:|
+| V6 | 42.111111 | 26.139380 | 29.519389 | 11.633903 | 11.805594 |
+| V7 zero-training | 42.124616 | 26.144515 | 29.524480 | 11.633841 | 11.805506 |
+| V7 − V6 | +0.013505 | +0.005134 | +0.005092 | -0.000062 | -0.000088 |
+
+Thus the preregistered primary success criterion failed. This clean V7 variant
+must not be claimed as an accuracy improvement over V6. It is a valid negative
+result showing that 2D reprojection plus temporal agreement is insufficient to
+identify translation-relative 3D upper-body gains in this monocular setting.
+Frozen V6 remains the paper's best leakage-safe author-protocol result. The
+earlier label-trained V7 remains exploratory only despite its lower numbers.
+
+Strict outputs:
+
+- Predictions: `signal4d_v7_nlf_fusion/runs/v7_gtfree_2d_temporal_gate_v1_full1493_formatfix_20260821/predictions`
+- Gate audit: `signal4d_v7_nlf_fusion/runs/v7_gtfree_2d_temporal_gate_v1_full1493_formatfix_20260821/selection.csv`
+- Evaluation: `signal4d_v7_nlf_fusion/reports/author_v7_gtfree_2d_temporal_gate_v1_full1493_formatfix/comparison.json`
+- Evaluation SHA-256: `6a8e1886bc9f389143be586fa5dadbd82fe9b9250f2333a75363b6bc0f561651`

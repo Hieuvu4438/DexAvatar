@@ -57,3 +57,8 @@ independent image-space arm keypoints, camera reprojection, NLF uncertainty,
 and temporal displacement. Its exact configuration and pre-evaluation protocol
 are locked in `configs/v7_gtfree_2d_temporal_gate_v1.json` and
 `docs/proposal3/SIGNAL-4D_V7_zero_SGNify_training_preregistered_protocol_2026-08-21.md`.
+
+The preregistered full evaluation selected 1/1,493 frames and produced 29.524
+mm UBody-F versus 29.519 mm for V6. It is retained as a protocol-clean negative
+result and must not be presented as an improvement. See
+`docs/proposal3/SIGNAL-4D_V7_clean_evaluation_report_2026-08-21.md`.

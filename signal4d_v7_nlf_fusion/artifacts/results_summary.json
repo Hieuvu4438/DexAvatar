@@ -46,5 +46,29 @@
     "calibration_comparison_json_sha256": "a2752c0d33e7f0aefe50ed40601e01a5749301ebd38d85090e80db08af5de931",
     "router_run_json_sha256": "23ff74e47684dffe31f00212afeb0e0255defeaf3bb6bb392636b9b186978b66",
     "nlf_observation_metadata_sha256": "ac302836156863febb95e7280244d02375dad2870ef0f1eaf0dc8177acef4cfb"
+  },
+  "preregistered_zero_training_result": {
+    "claim_status": "protocol_clean_negative_result",
+    "algorithm_lock_commit": "d2d57476c89acc2ce961cfe4b2f876b1b8bc982b",
+    "format_only_fix_commit": "354d438aa57c54a5486f7c88c60389a52017cd4b",
+    "training_frames": 0,
+    "selected_frames": 1,
+    "coverage_frames": 1493,
+    "V7_CLEAN": {
+      "TR_All_mm": 42.12461601580513,
+      "TR_UBody_mm": 26.144514595641358,
+      "TR_UBody_minus_F_mm": 29.5244801571713,
+      "TR_LHand_mm": 11.63384144358144,
+      "TR_RHand_mm": 11.805505968822848
+    },
+    "delta_V7_CLEAN_minus_V6_mm": {
+      "TR_All_mm": 0.013505465794651172,
+      "TR_UBody_mm": 0.0051343031294806,
+      "TR_UBody_minus_F_mm": 0.005091597797967751,
+      "TR_LHand_mm": -0.00006198161434767258,
+      "TR_RHand_mm": -0.0000881369225173827
+    },
+    "comparison_json_sha256": "6a8e1886bc9f389143be586fa5dadbd82fe9b9250f2333a75363b6bc0f561651",
+    "conclusion": "Does not improve V6; retain as a clean negative result, not an accuracy claim."
   }
 }
