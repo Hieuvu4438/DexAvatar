@@ -62,3 +62,9 @@ The preregistered full evaluation selected 1/1,493 frames and produced 29.524
 mm UBody-F versus 29.519 mm for V6. It is retained as a protocol-clean negative
 result and must not be presented as an improvement. See
 `docs/proposal3/SIGNAL-4D_V7_clean_evaluation_report_2026-08-21.md`.
+
+`external_how2sign_residual_transport.py` is the external-supervision lane. It
+transports a checkpoint residual trained and selected only on source-disjoint
+How2Sign onto V6, while preserving global wrists and all local hand rotations.
+Its configuration and pre-evaluation contract are locked separately from both
+the exploratory SGNify-trained router and the zero-training 2D gate.
