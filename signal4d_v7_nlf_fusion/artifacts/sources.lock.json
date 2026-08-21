@@ -1,0 +1,56 @@
+{
+  "schema_version": "signal4d.research_sources.v1",
+  "checked_at": "2026-08-21T14:34:40+07:00",
+  "sources": [
+    {
+      "name": "NLF",
+      "repository": "https://github.com/isarandi/nlf",
+      "commit": "f8611fc76ff60f262eb0ab2c6abc3947e42a954a",
+      "code_license": "MIT",
+      "checkpoint_terms": "noncommercial research use",
+      "local_checkout": "/home/haipd/DexAvatar/nlf"
+    },
+    {
+      "name": "SOKE",
+      "repository": "https://github.com/2000ZRL/SOKE",
+      "commit": "5cbc55d84b5a7cbf05a9cf020c468052e8d94d00",
+      "code_license": "CC-BY-NC-ND-4.0",
+      "checkpoint_terms": "follow repository license",
+      "integration_status": "paper equations only; do not copy or modify repository code"
+    },
+    {
+      "name": "Dyn-HaMR",
+      "repository": "https://github.com/ZhengdiYu/Dyn-HaMR",
+      "commit": "fa9cd7412c205fd15ee4139c8caacf79bf6167e6",
+      "code_license": "MIT",
+      "checkpoint_terms": "audit transitive HaMeR/MANO/model terms before redistribution"
+    },
+    {
+      "name": "InterWild",
+      "repository": "https://github.com/facebookresearch/InterWild",
+      "commit": "7c01e4ad4909652056a68af93b4c16ceabbce8fe",
+      "code_license": "CC-BY-NC-4.0",
+      "repository_status": "archived"
+    },
+    {
+      "name": "GVHMR",
+      "repository": "https://github.com/zju3dv/GVHMR",
+      "commit": "6ec3ca39336c50492c0fae65fba2fb831fc7d866",
+      "code_license": "custom educational/research/non-profit; derivatives open-source; no commercial use"
+    },
+    {
+      "name": "HaWoR",
+      "repository": "https://github.com/ThunderVVV/HaWoR",
+      "commit": "66c7d4108d58a716deccd192cb7645170cdc7bd7",
+      "code_license": "CC-BY-NC-ND-4.0",
+      "integration_status": "reference/black-box evaluation only; not selected for static-camera SGNify"
+    },
+    {
+      "name": "DPoser-X",
+      "repository": "https://github.com/moonbow721/DPoser-X",
+      "commit": "c373fce3d364a4a0946e8445fdea5cbfd490e837",
+      "code_license": "MIT",
+      "integration_status": "already evaluated in frozen V6; retain, do not treat as new V7 contribution"
+    }
+  ]
+}

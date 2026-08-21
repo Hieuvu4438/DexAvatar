@@ -1,0 +1,50 @@
+{
+  "schema_version": "signal4d.v7_nlf_fusion.results.v1",
+  "date": "2026-08-21",
+  "claim_status": "exploratory_not_confirmatory",
+  "claim_boundary": "The router was trained on the frozen SGNify development labels and its margin/alpha were selected on calibration. Test target values are not materialized or used for router fitting/selection, but test results have been inspected during method development; these numbers are not a pristine held-out SOTA claim.",
+  "coverage": {
+    "signs": 57,
+    "frames": 1493,
+    "fraction": 1.0
+  },
+  "selection": {
+    "training_partition": "development",
+    "training_frames": 578,
+    "margin_partition": "calibration",
+    "margin_mm": 1.0,
+    "alpha_partition": "calibration",
+    "alpha": 0.75,
+    "selected_frames": 603
+  },
+  "official_author_protocol_full1493": {
+    "V6": {
+      "TR_All_mm": 42.11111055001048,
+      "TR_UBody_mm": 26.139380292511877,
+      "TR_UBody_minus_F_mm": 29.519388559373333,
+      "TR_LHand_mm": 11.633903425195788,
+      "TR_RHand_mm": 11.805594105745365
+    },
+    "V7_NLF_GlobalWrist_A075": {
+      "TR_All_mm": 41.4383674063454,
+      "TR_UBody_mm": 23.828935354901702,
+      "TR_UBody_minus_F_mm": 26.885972896757725,
+      "TR_LHand_mm": 11.640167645383585,
+      "TR_RHand_mm": 11.75237144849367
+    },
+    "delta_V7_minus_V6_mm": {
+      "TR_All_mm": -0.6727431436650804,
+      "TR_UBody_mm": -2.3104449376101748,
+      "TR_UBody_minus_F_mm": -2.633415662615608,
+      "TR_LHand_mm": 0.00626422018779671,
+      "TR_RHand_mm": -0.05322265725169473
+    }
+  },
+  "provenance": {
+    "author_source_sha256": "e43e12a6659f0604752f0adb8b3c06cfb6ff8d910ed29137036351ee8fc44513",
+    "full_comparison_json_sha256": "52c897aedd1aba47990bd2e2e5217736c71e1d673acc52094eccf3920200e419",
+    "calibration_comparison_json_sha256": "a2752c0d33e7f0aefe50ed40601e01a5749301ebd38d85090e80db08af5de931",
+    "router_run_json_sha256": "23ff74e47684dffe31f00212afeb0e0255defeaf3bb6bb392636b9b186978b66",
+    "nlf_observation_metadata_sha256": "ac302836156863febb95e7280244d02375dad2870ef0f1eaf0dc8177acef4cfb"
+  }
+}
