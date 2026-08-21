@@ -25,4 +25,3 @@ def test_tangent_composition_keeps_closed_rotations_bitwise() -> None:
     closed[[18, 19]] = False
     assert torch.equal(result[:, closed], base[:, closed])
     assert not torch.equal(result[:, 18], base[:, 18])
-

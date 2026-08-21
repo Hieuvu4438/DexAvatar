@@ -392,9 +392,14 @@ def refine_v5_clip(
         "mean_rotation_delta_rad": float(delta.mean()),
         "base_frame_objective_mean": float(base_frame_objective.mean()),
         "candidate_frame_objective_mean": float(candidate_frame_objective.mean()),
+        "base_frame_objective": base_frame_objective.detach().cpu().tolist(),
+        "candidate_frame_objective": candidate_frame_objective.detach().cpu().tolist(),
+        "rotation_delta_max_rad": delta.max(1).values.detach().cpu().tolist(),
+        "rotation_delta_mean_rad": delta.mean(1).detach().cpu().tolist(),
+        "uncertainty_ratio": uncertainty_ratio.detach().cpu().tolist(),
+        "change_probability": change.detach().cpu().tolist(),
         "history": copy.deepcopy(history),
         "open_canonical_joint_indices": list(open_canonical),
         "gt_used": False,
     }
     return RefinementResult(prediction, diagnostics)
-

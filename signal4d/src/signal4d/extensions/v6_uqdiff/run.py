@@ -99,10 +99,9 @@ def run(
                 "gt_used": False,
             },
         )
-        (clip_output / "v6_diagnostics.json").write_text(
-            json.dumps(result.diagnostics, indent=2, sort_keys=True) + "\n",
-            encoding="utf-8",
-        )
+        diagnostics_text = json.dumps(result.diagnostics, indent=2, sort_keys=True) + "\n"
+        for filename in ("v6_diagnostics.json", "factor_diagnostics.json"):
+            (clip_output / filename).write_text(diagnostics_text, encoding="utf-8")
         accepted_frames += int(result.diagnostics["accepted_frames"])
         runtime[item.clip_id] = time.perf_counter() - clip_started
         parent_hashes[item.clip_id] = str(base_metadata["artifact_sha256"])
