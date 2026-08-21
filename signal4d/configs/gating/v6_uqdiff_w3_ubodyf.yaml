@@ -1,0 +1,21 @@
+schema_version: "1.0"
+seed: 12345
+target_metric: tr_upper_body_minus_face_mm
+target_definition: candidate_SIGNAL4D_V6_W3_minus_frozen_SIGNAL4D_V5_per_frame_mm
+folds: 6
+trees: 500
+n_jobs: 8
+min_samples_leaf: [3, 5, 10, 20]
+max_features: [0.5, 0.8, 1.0]
+decision_threshold_mm: [-0.50, -0.25, -0.10, -0.05, 0.00, 0.10]
+switch_penalty_mm: [0.00, 0.10, 0.25, 0.50, 1.00, 2.00]
+datasets:
+  - name: v6_w3_calibration
+    partition: calibration
+    manifest: signal4d/artifacts/manifests/frozen_seed_20260819_v2/sgnify_calibration.jsonl
+    candidate_root: signal4d/runs/v6_safe_cal_w3_20260821/predictions
+    baseline_root: signal4d/runs/signal4d_v5_full1493_20260820/predictions
+    cache_root: signal4d/artifacts/cache/sgnify_smplerx_wilor_a1_leftmirror_v5_all
+    candidate_frame_csv: signal4d/reports/v6_uqdiff_calibration_20260821/search_safe_weights/methods/W3/per_frame.csv
+    baseline_frame_csv: signal4d/reports/v6_uqdiff_calibration_20260821/search_safe_weights/methods/V5/per_frame.csv
+
