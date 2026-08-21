@@ -1,0 +1,11 @@
+{
+  "nominal_coverage": 0.9,
+  "scales": {
+    "source_0:body": 97.52373504638672,
+    "source_0:left_hand": 97.53325653076172,
+    "source_0:right_hand": 97.46315002441406,
+    "source_1:body": 103.99712371826172,
+    "source_1:left_hand": 112.68181610107422,
+    "source_1:right_hand": 97.58609008789062
+  }
+}

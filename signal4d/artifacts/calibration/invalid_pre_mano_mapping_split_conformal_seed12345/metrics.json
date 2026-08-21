@@ -1,0 +1,58 @@
+{
+  "cache_hashes": {
+    "Blitz": "f9c94b79beee1ad4458873d782e883c70ae6ba83be3332c47927da7b80dc1cea",
+    "Dort": "8e8510549c328a10e747ff8202de71715c64aa7f12bb2a8cc935f234467051f6",
+    "EinstellenJob": "5c24fb3dde6f73eb5acfcba4976eda4efcf66a3a4fcbb10dea9ec2437e2b04cf",
+    "EisGefroren": "26277b1740f707c433b4005a582670077ee8b746271a05fbdd73baae70a4e73b",
+    "Frech": "c069f849cdd15c370788d1ab65c5d5a3dca43b7aceb329a59cd9b29c1bef1ea8",
+    "Mutter": "d07292d1463f2e3c4652260aa39d0dad62234d0c624d0410ab2612f2e834173e",
+    "Neu": "6f2c5c979d9e5a21cf1009f5d427c9ef585b77fe95e6fee1541215ee9a7c53d6",
+    "SauerWuetend": "2767e4329ca5cdd5ae9f54d36e2ad45d87e2130dc7dde50874b7b249ea22ea18",
+    "Schwer": "27c7cd23aa013c5b83e0aa1ef7a134c1b4bb8f3394088ff3fa419a63d28a461a",
+    "Treffen": "dbaa6eefa44acd42fa2fe5d07e3642b1fe7e5ba722e9a0bb2666bdb97c4e66be",
+    "VorsichtPassAuf": "9bc878c2fc5dcc06094085efc33de10183c1d93a67551ff62abd9fff8dc6594c",
+    "Widerspruch": "f85aa8c07650daa7bf11286fb7640ff06fa81d22c3fc1e51cbcc0781b42532bc"
+  },
+  "conformal_clips": [
+    "Blitz",
+    "EinstellenJob",
+    "Frech",
+    "Schwer"
+  ],
+  "device": "cpu",
+  "empirical_conformal_coverage": {
+    "source_0:body": 0.9003846049308777,
+    "source_0:left_hand": 0.9006410241127014,
+    "source_0:right_hand": 0.9006410241127014,
+    "source_1:body": 0.9109588861465454,
+    "source_1:left_hand": 0.9020408391952515,
+    "source_1:right_hand": 0.9010308980941772
+  },
+  "epochs": 300,
+  "feature_dim": 8,
+  "final_loss": -1.7635976076126099,
+  "gt_file_count": 260,
+  "hidden_dim": 32,
+  "initial_loss": -1.651699423789978,
+  "manifest_sha256": "6e5267f23d15e43cdb0691727abc8f94ce0aead535777297437c0ece2f685036",
+  "model_fit_clips": [
+    "VorsichtPassAuf",
+    "Neu",
+    "Widerspruch",
+    "Dort",
+    "SauerWuetend",
+    "Treffen",
+    "EisGefroren",
+    "Mutter"
+  ],
+  "nominal_coverage": 0.9,
+  "python": "3.10.19",
+  "residual_alignment": "per_frame_source0_pelvis_translation",
+  "schema_version": "1.0",
+  "seed": 12345,
+  "sigma_max": 0.2,
+  "sigma_min": 0.002,
+  "smplx_model_sha256": "376021446ddc86e99acacd795182bbef903e61d33b76b9d8b359c2b0865bd992",
+  "torch": "2.1.1+cu121",
+  "weights_sha256": "e2a8bbe2679103ed4dcb5135fc2c63280bfd528e54005c992974074295f1691c"
+}

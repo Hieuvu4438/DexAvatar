@@ -1,0 +1,5 @@
+{
+  "source": "deterministic synthetic oracle",
+  "seed": 12345,
+  "clip_index": 0
+}

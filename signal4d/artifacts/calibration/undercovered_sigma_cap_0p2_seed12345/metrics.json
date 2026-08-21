@@ -1,0 +1,77 @@
+{
+  "abstention_thresholds_m": {
+    "body": 0.14535586535930634,
+    "left_hand": 0.20000003278255463,
+    "right_hand": 0.13298365473747253
+  },
+  "cache_hashes": {
+    "Blitz": "a6de800dd5f1ef436e9fe7eb87c036e6d7d16c28b7e8925a84345b75df425dbf",
+    "Dort": "3c94c43d76128c0750da3cad917d78c05d98b88843e3e47851196f71ab3c4670",
+    "EinstellenJob": "6b1388426bac5d9098fb9ab861f52b0d97e4f27de97313823a7611ef75697ca7",
+    "EisGefroren": "dce17542570617f7e715db45879adcdfd2c4ebcaf0182ee5129e396937e05976",
+    "Frech": "eb22f526c1712d6e7a21869f29f0a5ab4032fc770c0521c120a7b3e6f45c2f9b",
+    "Mutter": "e806c1185b3bb3bf11f4cc8e7c5062878ef72b69c4494fd28c24f83bf1da4ef1",
+    "Neu": "1f6f7405f22714a05af3e5ea2aa23fa8fbe340bcad6ba9aea62046fc0dd32cc3",
+    "SauerWuetend": "991bdbbe1e9086b4dbbe5d7938815b29a10a2f9c527954698c4446c639dc5018",
+    "Schwer": "49568124f80f77cd2d46ca1dc7e4d0d30412206e06d3cd44f511c04f6ba18466",
+    "Treffen": "f0e3649c9e9da285b61a96cec8e89dba278d958aeb5566fd41db2e9af5113879",
+    "VorsichtPassAuf": "6fa692119eff5c6c257481ac3d46abd54d8f97036daa5b61c92c27837012a8eb",
+    "Widerspruch": "eb0ceb15b5f1f7689af1b0d2d04f5c412a42686736e1ac3cbf0a2fd25f644d17"
+  },
+  "conformal_clips": [
+    "Blitz",
+    "EinstellenJob",
+    "Frech",
+    "Schwer"
+  ],
+  "device": "cpu",
+  "empirical_conformal_coverage": {
+    "source_0:body": 0.9003846049308777,
+    "source_0:left_hand": 0.785897433757782,
+    "source_0:right_hand": 0.9006410241127014,
+    "source_1:body": 0.9109588861465454,
+    "source_1:left_hand": 0.8040816187858582,
+    "source_1:right_hand": 0.9010308980941772,
+    "source_2:body": 0.8944329619407654,
+    "source_2:left_hand": 0.5532646179199219,
+    "source_2:right_hand": 0.9010308980941772
+  },
+  "empirical_conformal_coverage_unclipped": {
+    "source_0:body": 0.9003846049308777,
+    "source_0:left_hand": 0.9006410241127014,
+    "source_0:right_hand": 0.9006410241127014,
+    "source_1:body": 0.9109588861465454,
+    "source_1:left_hand": 0.9020408391952515,
+    "source_1:right_hand": 0.9010308980941772,
+    "source_2:body": 0.9006185531616211,
+    "source_2:left_hand": 0.9010308980941772,
+    "source_2:right_hand": 0.9010308980941772
+  },
+  "epochs": 300,
+  "feature_dim": 8,
+  "final_loss": -1.8820843696594238,
+  "gt_file_count": 260,
+  "hidden_dim": 32,
+  "initial_loss": -1.7885513305664062,
+  "manifest_sha256": "6e5267f23d15e43cdb0691727abc8f94ce0aead535777297437c0ece2f685036",
+  "model_fit_clips": [
+    "VorsichtPassAuf",
+    "Neu",
+    "Widerspruch",
+    "Dort",
+    "SauerWuetend",
+    "Treffen",
+    "EisGefroren",
+    "Mutter"
+  ],
+  "nominal_coverage": 0.9,
+  "python": "3.10.19",
+  "residual_alignment": "per_frame_source0_pelvis_translation",
+  "schema_version": "1.0",
+  "seed": 12345,
+  "sigma_max": 0.2,
+  "sigma_min": 0.002,
+  "smplx_model_sha256": "376021446ddc86e99acacd795182bbef903e61d33b76b9d8b359c2b0865bd992",
+  "torch": "2.1.1+cu121",
+  "weights_sha256": "976cf913ad87e0b8f67d81c1843616ef0b03acdf362ac1199deb2a3be7c74ed3"
+}

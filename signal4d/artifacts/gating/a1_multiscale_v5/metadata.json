@@ -1,0 +1,57 @@
+{
+  "baseline_label": "legacy_a1_ensemble_hamer_fallback",
+  "config_sha256": "6cca22c591d07a1225626422fee10b7264cacec28f0740f0cbb5caf60f6d0598",
+  "development_selection_basis": "paired out_of_fold_predictions_only",
+  "gt_used_at_inference": false,
+  "hypotheses": [
+    {
+      "artifact": "signal4d/artifacts/gating/a1_m1_alpha_1p0_v5",
+      "decision_threshold_mm": 0.0,
+      "forest_sha256": "c13163f5d4520c693bee150620de3d0bbf52fd94099cd562c784d8dd934a6f5e",
+      "label": "m1_alpha_1p0",
+      "metadata_sha256": "c6fac66d6fa21fc293ff198f56c5a6d147c3f9c4a9003c5755bfbad525cf0729",
+      "oof_predictions_sha256": "ee3ee817eaaa085abf7a61c7120f63777e841bb4702ce46a5eff05f2e5ef8f4d"
+    },
+    {
+      "artifact": "signal4d/artifacts/gating/a1_m1_alpha_1p5_v5",
+      "decision_threshold_mm": -0.5,
+      "forest_sha256": "db2a1454c7050fd3d5835d0ed1c8123ffebc2acd0f9cd028108cc1383c3a53e2",
+      "label": "m1_alpha_1p5",
+      "metadata_sha256": "eb17eb9a7bb3bfa50d5b5aeeaca253676c25c2671bd2ef5523b13d71ff8e4f31",
+      "oof_predictions_sha256": "30d746dee9399e69e3ef78b295039cfff102d422e1160dc7e6e1cfcde31cfcb1"
+    },
+    {
+      "artifact": "signal4d/artifacts/gating/a1_m1_alpha_3p0_v5",
+      "decision_threshold_mm": -0.5,
+      "forest_sha256": "ae15744b198e2da727f98ac933792a70318bcb85fc3ef175d80287a2a0c68ec8",
+      "label": "m1_alpha_3p0",
+      "metadata_sha256": "6b3a6be95735263c226891476768aeef1c2a018bc417e7904420f5a8640d569b",
+      "oof_predictions_sha256": "faa17443194d8710203100236d91b0e9fad19ef3ee521c2a58abc864705166e3"
+    }
+  ],
+  "method_name": "signal4d_m1_multiscale_gt_free_gate",
+  "oof_ci95_clip_bootstrap_mm": [
+    -1.423799745338224,
+    -0.5696292537437226
+  ],
+  "oof_clip_macro_delta_mm": -0.9871742829516219,
+  "oof_clips": 45,
+  "oof_frame_micro_delta_mm": -0.8328778459497902,
+  "oof_frames": 1233,
+  "oof_state_frame_counts": {
+    "0": 493,
+    "1": 500,
+    "2": 26,
+    "3": 214
+  },
+  "oof_switches": 0,
+  "schema_version": "1.0",
+  "seed": 12345,
+  "state_labels": [
+    "legacy_a1_ensemble_hamer_fallback",
+    "m1_alpha_1p0",
+    "m1_alpha_1p5",
+    "m1_alpha_3p0"
+  ],
+  "switch_penalty_mm": 8.0
+}

@@ -1,0 +1,57 @@
+{
+  "baseline_label": "legacy_full_fallback",
+  "config_sha256": "b28053236118cf319d801f96840980c524002c1c3657953e238f65873bd2a58e",
+  "development_selection_basis": "paired out_of_fold_predictions_only",
+  "gt_used_at_inference": false,
+  "hypotheses": [
+    {
+      "artifact": "signal4d/artifacts/gating/central_observed_v4_clipstable",
+      "decision_threshold_mm": -0.25,
+      "forest_sha256": "f3b19172d891218f174a4c6b2ea78ad142d44ce93b43b8b94e19b66b68770a90",
+      "label": "m1_alpha_1p0",
+      "metadata_sha256": "c85b86fe603ac01fcfdac6ff7f79ad3dbacd682f476a59b5b78b3caca855bd6f",
+      "oof_predictions_sha256": "5ed2f96c7b8e452da57451efe1cb615700edbdfa58fb029685356b51a6204ee4"
+    },
+    {
+      "artifact": "signal4d/artifacts/gating/central_extrapolate_alpha_1p5_v4",
+      "decision_threshold_mm": -0.25,
+      "forest_sha256": "2861b2d11752933fdd788df649520d42fe3dce69346f7db1772c21792eb381de",
+      "label": "m1_alpha_1p5",
+      "metadata_sha256": "11e1c098c870e4afd47ef2a3055c0df09bae9aaa0ef224299f48b813ea5e332f",
+      "oof_predictions_sha256": "f02a864762bf744cf0c03bffb6970396c6f9c56c41deb1ba47e78a20d3d709a1"
+    },
+    {
+      "artifact": "signal4d/artifacts/gating/central_extrapolate_alpha_3p0_v4",
+      "decision_threshold_mm": 0.25,
+      "forest_sha256": "a9d256c940227dec848e289f755a920f4e176cb2271540e413f2922c8078da91",
+      "label": "m1_alpha_3p0",
+      "metadata_sha256": "ccf1c6dc88b94a24b3820514baa5b93d3c932a58ea00b8828c4c08977c0c087f",
+      "oof_predictions_sha256": "6e3c6ec623fda1f6d1d596fd1cad784daab8d1bb24c298e0d1f2a756997b355d"
+    }
+  ],
+  "method_name": "signal4d_m1_multiscale_gt_free_gate",
+  "oof_ci95_clip_bootstrap_mm": [
+    -1.5283945987820007,
+    -0.5877372522667174
+  ],
+  "oof_clip_macro_delta_mm": -1.0383411592689882,
+  "oof_clips": 45,
+  "oof_frame_micro_delta_mm": -0.8961957810085572,
+  "oof_frames": 1233,
+  "oof_state_frame_counts": {
+    "0": 611,
+    "1": 286,
+    "2": 93,
+    "3": 243
+  },
+  "oof_switches": 0,
+  "schema_version": "1.0",
+  "seed": 12345,
+  "state_labels": [
+    "legacy_full_fallback",
+    "m1_alpha_1p0",
+    "m1_alpha_1p5",
+    "m1_alpha_3p0"
+  ],
+  "switch_penalty_mm": 8.0
+}

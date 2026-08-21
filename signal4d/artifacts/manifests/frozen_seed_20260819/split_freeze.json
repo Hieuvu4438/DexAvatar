@@ -1,0 +1,29 @@
+{
+  "clip_disjoint": true,
+  "counts": {
+    "calibration": {
+      "clips": 12,
+      "frames": 260
+    },
+    "development": {
+      "clips": 20,
+      "frames": 564
+    },
+    "test": {
+      "clips": 25,
+      "frames": 669
+    }
+  },
+  "manifest_sha256": {
+    "calibration": "6e5267f23d15e43cdb0691727abc8f94ce0aead535777297437c0ece2f685036",
+    "development": "c14eccff1e64f9bee1877e454e8c67236399a0f9c3e7133de2f6f33fce223765",
+    "test": "a5324f680e23b3604d566fbcefa4a20e770b253a9551432b01faeb8c687942e9"
+  },
+  "schema_version": "1.0",
+  "seed": 20260819,
+  "signer_disjoint": false,
+  "signer_limitation": "SGNify release lacks usable signer identifiers; signer_id is unknown, so the frozen split is clip-disjoint but signer-disjointness cannot be verified.",
+  "source_manifest": "/home/haipd/DexAvatar/signal4d/artifacts/manifests/sgnify_available_15fps_development.jsonl",
+  "source_manifest_sha256": "02e06c946f9400d8eb2b238c0297b07e188912121748db68ee1d66d12ea7c362",
+  "strategy": "sha256(seed:clip_id), then fixed clip counts"
+}

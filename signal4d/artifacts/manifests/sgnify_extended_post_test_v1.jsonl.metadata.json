@@ -1,0 +1,9 @@
+{
+  "clips": 56,
+  "frames": 769,
+  "ground_truth_values_read": false,
+  "manifest_sha256": "33825a3f1ac8aa6d063f90bc12c8061ed60680267615b6d76cbe1e8cee625b32",
+  "schema_version": "1.0",
+  "segments_sha256": "e5d9bd504ef8158695a09d2fa279ba33bccda78d43a9575435ee838223d1aac2",
+  "selection": "strictly_after_frozen_central_segment"
+}

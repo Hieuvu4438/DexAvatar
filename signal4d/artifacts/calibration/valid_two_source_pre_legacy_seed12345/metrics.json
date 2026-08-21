@@ -1,0 +1,63 @@
+{
+  "abstention_thresholds_m": {
+    "body": 0.1405002474784851,
+    "left_hand": 0.29637593030929565,
+    "right_hand": 0.11443084478378296
+  },
+  "cache_hashes": {
+    "Blitz": "908e57d086b475754dcfe62b56f9c758fa66d93d35d2c20d09f060b6ee9f22ab",
+    "Dort": "809d01ace29c07fe6daaee227d8d7ac6f04fbeba8c9d86c32c25cb0dafcc1778",
+    "EinstellenJob": "0e0b8cd4a7e09fa2ace442f1d6b6be3e8dca0f30de6a6469fe2bd92bbb69ffbd",
+    "EisGefroren": "0578abc56cc368465e881c72b94845eb055758f906dff8911c13363405c2a67b",
+    "Frech": "bce22dcb91c61552852de132f01dabf3d360d66783a5144d2afb86ae81176071",
+    "Mutter": "2136a257730d213a01093be9773f20d7d3f5e2fe040e660f9c81146281f52f7e",
+    "Neu": "ac8fb9d5be1bb0135a4c60841f21da720a0ed45ada9b56e2962b877603555fda",
+    "SauerWuetend": "c22df870992154acf1282a2efb111c25277382def2be7f8818be658225dc022c",
+    "Schwer": "dc1c72571d4614e40f20e8c9583c2c26733e6febe742bca4c4856965a819a3ef",
+    "Treffen": "7d0b79577941720125f818ac9f3a4beb27418d52b2f5318b40f7d8edeffe06ed",
+    "VorsichtPassAuf": "43d4824fb5a974d54aa452b5629cfaabc8fcb0eefc399c8d3b6150a7fe8f6dbf",
+    "Widerspruch": "75b052fc237ef92d75d8757a6c7519d46f04b6e2bc31a55493d820829ea9bbee"
+  },
+  "conformal_clips": [
+    "Blitz",
+    "EinstellenJob",
+    "Frech",
+    "Schwer"
+  ],
+  "device": "cpu",
+  "empirical_conformal_coverage": {
+    "source_0:body": 0.9003846049308777,
+    "source_0:left_hand": 0.9006410241127014,
+    "source_0:right_hand": 0.9006410241127014,
+    "source_1:body": 0.9109588861465454,
+    "source_1:left_hand": 0.9020408391952515,
+    "source_1:right_hand": 0.9010308980941772
+  },
+  "epochs": 300,
+  "feature_dim": 8,
+  "final_loss": -1.7715227603912354,
+  "gt_file_count": 260,
+  "hidden_dim": 32,
+  "initial_loss": -1.660256028175354,
+  "manifest_sha256": "6e5267f23d15e43cdb0691727abc8f94ce0aead535777297437c0ece2f685036",
+  "model_fit_clips": [
+    "VorsichtPassAuf",
+    "Neu",
+    "Widerspruch",
+    "Dort",
+    "SauerWuetend",
+    "Treffen",
+    "EisGefroren",
+    "Mutter"
+  ],
+  "nominal_coverage": 0.9,
+  "python": "3.10.19",
+  "residual_alignment": "per_frame_source0_pelvis_translation",
+  "schema_version": "1.0",
+  "seed": 12345,
+  "sigma_max": 0.2,
+  "sigma_min": 0.002,
+  "smplx_model_sha256": "376021446ddc86e99acacd795182bbef903e61d33b76b9d8b359c2b0865bd992",
+  "torch": "2.1.1+cu121",
+  "weights_sha256": "5c782a71e9bff69adff33b4b120121a92e7830c55befee6cc8ab562b1a2940a5"
+}
