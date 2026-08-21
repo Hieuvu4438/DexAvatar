@@ -1,0 +1,15 @@
+{
+  "alignment": {
+    "primary": "translation-aligned vertex-to-vertex",
+    "secondary": "per-frame Procrustes-aligned MPVPE"
+  },
+  "coverage_gate_passed": true,
+  "manifest_sha256": "02e06c946f9400d8eb2b238c0297b07e188912121748db68ee1d66d12ea7c362",
+  "region_sha256": {
+    "left_hand": "2a04aed2e93e5e645d463090a349b31529633497eb4768b42a1a411077a58a68",
+    "right_hand": "e76b090dae1a090f7bc8c3111f2b98f5cdb66376c24ab2a6463399455ec1afad",
+    "upper_body": "36137ecdde2b989d1e1b7d1dec136260b7c116256b53a24d88402cb2d10c2c92"
+  },
+  "schema_version": "1.0",
+  "smplx_model_sha256": "376021446ddc86e99acacd795182bbef903e61d33b76b9d8b359c2b0865bd992"
+}
