@@ -48,3 +48,12 @@ the test result has now been inspected. Test target values are excluded from
 the router feature artifact and are not used for fitting or selection. A paper
 claim still requires an externally trained/GT-free gate or sign-level
 out-of-fold evaluation as specified in the research plan under `docs/proposal3`.
+
+## Preregistered zero-training evaluation
+
+`nlf_gtfree_2d_temporal_gate.py` is a separate clean-claim lane. It has no
+trained parameters and selects the fixed SO(3) midpoint candidate using only
+independent image-space arm keypoints, camera reprojection, NLF uncertainty,
+and temporal displacement. Its exact configuration and pre-evaluation protocol
+are locked in `configs/v7_gtfree_2d_temporal_gate_v1.json` and
+`docs/proposal3/SIGNAL-4D_V7_zero_SGNify_training_preregistered_protocol_2026-08-21.md`.

@@ -1,0 +1,21 @@
+{
+  "alpha": 0.5,
+  "arm_cache_joint_indices": [15, 16, 17, 18, 19, 20],
+  "candidate": "SO(3) midpoint from frozen V6 toward NLF; preserve V6 global wrists, local face/eyes/hands, identity shape, expression, and translation",
+  "gate": "per-sign two-state dynamic programming over V6 and fused candidate",
+  "minimum_valid_arm_joints": 2,
+  "nlf_plausibility": {
+    "minimum_fraction_below_threshold": 0.3333333333333333,
+    "uncertainty_threshold_mm": 250.0
+  },
+  "schema_version": "signal4d.v7.gtfree_2d_temporal_gate.v1",
+  "selection_tie_policy": "V6",
+  "supervision": {
+    "external_training_data": "none",
+    "sgnify_ground_truth": "evaluation_only_after_code_and_config_lock",
+    "trained_parameters": 0
+  },
+  "temporal_weight": 1.0,
+  "unary": "confidence-weighted mean 2D Euclidean reprojection error divided by image diagonal",
+  "transition": "confidence-weighted mean error between predicted and observed 2D inter-frame displacement, divided by image diagonal"
+}
