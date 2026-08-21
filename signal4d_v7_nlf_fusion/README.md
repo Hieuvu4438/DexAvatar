@@ -77,3 +77,8 @@ full-body or global-SOTA claim. Predictions are exactly reproducible across an
 independent rerun. See
 `docs/proposal3/SIGNAL-4D_V7_external_How2Sign_author_protocol_report_2026-08-21.md`
 for the complete audit and paper-safe claim language.
+
+The paper-oriented method, training objective, SO(3) transport equations,
+SMPL-X output contract, and exact author-protocol reproduction commands are
+documented in
+`docs/proposal3/SIGNAL-4D_V7_method_and_official_protocol_detailed_2026-08-21.md`.
