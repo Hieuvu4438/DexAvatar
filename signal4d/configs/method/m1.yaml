@@ -1,0 +1,33 @@
+schema_version: "1.0"
+method_name: signal4d_m1
+seed: 12345
+window: {length: 64, stride: 32, context: 8}
+uncertainty:
+  mode: calibrated
+  sigma_min: 0.002
+  sigma_max: 0.5
+  artifact: signal4d/artifacts/calibration/sgnify_smplerx_wilor_split_conformal_seed12345
+change_point: {mode: rule_based, gamma: 2.0, threshold: 0.7}
+contact: {enabled: false}
+observation_sources: [0, 1, 2]
+initializer_mode: legacy_full
+factors:
+  observation: 1.0
+  observation_2d: 1000.0
+  prior: 0.01
+  temporal: 0.001
+  temporal_rotation: 0.001
+  contact: 0.0
+  collision: 0.0
+solver:
+  learning_rate: 0.0005
+  max_steps: 60
+  patience: 12
+  grad_clip_norm: 10.0
+  optimize_global: false
+  optimize_body: true
+  body_joint_indices: [17, 19]
+  optimize_hands: true
+  optimize_left_hand: true
+  optimize_right_hand: false
+  optimize_translation: false

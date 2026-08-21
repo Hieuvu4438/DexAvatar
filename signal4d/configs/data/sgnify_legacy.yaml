@@ -1,0 +1,9 @@
+schema_version: "1.0"
+dataset: sgnify
+frames_root: ../data/frames
+segments: ../data/evaluation_from_author/segment.json
+signs: ../data/signs.txt
+fps: 15.0
+split: development
+endpoint: explicit_available_frames
+gt_root: ../data/smplx_gt

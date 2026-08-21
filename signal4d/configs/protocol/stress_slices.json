@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0",
+  "frozen_on": "2026-08-19",
+  "selection_uses_method_error": false,
+  "development_calibration_median_frames": 24,
+  "slices": {
+    "short": {"field": "frame_count", "operator": "<=", "value": 24},
+    "long": {"field": "frame_count", "operator": ">", "value": 24}
+  },
+  "limitations": [
+    "Signer, language and sign-type metadata are unavailable, so those slices are blocked.",
+    "No test ground truth or method output was used to choose the threshold."
+  ]
+}

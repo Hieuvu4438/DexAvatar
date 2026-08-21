@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "coordinate_unit": "meter",
+  "evidence_status": "proximity_proxy_without_human_contact_labels",
+  "edges": [
+    {"edge_id": "wrist_wrist", "joint_a": 20, "joint_b": 21},
+    {"edge_id": "index_index", "joint_a": 27, "joint_b": 42},
+    {"edge_id": "middle_middle", "joint_a": 30, "joint_b": 45},
+    {"edge_id": "pinky_pinky", "joint_a": 33, "joint_b": 48},
+    {"edge_id": "ring_ring", "joint_a": 36, "joint_b": 51},
+    {"edge_id": "thumb_thumb", "joint_a": 39, "joint_b": 54},
+    {"edge_id": "left_index_head", "joint_a": 27, "joint_b": 15},
+    {"edge_id": "right_index_head", "joint_a": 42, "joint_b": 15},
+    {"edge_id": "left_wrist_chest", "joint_a": 20, "joint_b": 9},
+    {"edge_id": "right_wrist_chest", "joint_a": 21, "joint_b": 9},
+    {"edge_id": "left_hand_right_shoulder", "joint_a": 27, "joint_b": 17},
+    {"edge_id": "right_hand_left_shoulder", "joint_a": 42, "joint_b": 16}
+  ],
+  "claim_restriction": "Do not claim contact correctness without independent labels."
+}

@@ -1,0 +1,10 @@
+schema_version: "1.0"
+track: clean
+coordinate_convention: opencv_x_right_y_down_z_forward
+length_unit: meter
+alignment: translation_per_region_per_frame
+require_complete_predictions: true
+allow_test_fit: true
+allow_test_calibration: false
+bootstrap_replicates: 10000
+bootstrap_seed: 20260819

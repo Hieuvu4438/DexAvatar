@@ -1,0 +1,14 @@
+schema_version: "1.0"
+seed: 12345
+baseline_label: legacy_a1_ensemble_hamer_fallback
+# Fixed from the historical central endpoint before prospective GT is cached.
+# The conservative cost prevents frame-wise gate chatter from manufacturing
+# favorable position errors at the expense of velocity and acceleration.
+switch_penalty_mm: 8.0
+hypotheses:
+  - label: m1_alpha_1p0
+    artifact: signal4d/artifacts/gating/a1_m1_alpha_1p0_v5
+  - label: m1_alpha_1p5
+    artifact: signal4d/artifacts/gating/a1_m1_alpha_1p5_v5
+  - label: m1_alpha_3p0
+    artifact: signal4d/artifacts/gating/a1_m1_alpha_3p0_v5

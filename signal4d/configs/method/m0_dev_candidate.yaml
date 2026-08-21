@@ -1,0 +1,20 @@
+schema_version: "1.0"
+method_name: signal4d_m0_dev_candidate
+seed: 12345
+window: {length: 64, stride: 32, context: 8}
+uncertainty: {mode: constant, sigma_min: 0.02, sigma_max: 0.2}
+change_point: {mode: disabled, gamma: 2.0, threshold: 0.7}
+contact: {enabled: false}
+factors:
+  observation: 1.0
+  observation_2d: 0.0
+  prior: 0.01
+  temporal: 0.001
+  temporal_rotation: 0.001
+  contact: 0.0
+  collision: 0.0
+solver:
+  learning_rate: 0.0005
+  max_steps: 60
+  patience: 12
+  grad_clip_norm: 10.0

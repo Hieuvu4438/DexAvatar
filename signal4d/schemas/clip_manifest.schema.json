@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "signal4d.clip_manifest.1.0",
+  "type": "object",
+  "required": ["schema_version", "dataset", "clip_id", "split", "fps", "frame_ids", "image_relpaths"],
+  "properties": {
+    "schema_version": {"const": "1.0"},
+    "dataset": {"type": "string", "minLength": 1},
+    "clip_id": {"type": "string", "minLength": 1},
+    "signer_id": {"type": "string"},
+    "split": {"enum": ["train", "calibration", "development", "test"]},
+    "fps": {"type": "number", "exclusiveMinimum": 0},
+    "frame_ids": {"type": "array", "minItems": 1, "items": {"type": "integer"}, "uniqueItems": true},
+    "image_relpaths": {"type": "array", "minItems": 1, "items": {"type": "string"}},
+    "frame_start": {"type": "integer"},
+    "frame_end_exclusive": {"type": "integer"},
+    "is_contiguous": {"type": "boolean"},
+    "gt_relpath": {"type": ["string", "null"]}
+  },
+  "additionalProperties": true
+}

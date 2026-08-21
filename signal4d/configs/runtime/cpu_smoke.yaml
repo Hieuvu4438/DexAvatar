@@ -1,0 +1,4 @@
+device: cpu
+dtype: float64
+deterministic: true
+num_workers: 0

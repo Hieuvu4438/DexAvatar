@@ -1,0 +1,14 @@
+schema_version: "1.0"
+seed: 12345
+baseline_label: legacy_full_fallback
+# An 8 mm transition cost produced zero within-clip state switches in paired
+# out-of-fold development, protecting derivative metrics. Frozen before the
+# extended-post GT cache is created or evaluated.
+switch_penalty_mm: 8.0
+hypotheses:
+  - label: m1_alpha_1p0
+    artifact: signal4d/artifacts/gating/central_observed_v4_clipstable
+  - label: m1_alpha_1p5
+    artifact: signal4d/artifacts/gating/central_extrapolate_alpha_1p5_v4
+  - label: m1_alpha_3p0
+    artifact: signal4d/artifacts/gating/central_extrapolate_alpha_3p0_v4

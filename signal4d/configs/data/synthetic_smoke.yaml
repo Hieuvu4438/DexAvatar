@@ -1,0 +1,7 @@
+schema_version: "1.0"
+dataset: synthetic
+fps: 25.0
+split: development
+num_clips: 3
+frames_per_clip: 24
+seed: 12345

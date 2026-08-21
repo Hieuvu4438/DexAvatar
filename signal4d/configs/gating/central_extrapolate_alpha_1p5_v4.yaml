@@ -1,0 +1,29 @@
+schema_version: "1.0"
+seed: 12345
+target_metric: tr_v2v_left_hand_mm
+folds: 5
+trees: 200
+n_jobs: 4
+min_samples_leaf: [5, 10, 20]
+max_features: [0.5, 0.8]
+decision_threshold_mm: [-1.0, -0.5, -0.25, 0.0, 0.25, 0.5, 1.0]
+switch_penalty_mm: [1.0]
+historical_train_partition: original_development
+historical_test_partition: original_test_revealed
+datasets:
+  - name: original_development
+    partition: original_development
+    manifest: signal4d/artifacts/manifests/frozen_seed_20260819_v2/sgnify_development.jsonl
+    candidate_root: signal4d/runs/extrapolate_alpha_1p5_dev/predictions
+    baseline_root: signal4d/runs/dev_v3_legacy_full_fallback/predictions
+    cache_root: signal4d/artifacts/cache/sgnify_smplerx_wilor_leftmirror_v3_all
+    candidate_frame_csv: signal4d/runs/extrapolate_alpha_1p5_dev/evaluation/per_frame.csv
+    baseline_frame_csv: signal4d/runs/dev_v3_legacy_full_fallback/evaluation/per_frame.csv
+  - name: original_test_revealed
+    partition: original_test_revealed
+    manifest: signal4d/artifacts/manifests/frozen_seed_20260819_v2/sgnify_test.jsonl
+    candidate_root: signal4d/runs/extrapolate_alpha_1p5_test/predictions
+    baseline_root: signal4d/runs/test_v3_20260819_legacy_full_fallback/predictions
+    cache_root: signal4d/artifacts/cache/sgnify_smplerx_wilor_leftmirror_v3_all
+    candidate_frame_csv: signal4d/runs/extrapolate_alpha_1p5_test/evaluation/per_frame.csv
+    baseline_frame_csv: signal4d/runs/test_v3_20260819_legacy_full_fallback/evaluation/per_frame.csv

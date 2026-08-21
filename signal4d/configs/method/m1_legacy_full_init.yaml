@@ -1,0 +1,15 @@
+schema_version: "1.0"
+method_name: signal4d_m1_legacy_full_init
+seed: 12345
+window: {length: 64, stride: 32, context: 8}
+uncertainty:
+  mode: calibrated
+  sigma_min: 0.002
+  sigma_max: 0.5
+  artifact: signal4d/artifacts/calibration/sgnify_smplerx_wilor_split_conformal_seed12345
+change_point: {mode: disabled, gamma: 2.0, threshold: 0.7}
+contact: {enabled: false}
+observation_sources: [0, 1, 2]
+initializer_mode: legacy_full
+factors: {observation: 1.0, temporal: 0.0, contact: 0.0, collision: 0.0}
+solver: {learning_rate: 0.0005, max_steps: 1, patience: 1, grad_clip_norm: 10.0}
