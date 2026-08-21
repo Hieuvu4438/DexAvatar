@@ -38,8 +38,4 @@ refinement:
   uncertainty_aware: false
   change_aware: false
 safe_gate:
-  enabled: true
-  require_objective_improvement: true
-  max_rotation_delta_rad: 0.35
-  max_uncertainty_ratio: 1.5
-  transition_radius: 2
+  enabled: false
