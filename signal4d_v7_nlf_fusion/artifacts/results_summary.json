@@ -70,5 +70,51 @@
     },
     "comparison_json_sha256": "6a8e1886bc9f389143be586fa5dadbd82fe9b9250f2333a75363b6bc0f561651",
     "conclusion": "Does not improve V6; retain as a clean negative result, not an accuracy claim."
+  },
+  "external_how2sign_residual_transport_v1": {
+    "claim_status": "protocol_valid_scoped_upper_body_improvement",
+    "claim_boundary": "Trained and selected only on external How2Sign data with zero SGNify training/calibration frames. The locked run improves UBody and UBody-F but regresses All, so it is not a full-body or global-SOTA claim. Earlier SIGNAL-4D research inspected this benchmark, so confirmation on an additional sealed dataset is required for a pristine confirmatory claim.",
+    "algorithm_lock_commit": "5f9f7a35ce2d2c5a4d4478f552ef4a7205bc3006",
+    "external_training_dataset": "How2Sign",
+    "external_training_frames": 346304,
+    "external_validation_frames": 15936,
+    "sgnify_training_or_calibration_frames": 0,
+    "coverage_signs": 57,
+    "coverage_frames": 1493,
+    "coverage_fraction": 1.0,
+    "V7_EXT": {
+      "TR_All_mm": 42.37645999134698,
+      "TR_UBody_mm": 25.9839001052536,
+      "TR_UBody_minus_F_mm": 29.368031689069866,
+      "TR_LHand_mm": 11.634084211018466,
+      "TR_RHand_mm": 11.808403305863408
+    },
+    "delta_V7_EXT_minus_V6_mm": {
+      "TR_All_mm": 0.26534944133649674,
+      "TR_UBody_mm": -0.15548018725827717,
+      "TR_UBody_minus_F_mm": -0.15135687030346645,
+      "TR_LHand_mm": 0.000180785822678331,
+      "TR_RHand_mm": 0.002809200118042199
+    },
+    "paired_sign_bootstrap": {
+      "replicates": 100000,
+      "seed": 12345,
+      "UBody_mean_delta_mm": -0.13179002822194533,
+      "UBody_ci95_mm": [-0.22855342160327036, -0.03360319957228779],
+      "UBody_minus_F_mean_delta_mm": -0.12662812883162805,
+      "UBody_minus_F_ci95_mm": [-0.2217071412745282, -0.030068737249797976]
+    },
+    "reproducibility": {
+      "status": "exact_tensor_equality",
+      "compared_prediction_files": 57,
+      "primary_run_manifest_sha256": "5d8b43be5afef776e846e2f1becac5648f4467d2297a7627e1b2dd9e8b130f0e",
+      "rerun_manifest_sha256": "f88a865d8b9734e201842d1400d6065675096f5b1cbbe23c6df54e01b47b1e02"
+    },
+    "provenance": {
+      "checkpoint_sha256": "8c4e8c011fd69e51b6bc492012f1eb1667384cb095b2996a14935b0a26d8a482",
+      "config_sha256": "2fbb01d4d88f99e7f33047860630394c380c4882d7751a592a2c8f5f67ca3eba",
+      "comparison_json_sha256": "6c7c001430315a66c993c8f789ed8b74192b18debc9716b871a6d3e87dcedb1c",
+      "paired_bootstrap_json_sha256": "b3d8e95991acd4ecc4dafc8b794177cc8f458c391a3b4bc13639ed453b8bcf4c"
+    }
   }
 }

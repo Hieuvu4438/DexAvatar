@@ -71,3 +71,18 @@ checkpoint to a different baseline. Any paper must disclose that history and
 should confirm the final method on an additional sealed dataset. The new
 official-author evaluation below is still valid as a reproducible same-protocol
 comparison; it is not evidence of an untouched test-development process.
+
+## Post-lock outcome
+
+The implementation was locked in commit
+`5f9f7a35ce2d2c5a4d4478f552ef4a7205bc3006` before the official evaluation.
+The run covered all 57 signs and 1,493 frames. Relative to V6, it changed
+author-protocol UBody-F from 29.519389 to **29.368032 mm** and UBody from
+26.139380 to **25.983900 mm**. LHand changed by +0.000181 mm, RHand by
++0.002809 mm, and All regressed by +0.265349 mm.
+
+The preregistered primary upper-body condition passed; a full-body-improvement
+claim did not. No locked hyperparameter or joint set was changed after seeing
+the result. The full protocol, uncertainty, reproducibility, validity scan, and
+claim boundary are recorded in
+`SIGNAL-4D_V7_external_How2Sign_author_protocol_report_2026-08-21.md`.

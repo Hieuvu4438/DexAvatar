@@ -68,3 +68,12 @@ transports a checkpoint residual trained and selected only on source-disjoint
 How2Sign onto V6, while preserving global wrists and all local hand rotations.
 Its configuration and pre-evaluation contract are locked separately from both
 the exploratory SGNify-trained router and the zero-training 2D gate.
+
+The locked official-author evaluation has now completed at 57 signs and 1,493
+frames. It improves V6 UBody-F from 29.519 to **29.368 mm** and UBody from
+26.139 to **25.984 mm** without SGNify training or calibration. All regresses
+from 42.111 to 42.376 mm, so this is a scoped upper-body result rather than a
+full-body or global-SOTA claim. Predictions are exactly reproducible across an
+independent rerun. See
+`docs/proposal3/SIGNAL-4D_V7_external_How2Sign_author_protocol_report_2026-08-21.md`
+for the complete audit and paper-safe claim language.
