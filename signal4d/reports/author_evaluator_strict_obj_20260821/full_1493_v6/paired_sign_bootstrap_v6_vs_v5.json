@@ -1,0 +1,79 @@
+{
+  "baseline_csv": "signal4d/reports/author_evaluator_strict_obj_20260821/full_1493_v6/methods/SIGNAL4D_v5/per_clip.csv",
+  "candidate_csv": "signal4d/reports/author_evaluator_strict_obj_20260821/full_1493_v6/methods/SIGNAL4D_v6/per_clip.csv",
+  "results": [
+    {
+      "bootstrap_probability_nonnegative": 0.0012,
+      "ci95_percentile_mm": [
+        -0.11671926814841431,
+        -0.019937921146403446
+      ],
+      "eligible_signs": 57,
+      "equal_signs": 12,
+      "estimand": "equal_weight_paired_sign_macro_delta_candidate_minus_baseline",
+      "improved_signs": 30,
+      "mean_delta_mm": -0.06654367827713047,
+      "median_delta_mm": -0.008825710724917002,
+      "metric": "tr_upper_body_minus_face_mm",
+      "replicates": 10000,
+      "seed": 12345,
+      "unit": "mm",
+      "worse_signs": 15
+    },
+    {
+      "bootstrap_probability_nonnegative": 0.013,
+      "ci95_percentile_mm": [
+        -0.05566850996573687,
+        -0.00282957605283637
+      ],
+      "eligible_signs": 57,
+      "equal_signs": 12,
+      "estimand": "equal_weight_paired_sign_macro_delta_candidate_minus_baseline",
+      "improved_signs": 28,
+      "mean_delta_mm": -0.028318837725526073,
+      "median_delta_mm": 0.0,
+      "metric": "tr_all_mm",
+      "replicates": 10000,
+      "seed": 12345,
+      "unit": "mm",
+      "worse_signs": 17
+    },
+    {
+      "bootstrap_probability_nonnegative": 0.0086,
+      "ci95_percentile_mm": [
+        -0.06460305990002971,
+        -0.004313422551674373
+      ],
+      "eligible_signs": 42,
+      "equal_signs": 11,
+      "estimand": "equal_weight_paired_sign_macro_delta_candidate_minus_baseline",
+      "improved_signs": 22,
+      "mean_delta_mm": -0.030024060518596872,
+      "median_delta_mm": -0.003199215888212592,
+      "metric": "tr_left_hand_mm",
+      "replicates": 10000,
+      "seed": 12345,
+      "unit": "mm",
+      "worse_signs": 9
+    },
+    {
+      "bootstrap_probability_nonnegative": 0.0245,
+      "ci95_percentile_mm": [
+        -0.06389077197457108,
+        -0.00014578840639733895
+      ],
+      "eligible_signs": 57,
+      "equal_signs": 12,
+      "estimand": "equal_weight_paired_sign_macro_delta_candidate_minus_baseline",
+      "improved_signs": 24,
+      "mean_delta_mm": -0.029857144738538677,
+      "median_delta_mm": 0.0,
+      "metric": "tr_right_hand_mm",
+      "replicates": 10000,
+      "seed": 12345,
+      "unit": "mm",
+      "worse_signs": 21
+    }
+  ],
+  "schema_version": "1.0"
+}
