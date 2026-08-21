@@ -1707,8 +1707,8 @@ Pass bằng quantitative tolerances, không chỉ ảnh preview.
 
 | Tier | Khi chạy | Nội dung |
 |---|---|---|
-| CPU-fast | mọi PR | lint, type, unit geometry/data/factors |
-| CPU-integration | mọi merge | synthetic end-to-end |
+| CPU-fast | sau mỗi work package | lint, type, unit geometry/data/factors |
+| CPU-integration | sau mỗi milestone | synthetic end-to-end |
 | GPU-smoke | nightly/manual | SMPL-X forward + optimizer clip nhỏ |
 | Benchmark-regression | release candidate | frozen dev subset, metric tolerance |
 
@@ -1877,62 +1877,62 @@ Definition of Done:
 
 ---
 
-## 30. Work breakdown theo pull request
+## 30. Work breakdown trực tiếp trên nhánh triển khai
 
-### PR-001 — Project skeleton
+### WP-001 — Project skeleton
 
 - Packaging, config, logging, seed.
 - CI CPU-fast.
 - Không có model code.
 
-### PR-002 — Manifest/protocol guard
+### WP-002 — Manifest/protocol guard
 
 - JSON schema.
 - Endpoint/split/missingness validation.
 - Hashing/provenance.
 
-### PR-003 — Geometry core
+### WP-003 — Geometry core
 
 - SO(3), projection, alignment, handedness.
 - Full unit tests.
 
-### PR-004 — Evaluator first
+### WP-004 — Evaluator first
 
 - TR/PA/dynamics/completeness.
 - Synthetic fixtures và table writer.
 
-### PR-005 — Canonical cache/adapters
+### WP-005 — Canonical cache/adapters
 
 - Legacy converter.
 - SMPLer-X/Sapiens adapters trước; HaMeR/WiLoR sau.
 
-### PR-006 — State/SMPL-X wrapper/factors
+### WP-006 — State/SMPL-X wrapper/factors
 
 - Pure factor API.
 - Observation/prior factors.
 
-### PR-007 — Window solver M0
+### WP-007 — Window solver M0
 
 - Stage schedule, recovery, consensus.
 - M0 development smoke.
 
-### PR-008 — UQ calibration
+### WP-008 — UQ calibration
 
 - Features, calibrator, calibration CLI/metrics.
 
-### PR-009 — Change-point adaptive temporal
+### WP-009 — Change-point adaptive temporal
 
 - Rule-based detector, temporal factors, ablations.
 
-### PR-010 — Contact/collision
+### WP-010 — Contact/collision
 
 - Registry, proposer, switches, persistence, evaluator.
 
-### PR-011 — Full experiment runner
+### WP-011 — Full experiment runner
 
 - Baseline matrix, bootstrap, reporting.
 
-Mỗi PR phải nhỏ, có test và không trộn protocol change với method improvement.
+Mỗi work package được code trực tiếp trên nhánh hiện tại, phải nhỏ, có test và không trộn protocol change với method improvement. Không có bước review/merge riêng.
 
 ---
 
@@ -1985,13 +1985,13 @@ Không dùng “biomechanically accurate” nếu chỉ có collision/pose prior
 
 ### Tuần 1
 
-- PR-001 đến PR-003.
+- WP-001 đến WP-003.
 - Manifest và exact endpoint audit.
 - Synthetic SO(3)/projection/alignment tests.
 
 ### Tuần 2
 
-- PR-004 evaluator.
+- WP-004 evaluator.
 - Legacy converter.
 - Reproduce ít nhất một clip/trích xuất legacy prediction.
 
@@ -2122,4 +2122,3 @@ Nếu (1) hoặc (8) fail, không có claim benchmark. Nếu (2) fail nhưng aud
 ## 39. Kết luận
 
 Đặc tả này biến SIGNAL-4D từ một proposal khái niệm thành một chương trình triển khai có interface, schema, objective, solver, test và decision gates rõ ràng. Thiết kế quan trọng nhất là **evaluator-first**, **không drop frame**, **multi-hypothesis có uncertainty**, **temporal trên SO(3) có change-point gating**, và **contact switch tách biệt collision**. Kiến trúc phải giữ DexAvatar legacy bất biến cho đến khi reproduction hoàn tất; mọi improvement chỉ được ghi nhận sau phép so sánh cùng manifest, cùng alignment và cùng baseline controls.
-
