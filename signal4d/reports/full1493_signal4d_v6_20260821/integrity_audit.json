@@ -1,0 +1,27 @@
+{
+  "all_final_metadata_gt_free": true,
+  "clips": 57,
+  "closed_rotations_bitwise_equal_v5": true,
+  "expected_frames": 1493,
+  "faces_per_obj": 20908,
+  "hand_rotations_bitwise_equal_v5": true,
+  "max_roundtrip_error_mm": 5.000000413701855e-06,
+  "mesh_links_valid": true,
+  "obj_hashes_valid": true,
+  "obj_keys_exact": true,
+  "open_canonical_joints": [
+    13,
+    14,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21
+  ],
+  "overlay_hashes_valid": true,
+  "prediction_keys_exact": true,
+  "render_keys_exact": true,
+  "translation_bitwise_equal_v5": true,
+  "vertices_per_obj": 10475
+}

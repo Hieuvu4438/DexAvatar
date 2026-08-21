@@ -84,3 +84,15 @@ The promotion target relative to frozen V5 is:
 If no candidate clears all gates, V5 remains the release method and the V6
 result is reported honestly as an ablation, not relabeled as an improvement.
 
+## 6. Final execution outcome (2026-08-21)
+
+The frozen V6 configuration completed 57 signs and 1,493 frames. Strict OBJ
+author evaluation gives UBody(-F) `29.519683 mm`, versus V5 `29.593199 mm` and
+DexAvatar HaMeR `29.907413 mm`. V6 improves every reported full-manifest
+endpoint and its paired sign-bootstrap UBody(-F) interval is below zero, but its
+V5-relative vertex-micro effect is `-0.073516 mm`, smaller than the registered
+`-0.15 mm` target. Therefore V5 remains the formally promoted release under
+this contract, and V6 is stored as the current measured-best research artifact.
+
+Complete method, split audit, dynamics, hashes, strict OBJ, and output paths are
+recorded in `SIGNAL-4D_V6_final_method_and_full1493_results_2026-08-21.md`.

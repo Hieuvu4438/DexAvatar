@@ -1,0 +1,18 @@
+{
+  "accepted_candidate_frames": 271,
+  "baseline_fallback_frames": 1222,
+  "clips": 57,
+  "config_file_sha256": "555daf084b9cfb5bb4975e8eeb0a22d27917f38e75679cc06f6b24d3002ead23",
+  "final_gate_record_sha256": "5e181113109d43a4401f4745ef8324a3e3b0f87a262f2f926f3649e8d51e7867",
+  "frames": 1493,
+  "gt_used": false,
+  "manifest_sha256": "02e06c946f9400d8eb2b238c0297b07e188912121748db68ee1d66d12ea7c362",
+  "method_name": "SIGNAL4D_V6_UQDiff",
+  "peak_cuda_memory_bytes": 352342528,
+  "raw_run_record_sha256": "22a6305eceb94226ee3c7c52899f22fc3eaffa62e4217d821e22604b7413cc53",
+  "render_manifest_sha256": "733e1288178f4b2889a3f1691dc3df522bedc8b4c40756be0d2b464c94840c6c",
+  "runtime_seconds": 478.9503305800026,
+  "schema_version": "1.0",
+  "strict_comparison_sha256": "dc20d454d870186032695d9b62835f5da1fcbf509dfb94a18931e615de801c42",
+  "strict_obj_manifest_sha256": "60773fd48e733fcb556d72d80f8fc45c139f8a7f92b6b752f1287aa3aaf72ef9"
+}
