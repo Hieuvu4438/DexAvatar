@@ -262,6 +262,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
         num_betas=10,
         num_expression_coeffs=10,
     ).eval()
+    model_hash = sha256_file(args.model_path)
     parents = model.parents[:55].detach().cpu().numpy().astype(np.int64)
     selection_rows: list[dict[str, Any]] = []
     selected_total = 0
@@ -334,9 +335,13 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             "method_name": "SIGNAL4D_V7_GTFree2DTemporalGate",
             "clip_id": sign,
             "frames": frames,
+            "frame_ids": frame_ids.tolist(),
             "selected_frames": int(selected.sum()),
             "training_frames": 0,
             "sgnify_gt_loaded": False,
+            "coordinate_convention": "opencv_x_right_y_down_z_forward",
+            "length_unit": "meter",
+            "smplx_model_sha256": model_hash,
             "config_sha256": sha256_file(args.config),
             "v6_artifact_sha256": sha256_file(v6_path),
             "artifact_sha256": sha256_file(destination / "prediction.safetensors"),
@@ -381,7 +386,7 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             "v6_predictions": str(args.v6_root.resolve()),
             "image_observation_cache": str(args.cache_root.resolve()),
             "baseline_parameters": str(args.baseline_parameter_root.resolve()),
-            "smplx_model": {"path": str(args.model_path.resolve()), "sha256": sha256_file(args.model_path)},
+            "smplx_model": {"path": str(args.model_path.resolve()), "sha256": model_hash},
         },
         "claim_boundary": "No SGNify GT was loaded, no parameter was trained, and no threshold or alpha was selected by author-protocol metrics.",
     }
