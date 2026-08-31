@@ -1,0 +1,5 @@
+backend: artifact_replay
+development_only: true
+source_root: artifacts/contact/sgnify_full1493_provisional_development_v1
+source_report_sha256: 7c657d10d9a27b2cdea98a75050f3692bcd7211e7529e417249ef214c6ca690f
+output: artifacts/indexes/sgnify_provisional_contact_reuse_v1

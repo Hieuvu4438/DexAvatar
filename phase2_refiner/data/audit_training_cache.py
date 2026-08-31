@@ -27,12 +27,22 @@ def _manifest_paths(path: Path) -> list[Path]:
     entries = payload.get("clips", payload)
     if not isinstance(entries, list):
         raise ValueError(f"Invalid manifest: {path}")
-    return [
+    paths = [
         (path.parent / entry).resolve()
         if not Path(entry).is_absolute()
         else Path(entry)
         for entry in entries
     ]
+    declared_hashes = payload.get("clip_sha256")
+    if declared_hashes is not None:
+        if not isinstance(declared_hashes, dict) or set(declared_hashes) != set(entries):
+            raise ValueError(f"Manifest clip_sha256 does not exactly cover clips: {path}")
+        for entry, cache_path in zip(entries, paths):
+            if not cache_path.is_file():
+                raise FileNotFoundError(cache_path)
+            if _sha256(cache_path) != str(declared_hashes[entry]):
+                raise ValueError(f"Cache SHA-256 mismatch: {cache_path}")
+    return paths
 
 
 def _audit_split(

@@ -1,0 +1,85 @@
+extends: ../signpccx_v1.yaml
+
+paths:
+  image_root: ../../../data/frames
+  gt_root: ../../../data/smplx_gt
+  signs_file: ../../../data/evaluation_from_author/data/data/signs.txt
+  segments_file: ../../../data/evaluation_from_author/data/data/segment.json
+  evaluator: ../../../data/evaluation_from_author/evaluate_new_fitting.py
+  evaluator_assets: ../../../data/evaluation_from_author/data/data
+  canonical_model: ../../../data/evaluation_from_author/data/data/SMPLX_NEUTRAL.npz
+  h4wpp_sequence_root: ../../../signalign-tr/runs/sgnify/baselines/h4wpp_live_full_source_frames
+  h4wpp_frame_cache: ../../../signalign-tr/runs/h4wpp_live_full_source_frames
+  smplx_model_root: ../../../SMPLer-X/common/utils/human_model_files
+  manifest_root: ../../runs/signpccx_a1_h4wpp/manifests
+  dexavatar_initializer_root: ../../../outputs/output_baseline
+  mano_smplx_vertex_ids: ../../../SMPLer-X/common/utils/human_model_files/smplx/MANO_SMPLX_vertex_ids.pkl
+  full_identity: ../../runs/signpccx_full_calibration/identity/S1_full.npz
+
+identity:
+  scope: signer
+  calibration_frames: 20
+  selection: farthest_point_pose_diversity
+  robust_beta: huber
+  optimize_focal: true
+  optimize_principal_point: true
+  max_principal_shift_fraction: 0.05
+  focal_bounds: [0.5, 2.0]
+  alternating_steps: [60, 80, 30, 20]
+  weights:
+    body_2d: 1.0
+    body_teacher: 0.20
+    bone_ratio: 0.15
+    beta_prior: 0.02
+    focal_prior: 0.10
+    principal_prior: 0.20
+    pose_anchor: 0.01
+
+hypotheses:
+  wrist_twist_degrees: [-30, 0, 30]
+  include_smplerx_wrist: true
+  include_hamer_fingers: true
+  include_interwild: false
+  coarse_keep: 4
+  fine_keep_per_hand: 2
+  max_pair_combinations: 4
+
+contact:
+  enabled: true
+  min_confidence: 0.70
+  state_persistence: false
+  hand_hand_target_m: 0.003
+  hand_face_target_m: 0.006
+  hand_torso_target_m: 0.006
+  vertices_per_tip_region: 24
+
+loss:
+  body_2d: 1.0
+  hand_2d: 2.5
+  body_teacher: 0.25
+  hand_teacher: 0.50
+  arm_chain: 0.35
+  palm_chirality: 0.40
+  contact: 0.50
+  penetration: 0.20
+  anatomy: 0.02
+  pose_anchor: 0.01
+  shape_prior: 0.02
+  root_anchor: 0.01
+
+optimization:
+  grad_clip: 5.0
+  early_stop_patience: 20
+  rollback_nonfinite: true
+  stages:
+    camera_root: {steps: 60, min_steps: 50, lr: 0.01}
+    upper_body: {steps: 100, min_steps: 75, lr: 0.003}
+    hand_candidate: {steps: 25, min_steps: 25, lr: 0.002}
+    bimanual_contact: {steps: 100, min_steps: 80, lr: 0.001}
+    lbfgs: {enabled: true, steps: 20, lr: 0.2}
+    canonical: {steps: 40, min_steps: 20, lr: 0.001}
+
+temporal:
+  pose_smoothing: false
+  velocity_loss: false
+  acceleration_loss: false

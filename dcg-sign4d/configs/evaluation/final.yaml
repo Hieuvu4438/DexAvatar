@@ -1,0 +1,10 @@
+development_only: false
+manifest: AUTHOR_REQUIRED
+predictions: AUTHOR_REQUIRED
+gt_root: /home/haipd/DexAvatar/data/smplx_gt
+author_asset_root: /home/haipd/DexAvatar/data/evaluation_from_author/data/data
+author_sign_file: /home/haipd/DexAvatar/data/evaluation_from_author/data/data/signs.txt
+trusted_author_assets: true
+output: AUTHOR_REQUIRED
+primary_endpoint: root_aligned_hand_pve
+bootstrap_unit: signer

@@ -1,0 +1,10 @@
+{
+  "max_vertex_error_mm": 15.889067607188927,
+  "mean_vertex_error_mm": 0.46887509894952933,
+  "model_sha256": "381c808965deb4f5e845f8c3eddb0cd69930cc72e5774ce4f34c4ce3cf058361",
+  "reference_obj": "../outputs/method_hamer/Ablehnen/smplifyx/meshes/low_149.obj",
+  "reference_obj_sha256": "dfeb0eed76c48a0cc946ff289b24b98dad2eb0985e01fd025b8b2d0f4f55d738",
+  "result_pkl": "../outputs/method_hamer/Ablehnen/smplifyx/results/low_149.pkl",
+  "result_pkl_sha256": "b0c008d8fc5642c14dc20f19a0b5eeb03f43fe972cf8b6f14ebc6eca384aff33",
+  "vertices": 10475
+}

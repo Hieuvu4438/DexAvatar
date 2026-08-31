@@ -1,0 +1,18 @@
+extends: a3f_external_v1_identity200.yaml
+
+experiment:
+  name: signpccx_a4_palm_hypotheses
+
+paths:
+  run_root: ../../runs/signpccx_a4_palm_hypotheses
+  source_fit_root: ../../runs/signpccx_a3f_external_v1_identity200/fit_sequences
+  h4wpp_frame_cache: ../../../signalign-tr/runs/h4wpp_live_full_source_frames
+
+hypotheses:
+  enabled: true
+  stage: K0_targetless_rank
+  wrist_twist_degrees: [-30, 0, 30]
+  evidence: [h4wpp_2d_anchors, h4wpp_3d_anchors, chirality, fixed_twist_prior]
+
+contact:
+  enabled: false

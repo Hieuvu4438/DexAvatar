@@ -14,8 +14,8 @@ import json
 import numpy as np
 
 
-SCHEMA_VERSION = 4
-SUPPORTED_SCHEMA_VERSIONS = (1, 2, 3, 4)
+SCHEMA_VERSION = 5
+SUPPORTED_SCHEMA_VERSIONS = (1, 2, 3, 4, 5)
 PHASE2R_SEMANTIC_CONTRACT = "phase2r-v1"
 NUM_JOINTS = 51
 NUM_OBSERVATION_FEATURES = 8
@@ -50,6 +50,8 @@ class CacheClip:
     source_paths: np.ndarray
     target_axis_angle: np.ndarray | None = None
     target_rotation_valid: np.ndarray | None = None
+    alternate_axis_angle: np.ndarray | None = None
+    alternate_rotation_valid: np.ndarray | None = None
     frame_numbers: np.ndarray | None = None
     timestamps: np.ndarray | None = None
     fps: float = 0.0
@@ -186,6 +188,13 @@ class CacheClip:
             # Backward compatibility: caches written before partial supervision
             # was introduced represented complete rotation targets.
             self.target_rotation_valid = np.ones((t, NUM_JOINTS), dtype=bool)
+        if self.alternate_axis_angle is None:
+            # Legacy caches have no second expert proposal.  Copying the primary
+            # pose keeps the field finite while the validity mask prevents it
+            # from becoming an observation.
+            self.alternate_axis_angle = self.init_axis_angle.copy()
+        if self.alternate_rotation_valid is None:
+            self.alternate_rotation_valid = np.zeros((t, NUM_JOINTS), dtype=bool)
 
     def validate(self) -> None:
         self._fill_optional_defaults()
@@ -234,6 +243,8 @@ class CacheClip:
             "camera_intrinsics": (t, 3, 3),
             "crop_transform": (t, 3, 3),
             "hand_activity": (t, NUM_HANDS),
+            "alternate_axis_angle": (t, NUM_JOINTS, 3),
+            "alternate_rotation_valid": (t, NUM_JOINTS),
         }
         for name, shape in expected.items():
             value = getattr(self, name)
@@ -276,6 +287,7 @@ class CacheClip:
             "camera_intrinsics",
             "crop_transform",
             "hand_activity",
+            "alternate_axis_angle",
         )
         for name in finite_fields:
             if not np.isfinite(getattr(self, name)).all():
@@ -371,6 +383,8 @@ def save_cache_clip(path: str | Path, clip: CacheClip) -> None:
         "camera_intrinsics": clip.camera_intrinsics.astype(np.float32),
         "crop_transform": clip.crop_transform.astype(np.float32),
         "hand_activity": clip.hand_activity.astype(np.float32),
+        "alternate_axis_angle": clip.alternate_axis_angle.astype(np.float32),
+        "alternate_rotation_valid": clip.alternate_rotation_valid.astype(bool),
         "semantic_contract_version": np.asarray(clip.semantic_contract_version),
         "metadata_json": np.asarray(clip.metadata_json),
         "has_target": np.asarray(clip.target_axis_angle is not None, dtype=bool),
@@ -426,6 +440,10 @@ def load_cache_clip(path: str | Path) -> CacheClip:
                 data["target_rotation_valid"]
                 if has_target and "target_rotation_valid" in data.files
                 else None
+            ),
+            alternate_axis_angle=_get(data, "alternate_axis_angle", None),
+            alternate_rotation_valid=_get(
+                data, "alternate_rotation_valid", None
             ),
             frame_numbers=_get(data, "frame_numbers", None),
             timestamps=_get(data, "timestamps", None),

@@ -1,0 +1,66 @@
+experiment:
+  name: signeft_c0_a3f
+  seed: 20260831
+  deterministic: true
+
+paths:
+  rgb_root: ../../data/frames
+  signs_file: ../../data/evaluation_from_author/data/data/signs.txt
+  segments_file: ../../data/evaluation_from_author/data/data/segment.json
+  evaluator: ../../data/evaluation_from_author/evaluate_new_fitting.py
+  canonical_model: ../../data/evaluation_from_author/data/data/SMPLX_NEUTRAL.npz
+  smplx_model_root: ../../SMPLer-X/common/utils/human_model_files
+  a3f_run_root: ../../SignPCC-X/runs/signpccx_a3f_external_v1_identity200
+  a3f_manifest_root: ../../SignPCC-X/runs/signpccx_a3f_external_v1_identity200/manifests
+  run_root: ../runs/signeft_c0_a3f
+  protocol_lock: ../runs/protocol_lock.json
+  manifest: ../manifests/trv2v.jsonl
+  baseline_state_root: ../baseline_states/a3f
+  pose_observation_root: ../observations/sapiens_pose_v1
+  nlf_observation_root: ../observations/nlf_v1
+
+protocol:
+  expected_evaluator_sha256: 2722b5cd30d4baba23599a455cab483b143e6595d292f02de9643af4eebd5300
+  expected_signs: 57
+  expected_frames: 1493
+  reported_paper_frames: 2872
+  claim_scope: same_attached_1493_frame_protocol_only
+
+topology:
+  vertex_count: 10475
+  face_count: 20908
+  faces_sha256_int64: 2cb81d8e6c789896d764805d58fb44bdce62424bab97b519bbd6c1668d66ce2b
+  coordinate_frame: evaluator_camera
+  unit: meter
+
+method:
+  name: SignEFT-X
+  frame_independent: true
+  temporal_pose_loss: false
+  use_gt_in_fit: false
+  exact_fallback: a3f
+
+modules:
+  heatmap: false
+  nlf: false
+  wrist_protection: false
+  segmentation: false
+  pointmap: false
+  hand_refinement: false
+
+gate:
+  win_sigma: 2.0
+  lose_sigma: 1.0
+  min_winning_families: 2
+  require_3d_for_depth_change: true
+  exact_rollback: true
+
+runtime:
+  device: cuda
+  batch_size: 8
+
+ubody:
+  torso: {steps: 50, lr: 0.003}
+  arms: {steps: 75, lr: 0.002}
+  analytic_wrist_compensation: true
+  numerical_hand_projection_steps: 5

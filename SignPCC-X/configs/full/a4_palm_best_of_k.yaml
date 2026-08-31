@@ -1,0 +1,5 @@
+extends: base.yaml
+experiment: {name: signpccx_full_a4_palm_best_of_k, seed: 20260830, deterministic: true}
+paths: {run_root: ../../runs/signpccx_full_a4_palm_best_of_k}
+method: {shared_beta: true, shared_camera: true, hypotheses: true, contact: false}
+

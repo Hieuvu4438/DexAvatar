@@ -1,0 +1,14 @@
+{
+  "schema": "pdf_read_preflight/1",
+  "verdict": "UNAVAILABLE",
+  "file": "docs/proposal4/Saleem et al. - 2025 - MaskHand Generative Masked Modeling for Robust Hand Mesh Reconstruction in the Wild.pdf",
+  "sha256": "35c334a3b5aaf1dd02f947748f3c7c421df27fd54f8c8b7db1c2d58066bc7019",
+  "declared_page_count": null,
+  "enumerated_page_count": null,
+  "reader_page_count": null,
+  "warnings": [
+    "pypdf-not-installed: preflight cannot parse the document"
+  ],
+  "generated_at": "2026-08-21T11:31:40.911203+00:00",
+  "tool": "pdf_read_preflight/1.0.0"
+}

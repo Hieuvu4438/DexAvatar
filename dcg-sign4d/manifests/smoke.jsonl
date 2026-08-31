@@ -1,0 +1,1 @@
+{"camera_id":"synthetic_camera","clip_id":"synthetic_smoke","dataset_name":"dcg_sign4d_synthetic_fixture","dataset_version":"synthetic-v1","fps_native":30.0,"frame_count":8,"height":256,"license_id":"CC0-1.0","signer_id":"synthetic_signer","split":"validation","video_path":"fixtures/synthetic_smoke_not_materialized.mp4","width":256}

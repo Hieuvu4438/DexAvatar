@@ -1,0 +1,5 @@
+extends: c1_heatmap.yaml
+experiment: {name: signeft_c2_nlf}
+paths: {run_root: ../../runs/signeft_c2_nlf}
+modules: {nlf: true}
+

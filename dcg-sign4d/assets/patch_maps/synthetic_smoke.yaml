@@ -1,0 +1,15 @@
+patch_map_version: synthetic_smoke_v1
+smplx_model_version: synthetic_fixture_only
+mesh_vertex_count: 8
+patches:
+  left_tip: [0, 1]
+  right_tip: [2, 3]
+  face: [4, 5]
+  torso: [6, 7]
+admissible_edges:
+  - [left_tip, right_tip]
+  - [left_tip, face]
+excluded_edges:
+  - [face, torso]
+development_only: true
+

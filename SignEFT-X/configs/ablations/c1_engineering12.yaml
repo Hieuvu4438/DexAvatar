@@ -1,0 +1,6 @@
+extends: c1_heatmap.yaml
+experiment: {name: signeft_c1_heatmap_engineering12}
+paths:
+  manifest: ../../manifests/splits/engineering12.jsonl
+  signs_file: ../protocol/engineering12_signs.txt
+  run_root: ../../runs/signeft_c1_engineering12

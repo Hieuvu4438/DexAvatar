@@ -1,0 +1,17 @@
+{
+  "schema_version": "1.0",
+  "status": "implementation_candidate_not_scientifically_frozen",
+  "model": "DPoser-X wholebody/mixed",
+  "source_commit": "c373fce3d364a4a0946e8445fdea5cbfd490e837",
+  "files": [
+    {"path": "pretrained_models/body/BaseMLP/last.ckpt", "sha256": "1be3a99b031b0145ce96fea3eff5b401a56b41089f01738216e498dbad595b81"},
+    {"path": "pretrained_models/hand/BaseMLP/last.ckpt", "sha256": "4c6b5f6aa3edde1d44329302283082731a6faa9fceb586e69bb701bdb05a2c94"},
+    {"path": "pretrained_models/face/BaseMLP/last.ckpt", "sha256": "d5f78a8e14b7fb897886f55e925e67a99fc9ca8feedddc8949ccdf764aca2975"},
+    {"path": "pretrained_models/wholebody/mixed/last.ckpt", "sha256": "dcb7e91dbc93e4cc79f27bd2f28cb53bb7a18417f7fc706249c3d59a714eab22"},
+    {"path": "data/body_data/body_normalizer/axis_normalize2.pt", "sha256": "1d42f3594c9ccd7eea6e96d4be5456278314ffebcea2a4d018c7c23dadb7451c"},
+    {"path": "data/hand_data/hand_normalizer/axis_normalize2.pt", "sha256": "3bf35e02b525b1a69704e85dbd9de231a800abcb597f9615419fa9281eb5b0ad"},
+    {"path": "data/face_data/jaw_normalizer/axis_normalize2.pt", "sha256": "5aaa90082b9d6a2c4590dc844d12508748c01228ea171c57bd5bde4688b40523"},
+    {"path": "data/face_data/expression_normalizer/axis_normalize2.pt", "sha256": "49e85cd02dc376dadd46ec82b152f3538ad8deb79eae7466a6835c64982a07a1"}
+  ]
+}
+

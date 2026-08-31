@@ -1,0 +1,58 @@
+{
+  "clip_id": "Muell",
+  "development_only": true,
+  "frames": 15,
+  "hands_evaluated": [
+    "right"
+  ],
+  "schema_version": "dcg_development_comparison_v1",
+  "scientific_claim": false,
+  "outputs": {
+    "dcg_development_smoke": {
+      "root_aligned_hand_pve_mm": 93.2421883429303,
+      "wrist_aligned_hand_pve_mm": 21.375432193607814,
+      "legacy_region_tr_hand_pve_mm": 15.639763550011118,
+      "root_aligned_body_mpjpe_mm": 57.11360246250252,
+      "temporal_hand_velocity_error_mm_per_s": 274.1976116721551,
+      "summary": "reports/dcg/muell_real_components_cpu_v2/summary.json"
+    },
+    "dexavatar_reference": {
+      "root_aligned_hand_pve_mm": 92.93401246073668,
+      "wrist_aligned_hand_pve_mm": 22.058121182693508,
+      "legacy_region_tr_hand_pve_mm": 16.393407911399937,
+      "root_aligned_body_mpjpe_mm": 57.12581726348241,
+      "temporal_hand_velocity_error_mm_per_s": 268.37070399603914,
+      "summary": "reports/dcg/muell_dexavatar_reference_v1/summary.json"
+    },
+    "signal4d_v5_reference": {
+      "root_aligned_hand_pve_mm": 89.2167624891727,
+      "wrist_aligned_hand_pve_mm": 21.245077191275392,
+      "legacy_region_tr_hand_pve_mm": 15.57061760676286,
+      "root_aligned_body_mpjpe_mm": 54.861903589418006,
+      "temporal_hand_velocity_error_mm_per_s": 320.8182975482752,
+      "summary": "reports/dcg/muell_signal4d_v5_reference_v1/summary.json"
+    }
+  },
+  "dcg_minus_dexavatar": {
+    "root_aligned_hand_pve_mm": 0.30817588219362135,
+    "wrist_aligned_hand_pve_mm": -0.6826889890856949,
+    "legacy_region_tr_hand_pve_mm": -0.7536443613888189,
+    "root_aligned_body_mpjpe_mm": -0.012214800979891693,
+    "temporal_hand_velocity_error_mm_per_s": 5.8269076761159635
+  },
+  "dcg_minus_signal4d_v5": {
+    "root_aligned_hand_pve_mm": 4.025425853757603,
+    "wrist_aligned_hand_pve_mm": 0.1303550023324216,
+    "legacy_region_tr_hand_pve_mm": 0.06914594324825751,
+    "root_aligned_body_mpjpe_mm": 2.251698873084511,
+    "temporal_hand_velocity_error_mm_per_s": -46.62068587612009
+  },
+  "limitations": [
+    "one clip and 15 frames",
+    "only the right hand is covered by the author sign metadata for this clip",
+    "development-only provisional labels and synthetic calibration",
+    "100-step checkpoints and one-step one-hypothesis inference",
+    "bootstrap ranker is synthetic and not scientifically fitted",
+    "no signer-cluster interval"
+  ]
+}

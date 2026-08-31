@@ -1,0 +1,66 @@
+experiment:
+  name: dcg_sign4d_smoke
+  seed: 12345
+  deterministic: true
+  development_only: true
+
+data:
+  manifest: manifests/smoke.jsonl
+  fps_policy: native
+  window_length: 32
+  window_overlap: 8
+
+observation:
+  dexavatar_compatible: true
+  calibration: temperature_scaling
+  cues: [keypoint, mask, track, depth]
+
+initialization:
+  backend: artifact_replay
+  dexavatar_commit: a0dfd427f60f5811aadb35c8657b3856d47f56b5
+
+geometry:
+  patch_map: assets/patch_maps/synthetic_smoke.yaml
+  distance: robust_symmetric
+  normal_term: true
+  velocity_term: true
+  penetration_term: true
+
+contact:
+  backbone: temporal_transformer
+  event_states: [off, onset, hold, release]
+  balanced_sampling: true
+  class_balanced_loss: true
+  semi_markov:
+    max_duration: 32
+
+diffusion:
+  base: dposer_x
+  prediction_type: epsilon
+  contact_conditioning: dynamic
+  shape_conditioning: true
+  part_aware: true
+  train_steps: 10
+
+guidance:
+  keypoint: true
+  silhouette: true
+  track: true
+  depth: true
+  contact: true
+  gradient_clip_norm: 1.0
+
+inference:
+  rounds: 1
+  diffusion_steps: 4
+  num_hypotheses: 1
+  fixed_rounds: true
+
+ranking:
+  fit_split: validation
+  use_ground_truth: false
+
+evaluation:
+  primary_endpoint: root_aligned_hand_pve
+  bootstrap_unit: signer
+

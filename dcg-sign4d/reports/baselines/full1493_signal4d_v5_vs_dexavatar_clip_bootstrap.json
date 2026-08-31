@@ -1,0 +1,47 @@
+{
+  "baseline": "reports/baselines/full1493_dexavatar_hamer_root_aligned_v2/per_clip.csv",
+  "candidate": "reports/baselines/full1493_signal4d_v5_root_aligned_v2/per_clip.csv",
+  "cluster_unit": "clip_sensitivity_not_registered_signer_bootstrap",
+  "metrics": {
+    "root_aligned_body_pve_mm": {
+      "ci95_high": -0.7067622426957184,
+      "ci95_low": -1.6212126519562615,
+      "clusters": 57,
+      "mean_delta": -1.1497225225068384,
+      "replicates": 10000,
+      "seed": 12345
+    },
+    "root_aligned_hand_pve_mm": {
+      "ci95_high": -0.9195696418178804,
+      "ci95_low": -2.5243916275665637,
+      "clusters": 57,
+      "mean_delta": -1.7155740516136448,
+      "replicates": 10000,
+      "seed": 12345
+    },
+    "root_aligned_left_hand_pve_mm": {
+      "ci95_high": -1.0186912219231608,
+      "ci95_low": -3.5254919761140235,
+      "clusters": 42,
+      "mean_delta": -2.202765268983803,
+      "replicates": 10000,
+      "seed": 12345
+    },
+    "root_aligned_right_hand_pve_mm": {
+      "ci95_high": -0.5633122255880432,
+      "ci95_low": -2.3282503951507265,
+      "clusters": 57,
+      "mean_delta": -1.4355245779483847,
+      "replicates": 10000,
+      "seed": 12345
+    },
+    "wrist_aligned_hand_pve_mm": {
+      "ci95_high": -1.7401506516951308,
+      "ci95_low": -2.706874291323776,
+      "clusters": 57,
+      "mean_delta": -2.2144968524452495,
+      "replicates": 10000,
+      "seed": 12345
+    }
+  }
+}

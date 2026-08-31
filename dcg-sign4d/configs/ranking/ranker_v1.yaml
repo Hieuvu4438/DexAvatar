@@ -1,0 +1,8 @@
+seed: AUTHOR_REQUIRED
+development_only: false
+input_csv: AUTHOR_REQUIRED
+output: AUTHOR_REQUIRED
+steps: AUTHOR_REQUIRED
+learning_rate: AUTHOR_REQUIRED
+l2_weight: AUTHOR_REQUIRED
+minimum_pair_accuracy: AUTHOR_REQUIRED

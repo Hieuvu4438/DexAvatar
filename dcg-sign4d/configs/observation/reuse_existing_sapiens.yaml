@@ -1,0 +1,5 @@
+backend: artifact_replay
+development_only: true
+source_root: artifacts/observations/sgnify_full1493_sapiens1b_raw_v1
+source_report_sha256: 8496326c38f6d5d8412fbbdede0739895c427116da7b98b3bc700a532268110a
+output: artifacts/indexes/sgnify_raw_observation_reuse_v1

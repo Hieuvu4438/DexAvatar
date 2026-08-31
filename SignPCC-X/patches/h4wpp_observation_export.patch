@@ -1,0 +1,91 @@
+diff --git a/demo/demo.py b/demo/demo.py
+index cbae436..8c6f0c2 100644
+--- a/demo/demo.py
++++ b/demo/demo.py
+@@ -47,8 +47,10 @@ assert osp.exists(model_path), 'Cannot find model at ' + model_path
+ print('Load checkpoint from {}'.format(model_path))
+ model = get_model('test')
+ model = DataParallel(model).cuda()
+-ckpt = torch.load(model_path)
++ckpt = torch.load(model_path, map_location='cpu')
+ model.load_state_dict(ckpt['network'], strict=False)
++del ckpt
++torch.cuda.empty_cache()
+ for module in model.module.trainable_modules+model.module.eval_modules:
+     module.eval()
+ cudnn.benchmark = True
+diff --git a/main/model.py b/main/model.py
+index 118fb1b..811e4ea 100644
+--- a/main/model.py
++++ b/main/model.py
+@@ -140,6 +140,16 @@ class Model(nn.Module):
+ 
+             rhand_img, lhand_img = self.hand_roi_net(inputs['img'], rhand_bbox, lhand_bbox)
+             rmano_vert_cam, rmano_kpt_cam, rhand_root_pose, rhand_pose, rhand_shape_param, rhand_transl, rhand_img_feat, lmano_vert_cam, lmano_kpt_cam, lhand_root_pose, lhand_pose, lhand_shape_param, lhand_transl, lhand_img_feat = self.wilor(rhand_img, lhand_img, rhand_bbox, lhand_bbox)
++
++            # Preserve WiLoR's handedness-restored MANO parameters before
++            # combine_smplx_mano replaces the root orientation with the
++            # body-aware rigid-alignment rotation.  These extra values are
++            # observation exports only; the original H4W++ computation and
++            # wrist ownership remain unchanged.
++            wilor_rhand_root_pose = rhand_root_pose.clone()
++            wilor_lhand_root_pose = lhand_root_pose.clone()
++            wilor_rhand_pose = rhand_pose.clone()
++            wilor_lhand_pose = lhand_pose.clone()
+  
+         # hand control net
+         hand_feat_list = self.hand_control_net(rhand_img_feat, lhand_img_feat, rhand_bbox, lhand_bbox, rhand_exist, lhand_exist)
+@@ -199,13 +209,53 @@ class Model(nn.Module):
+         else:
+             # test output
+             out = {}
++            # Body-aware global arm orientations for downstream wrist
++            # ownership diagnostics.  This is pure FK over the already
++            # predicted SMPL-X root/body poses and does not alter inference.
++            body_local_rotmat = axis_angle_to_matrix(
++                torch.cat((root_pose[:, None, :], body_pose.view(batch_size, 21, 3)), dim=1)
++            )
++            body_global_rotmat = []
++            body_parents = self.smplx_layer.parents[:22].tolist()
++            for joint_idx in range(22):
++                parent_idx = int(body_parents[joint_idx])
++                if parent_idx < 0:
++                    body_global_rotmat.append(body_local_rotmat[:, joint_idx])
++                else:
++                    body_global_rotmat.append(
++                        torch.bmm(body_global_rotmat[parent_idx], body_local_rotmat[:, joint_idx])
++                    )
++            body_global_rotmat = torch.stack(body_global_rotmat, dim=1)
++            arm_indices = torch.tensor(
++                [[16, 18, 20], [17, 19, 21]], device=body_global_rotmat.device
++            )
++            out['smplx_arm_global_rotmat'] = body_global_rotmat[:, arm_indices]
+             out['img'] = inputs['img']
+             out['kpt_img'] = body_kpt_img
+             out['kpt_proj_orig'] = kpt_proj_orig
+             out['rhand_bbox'] = rhand_bbox
+             out['lhand_bbox'] = lhand_bbox
++            out['rhand_exist'] = rhand_exist
++            out['lhand_exist'] = lhand_exist
++            out['dwpose_kpt'] = dwpose_kpt
+             out['rmano_vert_cam'] = rmano_vert_cam
+             out['lmano_vert_cam'] = lmano_vert_cam
++            out['rmano_kpt_cam'] = rmano_kpt_cam
++            out['lmano_kpt_cam'] = lmano_kpt_cam
++            out['r_wilor_global_rotmat'] = axis_angle_to_matrix(wilor_rhand_root_pose)
++            out['l_wilor_global_rotmat'] = axis_angle_to_matrix(wilor_lhand_root_pose)
++            out['r_wilor_hand_rotmat'] = axis_angle_to_matrix(
++                wilor_rhand_pose.view(batch_size, 15, 3)
++                + mano.layer['right'].pose_mean.float().cuda().view(1, -1)[:, 3:].view(1, 15, 3)
++            )
++            out['l_wilor_hand_rotmat'] = axis_angle_to_matrix(
++                wilor_lhand_pose.view(batch_size, 15, 3)
++                + mano.layer['left'].pose_mean.float().cuda().view(1, -1)[:, 3:].view(1, 15, 3)
++            )
++            out['r_wilor_betas'] = rhand_shape_param
++            out['l_wilor_betas'] = lhand_shape_param
++            out['r_wilor_transl'] = rhand_transl
++            out['l_wilor_transl'] = lhand_transl
+             out['smplx_kpt_proj'] = kpt_proj
+             out['smplx_kpt_proj_orig'] = kpt_proj_orig
+             out['smplx_kpt_cam'] = kpt_cam

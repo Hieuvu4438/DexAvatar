@@ -1,0 +1,4 @@
+extends: ../trv2v_a3f_nomarker.yaml
+experiment: {name: signeft_c0_a3f}
+paths: {run_root: ../../runs/signeft_c0_a3f}
+

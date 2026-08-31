@@ -1,0 +1,59 @@
+{
+  "dimension": 256,
+  "frames": 14,
+  "holistic_candidate": {
+    "contact_edges": 60,
+    "finite": true,
+    "hidden_dim": 64,
+    "layers": 1,
+    "official_backbone_registered_inside_single_denoiser": true,
+    "output_shape": [
+      1,
+      14,
+      337
+    ],
+    "parameter_count": 26063204,
+    "tiny_overfit": {
+      "final_loss": 0.9393353462219238,
+      "initial_loss": 1.4359345436096191,
+      "learning_rate": 0.001,
+      "losses": [
+        1.4359345436096191,
+        1.2140510082244873,
+        1.1155657768249512,
+        1.0666375160217285,
+        1.031528115272522,
+        1.0041853189468384,
+        0.9836333990097046,
+        0.9681241512298584,
+        0.9561683535575867,
+        0.9467555284500122,
+        0.9393353462219238
+      ],
+      "official_backbone_frozen": true,
+      "pass": true,
+      "steps": 10
+    },
+    "trainable_parameter_count": 259985,
+    "trained": false,
+    "trajectory_shape": [
+      1,
+      14,
+      337
+    ]
+  },
+  "normalized_finite": true,
+  "registry_sha256": "e321c6371151924f04bc1fc086a4c02c50ccda24cfdcfb37a0f717ad7d597e27",
+  "registry_status": "implementation_candidate_not_scientifically_frozen",
+  "safe_weights_only_loader": true,
+  "schema_version": "dposer_x_runtime_audit_v1",
+  "scientific_status": "IMPLEMENTATION_CANDIDATE_NOT_FROZEN",
+  "score_abs_mean": 5.386908531188965,
+  "score_finite": true,
+  "seed": 12345,
+  "source_commit": "c373fce3d364a4a0946e8445fdea5cbfd490e837",
+  "target_abs_mean": 0.9138033986091614,
+  "target_finite": true,
+  "time": 0.1,
+  "trajectory_sha256": "04785d89d46d543d17c771ce1a16c16d21e32c5fb2ba4593cb7e43a23c080e48"
+}

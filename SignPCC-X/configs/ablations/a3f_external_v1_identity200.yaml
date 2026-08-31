@@ -1,0 +1,17 @@
+extends: a3e_external_v1_free_identity.yaml
+
+experiment:
+  name: signpccx_a3f_external_v1_identity200
+
+paths:
+  run_root: ../../runs/signpccx_a3f_external_v1_identity200
+  h4wpp_frame_cache: ../../../signalign-tr/runs/h4wpp_live_full_source_frames
+
+identity:
+  calibration_frames: 200
+
+camera:
+  scope: camera
+  shared_across_frames: true
+  huber_delta_px: 8.0
+  ground_truth_in_objective: false

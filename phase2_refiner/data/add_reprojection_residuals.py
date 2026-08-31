@@ -26,6 +26,22 @@ from phase2_refiner.render import create_smplx_model
 PROVIDER = "frozen initializer SMPL-X joint reprojection v1"
 
 
+def _camera_matrix(params: dict, source: str | Path) -> np.ndarray:
+    """Read either a fitted 3x3 K or raw SMPLer-X focal/principal fields."""
+
+    matrix = np.asarray(params.get("K"), dtype=np.float32)
+    if matrix.shape == (3, 3):
+        return matrix
+    focal = np.asarray(params.get("focal"), dtype=np.float32).reshape(-1)
+    principal = np.asarray(params.get("princpt"), dtype=np.float32).reshape(-1)
+    if focal.size != 2 or principal.size != 2:
+        raise ValueError(f"Missing 3x3 K or focal/princpt camera fields in {source}")
+    matrix = np.eye(3, dtype=np.float32)
+    matrix[0, 0], matrix[1, 1] = focal
+    matrix[0, 2], matrix[1, 2] = principal
+    return matrix
+
+
 def _masked_residual(
     observed: np.ndarray, projected: np.ndarray, valid: np.ndarray
 ) -> tuple[np.ndarray, float]:
@@ -78,10 +94,7 @@ def _lane_clip(model, clip, device) -> tuple[np.ndarray, float]:
     for source in clip.source_paths:
         with Path(source).open("rb") as handle:
             params = pickle.load(handle, encoding="latin1")
-        matrix = np.asarray(params.get("K"), dtype=np.float32)
-        if matrix.shape != (3, 3):
-            raise ValueError(f"Missing 3x3 K in {source}")
-        matrices.append(matrix)
+        matrices.append(_camera_matrix(params, source))
     camera = np.stack(matrices)
     z = np.maximum(joints[..., 2], 1e-5)
     pixel_x = joints[..., 0] / z * camera[:, None, 0, 0] + camera[:, None, 0, 2]

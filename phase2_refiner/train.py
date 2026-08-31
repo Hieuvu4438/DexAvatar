@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import copy
 import json
+import os
 import pickle
 import random
 from contextlib import contextmanager, nullcontext
@@ -47,6 +48,41 @@ VALIDATION_REGIONS = {
     "lhand": slice(21, 36),
     "rhand": slice(36, 51),
 }
+
+TRAINING_SOURCE_FILES = (
+    "phase2_refiner/train.py",
+    "phase2_refiner/config.py",
+    "phase2_refiner/render.py",
+    "phase2_refiner/data/cache_schema.py",
+    "phase2_refiner/data/corruptions.py",
+    "phase2_refiner/data/dataset.py",
+    "phase2_refiner/geometry/palm.py",
+    "phase2_refiner/geometry/rotations.py",
+    "phase2_refiner/geometry/smplx_decode.py",
+    "phase2_refiner/losses/__init__.py",
+    "phase2_refiner/losses/geometry.py",
+    "phase2_refiner/losses/motion.py",
+    "phase2_refiner/losses/sequence.py",
+    "phase2_refiner/losses/uncertainty.py",
+    "phase2_refiner/models/__init__.py",
+    "phase2_refiner/models/embeddings.py",
+    "phase2_refiner/models/heads.py",
+    "phase2_refiner/models/pretrained.py",
+    "phase2_refiner/models/reliability.py",
+    "phase2_refiner/models/spatial_temporal_refiner.py",
+)
+
+
+def training_source_hashes() -> dict[str, str]:
+    """Hash the exact local source tree that defines a training run."""
+    project = Path(__file__).resolve().parents[1]
+    hashes = {}
+    for relative in TRAINING_SOURCE_FILES:
+        path = project / relative
+        if not path.is_file():
+            raise FileNotFoundError(path)
+        hashes[relative] = sha256_file(path)
+    return hashes
 
 
 def regional_validation_selection_score(
@@ -466,6 +502,7 @@ def _checkpoint(
     step,
     micro_step,
     best,
+    validations_without_improvement,
     train_dataset,
     loader_generator,
     batch_sampler,
@@ -487,8 +524,24 @@ def _checkpoint(
         "step": step,
         "micro_step": micro_step,
         "best": best,
+        "validations_without_improvement": validations_without_improvement,
         "provenance": provenance,
     }
+
+
+def _atomic_torch_save(payload: dict, destination: Path) -> None:
+    """Publish a complete checkpoint without exposing a partial final path."""
+    destination = Path(destination)
+    temporary = destination.with_name(
+        f".{destination.name}.tmp.{os.getpid()}"
+    )
+    try:
+        torch.save(payload, temporary)
+        with temporary.open("rb") as handle:
+            os.fsync(handle.fileno())
+        os.replace(temporary, destination)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def parse_args() -> argparse.Namespace:
@@ -559,6 +612,7 @@ def main() -> None:
         physical_time_motion=physical_time_motion,
         motion_reference_seconds=motion_reference_seconds,
         require_phase2r_semantics=require_phase2r_semantics,
+        expected_split=data_config.get("expected_train_split"),
     )
     val_glob = None if args.no_validation else data_config.get("val_glob")
     val_dataset = (
@@ -573,10 +627,19 @@ def main() -> None:
             physical_time_motion=physical_time_motion,
             motion_reference_seconds=motion_reference_seconds,
             require_phase2r_semantics=require_phase2r_semantics,
+            all_windows=bool(data_config.get("validation_all_windows", False)),
+            expected_split=data_config.get("expected_val_split"),
         )
         if val_glob
         else None
     )
+    if val_dataset is not None:
+        cache_overlap = sorted(set(train_dataset.paths) & set(val_dataset.paths))
+        if cache_overlap:
+            raise ValueError(
+                "Train/validation cache overlap: "
+                + ", ".join(str(path) for path in cache_overlap[:3])
+            )
     train_config = config.get("training", {})
     if args.batch_size is not None:
         train_config["batch_size"] = args.batch_size
@@ -586,11 +649,16 @@ def main() -> None:
         train_config["max_steps"] = args.max_steps
     batch_size = int(args.batch_size or train_config.get("batch_size", 8))
     loader_generator = torch.Generator().manual_seed(seed)
+    train_workers = int(train_config.get("workers", 0))
     loader_kwargs = {
-        "num_workers": int(train_config.get("workers", 0)),
+        "num_workers": train_workers,
         "collate_fn": collate_sequences,
         "generator": loader_generator,
         "pin_memory": device.type == "cuda",
+        # Production iterates over many short bucketed epochs. Keeping workers
+        # alive avoids repeated process startup; temporal windows are stateless
+        # (seed, epoch, index), so persistence does not alter crop semantics.
+        "persistent_workers": train_workers > 0,
     }
     if train_config.get("bucket_by_length", True):
         batch_sampler = LengthBucketBatchSampler(
@@ -665,6 +733,7 @@ def main() -> None:
         )
     output.mkdir(parents=True, exist_ok=True)
     provenance = run_provenance(args.config, seed)
+    provenance["training_source_sha256"] = training_source_hashes()
     provenance["formal_evidence"] = bool(data_config.get("formal_evidence", False))
     if formal_audit is not None:
         provenance["formal_contract_report"] = str(
@@ -722,6 +791,9 @@ def main() -> None:
         step = int(state["step"])
         micro_step = int(state.get("micro_step", step * accumulation))
         best = float(state.get("best", best))
+        validations_without_improvement = int(
+            state.get("validations_without_improvement", 0)
+        )
         _restore_rng_state(state["rng"])
         if "dataset_rng" in state:
             train_dataset.rng.bit_generator.state = state["dataset_rng"]
@@ -729,6 +801,25 @@ def main() -> None:
             loader_generator.set_state(state["loader_rng"].cpu())
         if batch_sampler is not None and state.get("batch_sampler") is not None:
             batch_sampler.load_state_dict(state["batch_sampler"])
+    else:
+        _atomic_torch_save(
+            _checkpoint(
+                model,
+                ema,
+                optimizer,
+                scheduler,
+                config,
+                provenance,
+                step,
+                micro_step,
+                best,
+                validations_without_improvement,
+                train_dataset,
+                loader_generator,
+                batch_sampler,
+            ),
+            output / "step_0000000.pt",
+        )
 
     optimizer.zero_grad(set_to_none=True)
     stop = False
@@ -884,7 +975,7 @@ def main() -> None:
                 if score < best:
                     best = score
                     validations_without_improvement = 0
-                    torch.save(
+                    _atomic_torch_save(
                         _checkpoint(
                             model,
                             ema,
@@ -895,6 +986,7 @@ def main() -> None:
                             step,
                             micro_step,
                             best,
+                            validations_without_improvement,
                             train_dataset,
                             loader_generator,
                             batch_sampler,
@@ -905,7 +997,7 @@ def main() -> None:
                     validations_without_improvement += 1
                     stop = validations_without_improvement >= early_patience
             if step % checkpoint_every == 0:
-                torch.save(
+                _atomic_torch_save(
                     _checkpoint(
                         model,
                         ema,
@@ -916,6 +1008,7 @@ def main() -> None:
                         step,
                         micro_step,
                         best,
+                        validations_without_improvement,
                         train_dataset,
                         loader_generator,
                         batch_sampler,
@@ -924,7 +1017,7 @@ def main() -> None:
                 )
             if step >= max_steps or stop:
                 break
-    torch.save(
+    _atomic_torch_save(
         _checkpoint(
             model,
             ema,
@@ -935,6 +1028,7 @@ def main() -> None:
             step,
             micro_step,
             best,
+            validations_without_improvement,
             train_dataset,
             loader_generator,
             batch_sampler,

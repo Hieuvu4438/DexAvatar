@@ -1,0 +1,69 @@
+experiment:
+  name: signpccx_a1_h4wpp
+  seed: 20260830
+  deterministic: true
+
+paths:
+  image_root: ../../data/frames
+  gt_root: ../../data/smplx_gt
+  signs_file: ../../data/evaluation_from_author/data/data/signs.txt
+  segments_file: ../../data/evaluation_from_author/data/data/segment.json
+  evaluator: ../../data/evaluation_from_author/evaluate_new_fitting.py
+  evaluator_assets: ../../data/evaluation_from_author/data/data
+  canonical_model: ../../data/evaluation_from_author/data/data/SMPLX_NEUTRAL.npz
+  h4wpp_sequence_root: ../../signalign-tr/runs/sgnify/baselines/h4wpp_live_full_source_frames
+  h4wpp_frame_cache: ../../signalign-tr/runs/h4wpp_live_full_source_frames
+  smplx_model_root: ../../SMPLer-X/common/utils/human_model_files
+  run_root: ../runs/signpccx_a1_h4wpp
+
+topology:
+  vertex_count: 10475
+  face_count: 20908
+  faces_sha256_int64: 2cb81d8e6c789896d764805d58fb44bdce62424bab97b519bbd6c1668d66ce2b
+  canonical_gender: neutral
+  # The reused sequence cache is already in evaluator/DexAvatar OBJ convention.
+  # Do not apply the internal-camera x180 boundary transform a second time.
+  source_coordinate_frame: dexavatar_evaluator_obj
+  export_transform: identity
+  require_face_hash_match: true
+
+data:
+  never_drop_frame: true
+  expected_signs: 57
+  expected_frames: 1493
+
+teachers:
+  h4wpp:
+    enabled: true
+    commit: f81d35ddd2b74206c40142243eb62b6d64ce0d65
+    checkpoint_sha256: 97f3d71d85a4598f4d89cf23d5339b90e9a95c4affebfd624622611b91fa1314
+    cache_schema: signalign-compact-v1
+  interwild:
+    enabled: false
+
+identity:
+  scope: signer
+  robust_beta: huber
+  optimize_focal: true
+
+hypotheses:
+  wrist_twist_degrees: [-30, 0, 30]
+  coarse_keep: 4
+  fine_keep_per_hand: 2
+
+contact:
+  enabled: true
+  min_confidence: 0.70
+  state_persistence: false
+
+temporal:
+  pose_smoothing: false
+  velocity_loss: false
+  acceleration_loss: false
+
+preflight:
+  reject_nan: true
+  reject_inf: true
+  require_contiguous_names: true
+  require_exact_count: true
+  require_exact_faces: true

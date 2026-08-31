@@ -387,7 +387,7 @@ a_{y_{t,j}}
 +(1-y_{t,j})\log(1-q_{t,j})\right],
 \]
 
-where \(\Omega_Q\) is the set of supervised tokens and \(a_0,a_1\) are class weights computed from the training partition only. The raw scores are calibrated on a held-out validation partition using `[CẦN TÁC GIẢ XÁC NHẬN: temperature scaling, isotonic regression, or another prespecified method]`. Calibration is assessed with reliability diagrams, Brier score, expected calibration error with fixed bins, and selective risk/coverage curves.
+where \(\Omega_Q\) is the set of supervised tokens and \(a_0,a_1\) are class weights computed from the training partition only. In executed CUSP-SL v1, the raw scores are calibrated on the How2Sign validation partition using a single positive scalar temperature fitted by binary cross-entropy. Calibration is assessed with reliability diagrams, Brier score, 15-bin expected calibration error, and selective risk/coverage curves.
 
 The edit gate is a monotone function of calibrated reliability:
 
@@ -447,7 +447,7 @@ where \(\bar m_{t,j}\) is the product of the training mask and the 3D-label qual
 The conditioning tensor contains only quantities available at deployment, except for training-only corruption indicators:
 
 \[
-C=\operatorname{Proj}\!left[
+C=\operatorname{Proj}\!\left[
 \operatorname{RotRep}(R^0),
 q,
 m_{\mathrm{obs}},
@@ -458,9 +458,9 @@ e_{\mathrm{token}}
 \right].
 \]
 
-Here, \(\operatorname{RotRep}\) is a continuous network representation converted from \(R^0\); \(m_{\mathrm{obs}}\) encodes observed/missing evidence; \(f^{2D}\) contains confidence-aware 2D evidence in the original image frame; \(f^{\mathrm{video}}\) is frozen visual context; \(f^{\mathrm{kin}}\) contains torso-normalized joint and relative-hand geometry; and \(e_{\mathrm{token}}\) identifies joint, side, and body/hand type. `[CẦN TÁC GIẢ XÁC NHẬN: exact feature dimensions, normalization, video backbone, and whether all listed features survive ablation]`.
+Here, \(\operatorname{RotRep}\) is a continuous network representation converted from \(R^0\); \(m_{\mathrm{obs}}\) encodes observed/missing evidence; \(f^{2D}\) contains confidence-aware 2D evidence in the original image frame; \(f^{\mathrm{kin}}\) contains torso-normalized joint and relative-hand geometry; and \(e_{\mathrm{token}}\) identifies joint, side, and body/hand type. The executed v1 cache exposes 45 features per joint token and appends calibrated \(q\) as the 46th flow condition. It does not include a video-backbone feature: no validated SignDINO checkpoint was available, so \(f^{\mathrm{video}}\) and the form term are omitted rather than silently approximated.
 
-The network must allow temporal communication and communication along the upper-body/hand kinematic graph. A factorized temporal–kinematic Transformer is an implementable candidate, but the number of layers, hidden dimension, attention heads, positional encoding, and parameter budget are not fixed by the present evidence and remain `[CẦN TÁC GIẢ XÁC NHẬN]`. These values must be selected within a predeclared validation budget and matched against a deterministic residual network of comparable capacity.
+The executed v1 network uses four factorized temporal/joint attention blocks, hidden width 192, six attention heads, an MLP ratio of 4, joint embeddings, sinusoidal flow-time embeddings, and dropout 0.1. The separately calibrated reliability network uses width 96 and three temporal convolution blocks. These are implementation values for the declared run, not evidence that this architecture is optimal; any later architecture search requires a new versioned development protocol.
 
 #### 3.6.3. Endpoint supervision
 
@@ -672,7 +672,7 @@ E_{\mathrm{mot}}^{(k)}
 \rho\!\left(\|\Delta^2X^{(k)}_{t,j}\|_2\right),
 \]
 
-where \(\bar c_{t,j}\) combines adjacent-frame confidence and the acceleration coefficient \(\eta_{\mathrm{acc}}\) is validation selected. The first term preserves observed rapid movement; the second is only a weak plausibility penalty and must be ablated to detect oversmoothing.
+where \(\bar c_{t,j}\) combines adjacent-frame confidence. In executed v1, \(\eta_{\mathrm{acc}}=0\): candidate selection uses visible 2D velocity only, avoiding an unvalidated acceleration penalty that could oversmooth rapid signing.
 
 Physical validity is represented by
 
@@ -682,7 +682,7 @@ E_{\mathrm{phys}}^{(k)}
 +\lambda_{\mathrm{pen}}E_{\mathrm{pen}}^{(k)},
 \]
 
-where \(E_{\mathrm{ROM}}\) penalizes rotation components outside a documented anatomical convention and \(E_{\mathrm{pen}}\) penalizes mesh interpenetration [CITATION NEEDED: exact adopted formulations]. The exact joint limits, Euler/basis conversion, collision implementation, and thresholds are `[CẦN TÁC GIẢ XÁC NHẬN]`. These terms do not reward positive contact and are not interpreted as linguistic contact models.
+where \(E_{\mathrm{ROM}}\) penalizes axis-angle magnitude above 150°. The checked-in mesh-collision CUDA extension is binary-compatible with Python 3.10 but not the executed Python 3.13 environment; consequently executed v1 fixes \(\lambda_{\mathrm{pen}}=0\) and reports its physical term as **ROM-only validity**, not mesh penetration. A future penetration-enabled version requires a versioned compatible environment, face-pair filtering asset/hash, and a new validation lock. These terms do not reward positive contact and are not interpreted as linguistic contact models.
 
 Let \(s^{(k)}=s(I,\Theta^{(k)})\) be the frozen form score. Each scalar term is robustly standardized using median and median absolute deviation computed on the development validation partition:
 
@@ -702,7 +702,7 @@ E_k
 -w_s\widetilde s^{(k)}.
 \]
 
-Weights \(w_o,w_m,w_p,w_s\ge0\) are fitted within a prespecified validation budget and frozen before SGNify evaluation. The candidate with minimum valid energy is selected:
+Executed v1 fixes \((w_o,w_m,w_p,w_s)=(1.0,0.5,0.25,0)\); medians and MADs are fitted on the frozen How2Sign development subset before SGNify evaluation. The zero form weight follows the checkpoint-feasibility rule in Section 3.7. The candidate with minimum valid energy is selected:
 
 \[
 \widehat k=\arg\min_{k\in\mathcal K_{\mathrm{valid}}}E_k.
@@ -745,16 +745,16 @@ The implementation details required for reproducibility are not yet available an
 
 | Item | Required report |
 |---|---|
-| Optimizers and schedulers | `[CẦN TÁC GIẢ XÁC NHẬN: optimizer, learning rate, weight decay, schedule, warm-up]` for `Q,G,S` separately |
-| Training budget | `[CẦN TÁC GIẢ XÁC NHẬN: epochs/steps, batch/window sampling, early stopping, checkpoint rule]` |
-| Architecture | `[CẦN TÁC GIẢ XÁC NHẬN: layer counts, widths, heads, tokenization, parameter counts]` |
-| Windows | `[CẦN TÁC GIẢ XÁC NHẬN: FPS, length in frames/seconds, overlap, boundary padding]` |
-| Flow sampling | `[CẦN TÁC GIẢ XÁC NHẬN: solver, steps/tolerance, K, seed handling]` |
-| Losses | `[CẦN TÁC GIẢ XÁC NHẬN: all λ values, robust losses/scales, label-quality weighting]` |
-| Gate | `[CẦN TÁC GIẢ XÁC NHẬN: e0, tau_lo, tau_hi, dilation/grouping, calibration method]` |
-| Hardware/software | `[CẦN TÁC GIẢ XÁC NHẬN: GPU/CPU, CUDA, framework and dependency versions, precision]` |
-| Randomness | `[CẦN TÁC GIẢ XÁC NHẬN: training seeds, deterministic settings, primary inference seed/policy]` |
-| Search budget | `[CẦN TÁC GIẢ XÁC NHẬN: search space, number of trials, selection metric, compute]` |
+| Optimizers and schedulers | AdamW for `Q` and `G`; learning rate and weight decay both \(10^{-4}\); no scheduler or warm-up. `S` is disabled. |
+| Training budget | Declared release budget: 2,500 `Q` steps and 10,000 `G` steps, batch 16, validation every 500 steps; best flow checkpoint by validation flow MSE. Shorter pilot runs are labeled as pilots and cannot support a final superiority claim. |
+| Architecture | `Q`: width 96, three temporal-convolution blocks. `G`: width 192, four factorized temporal/joint blocks, six heads, MLP ratio 4, dropout 0.1; 51 joint tokens with 46 conditioning channels. |
+| Windows | 16 frames; physical timestamp deltas retained; inference overlap 2 frames with center weighting. Nominal SGNify cache FPS is 24. |
+| Flow sampling | Explicit Euler, three fixed steps, four generated candidates plus the exact base, deterministic seeds `42+k`; overlapping-window velocities are merged at every solver step. |
+| Losses | Reliability weighted BCE; quality-weighted rectified-flow velocity MSE. Training mix: 0.50 real initializer/pseudo-target, 0.35 target-origin synthetic burst, 0.15 clean identity. Candidate Huber scale 0.03 in normalized image coordinates. |
+| Gate | Body tolerance 15°, hand tolerance 20°; temperature scaling; \(\tau_{lo}=0.35\), \(\tau_{hi}=0.75\); one-frame temporal dilation; right-composed residual gated once. |
+| Hardware/software | NVIDIA RTX 5880 Ada 49 GB; Python 3.13; PyTorch 2.11.0; CUDA runtime reported by PyTorch 12.8. Shared-GPU contention is recorded for executed runs. |
+| Randomness | Primary seed 42 for training, data-loader order, corruption, and candidate sampling; deterministic algorithm enforcement is disabled and therefore exact cross-hardware bit reproducibility is not claimed. |
+| Search budget | No architecture search in v1. Energy medians/MADs are fitted on a frozen 128-clip How2Sign validation subset (4,096 frames, 52 source groups), never on SGNify. |
 
 ### 3.10. Inference Procedure
 
@@ -883,20 +883,16 @@ CUSP-SL v1 does not reconstruct missing base poses from scratch, does not refine
 9. Architecture/training/search budgets for \(Q,G,S\), including every hyperparameter currently marked as a placeholder.
 10. Independent training seeds, candidate-sampling policy, effect-size threshold, bootstrap and multiplicity plan.
 
-## F.2. Chi tiết triển khai còn thiếu
+## F.2. Chi tiết triển khai còn thiếu sau executed pilot
 
-- Environment lock and hardware specification.
-- Exact frame decoder, FPS conversion, crop affine conventions and 2D detector mapping.
-- Full SMPL-X/MANO joint-order and basis maps.
-- Rest-pose, chirality, round-trip and overlay test thresholds.
-- Reliability feature schema, label definition and calibration algorithm.
-- Flow architecture, ODE solver, sampling steps, window length and overlap merge.
-- Pose/video encoder details and checkpoint provenance.
-- Counterfactual construction code, validity checks and annotation form.
-- All loss weights and robust-penalty scales.
-- Candidate-energy fitting algorithm and search budget.
-- Failure/abstention serialization and audited-evaluator penalty/reporting policy.
-- Exact baseline reproduction commands and acceptable tolerance to DexAvatar's reported score.
+- A portable environment lock including restricted SMPL-X assets and a compatible, filtered mesh-collision build.
+- Author-confirmed SGNify frame semantics beyond the locally reproducible 1,493-frame pairing.
+- A standalone MANO-to-SMPL-X adapter validation if a future method replaces the already-fused frozen initializer; v1 does not claim such a new adapter.
+- A licensed/validated video encoder and counterfactual form dataset if the optional scorer is revived.
+- Exact penetration/contact implementation and citations; executed v1 is explicitly ROM-only.
+- Independent clean-3D or mocap validation to separate pseudo-target bias from true reconstruction gain.
+- A new generator design that passes development oracle-headroom criteria before any new benchmark exposure.
+- Target-conference policy, ethics/data-management confirmation, and a redistributable artifact/license audit.
 
 ## F.3. Citation cần bổ sung hoặc xác minh trong manuscript
 
@@ -969,22 +965,22 @@ The English Methods uses verified citation keys where a primary bibliographic so
 | Checklist | Đánh giá hiện tại | Căn cứ / blocker |
 |---|---|---|
 | Alignment với research objective | Đạt nhưng cần khóa endpoint | Pipeline trực tiếp xử lý upper-body/hand ambiguity; success rule còn thiếu. |
-| Scientific validity | Chưa đạt hoàn toàn | Pseudo-label bias, scorer validity và fixed-benchmark inference chưa được kiểm chứng. |
-| Technical feasibility | Có điều kiện | Mọi module có implementation path; adapter/data/checkpoint còn là blocker. |
-| Module compatibility | Có điều kiện | Contracts đã rõ; MANO→SMPL-X và camera/frame transforms chưa test. |
-| Mathematical correctness | Đạt ở mức specification | Gate direction và double-gating đã sửa; numerical (SO(3)) details vẫn cần unit tests. |
+| Scientific validity | Đạt cho một pilot falsification, chưa đạt cho superiority claim | Q/flow/development kill criteria và locked benchmark đã chạy; pseudo-label bias, test exposure và thiếu independent 3D validation vẫn giới hạn kết luận. |
+| Technical feasibility | Core geometry-only đã triển khai | Package `cusp_sl/` chạy end-to-end; form scorer và exact penetration bị loại theo feasibility rules. |
+| Module compatibility | Đạt cho cache/SMPL-X path đã chạy | 51-joint cache, camera projection, differential mesh transfer và topology đã được test trên 1,493 frame; standalone MANO adapter claim không được thêm. |
+| Mathematical correctness | Đạt cho implemented core | Right-composed SO(3), exact identity, gate direction/dilation, model gradients và real-pair masks có unit tests. |
 | Novelty clarity | Đạt ở mức hypothesis | Engineering vs proposed mechanism đã tách; novelty empirical/literature vẫn chưa xác nhận. |
-| Reproducibility | Chưa đạt | Nhiều placeholder về data, checkpoints, architecture và training. |
+| Reproducibility | Đạt ở mức local artifact | Versioned config/manifests, hashes, logs, checkpoints, per-frame CSV, evaluator wrapper và commands đã có; restricted assets/environment lock đầy đủ vẫn cần release audit. |
 | Citation integrity | Đạt có điều kiện | Không bịa citation; tất cả chỗ chưa chốt dùng `[CITATION NEEDED]`. |
 | Terminology consistency | Đạt | “Form consistency”, “energy-normalized weights”, “upper body/hands” thay các overclaim. |
-| Official SGNify compliance | Chưa đạt | Frame-selection semantics và DexAvatar reproduction chưa được xác nhận. |
-| Conference readiness | Chưa đạt | Chưa có implementation, experiment, statistics hoặc final citations. |
+| Official SGNify compliance | Đạt local-author track; author confirmation còn thiếu | Positional pairing tái lập đúng 1,493 local frames và baseline score; vẫn không suy rộng thành một frame count chính thức ngoài attached assets. |
+| Conference readiness | Chưa đạt cho positive-method paper | v1 A7 âm tính và test set đã bị exploratory exposure; gate-split audit cho thấy generator có headroom nhưng Q/gate v1 không có discrimination hữu ích. Q v2 đã qua mixture-validation và natural-error audit, nhưng strong A1, normalized flow và deterministic-control evaluation chưa hoàn tất. |
 
 ## G.2. Kết luận
 
-**Cần chỉnh sửa lớn trước khi triển khai.**
+**Core v1 đã được triển khai; pilot bác bỏ cấu hình triển khai hiện tại nhưng chưa bác bỏ generator.**
 
-Đây không có nghĩa pipeline khái niệm là vô hiệu. Bản sửa đã tạo một phương pháp có interface, loss, training/inference split và falsification logic nhất quán. Tuy nhiên, ba yếu tố quyết định tính hợp lệ—official frame manifest, paired training data và tested coordinate adapter—vẫn chưa tồn tại dưới dạng artifact đã xác nhận. Thành phần form-consistency trung tâm của novelty cũng chưa có checkpoint/annotation validation. Vì vậy, bắt đầu full-scale training lúc này sẽ có nguy cơ tiêu tốn compute cho một pipeline không thể so sánh hoặc không đủ novelty.
+Package mới có interface, loss, staged training, exact identity path, targetless SGNify cache và hai evaluator tracks chạy được. A7 pilot làm xấu upper-body-minus-face rõ rệt và chỉ thay đổi tay ở mức rất nhỏ. Phân tích sau đó tách generator khỏi gate: exact sampled residuals có best-generated error 5.63091° so với base 6.02714° và thắng base trên 82.03% clip khi ungated, nhưng chỉ còn 3.91% khi qua gate v1. Vì vậy kết luận đúng là Q/gate v1 triệt tiêu generator headroom, không phải generator không có headroom. Không được viết “outperforms” trước khi v2 vượt controls trên development/internal test. Thành phần form-consistency không có checkpoint/annotation validation và được đặt đúng về \(w_s=0\); exact penetration cũng không được claim.
 
 ## G.3. Hành động tiếp theo theo thứ tự ưu tiên
 
@@ -998,6 +994,102 @@ The English Methods uses verified citation keys where a primary bibliographic so
 8. Khóa architecture, hyperparameters, seeds, primary endpoint, statistical plan và compute budget.
 9. Chạy ablation A0–A11 trên internal test; chỉ sau đó mới mở SGNify test.
 10. Viết claim theo kết quả thực tế: full method nếu interaction pass; geometry-only/pivot nếu \(S\) fail; reproducibility/strong-baseline result nếu learned components bị simple controls thống trị.
+
+---
+
+# H. Implementation and Execution Addendum (2026-08-21)
+
+This addendum records the implementation actually executed after the design review above. It supersedes earlier statements that no implementation or numerical audit existed; it does not convert a negative pilot into a positive claim.
+
+## H.1. Isolated implementation and provenance
+
+All new method code is under `cusp_sl/`; all generated artifacts are under `outputs/cusp_sl/`. Legacy method code, `outputs/method_hamer`, public clones and author evaluator assets were treated as read-only. The release configuration hash is `faa81705860bec663f582bbe5a676177a71ef3daf3f258a607ae88c388975690`.
+
+The locked local-author manifest contains 1,493 frames across 57 signs. Its manifest hash is `b529b6b391bf8d84372c3a32fee4302e7c29396a855371c79a3cea9d78f13b8c`; the row-level CSV hash is `d2abb3f71317dc0839689de6885aa0c9533d83f9d6e8bda874b664d781e02e66`. Input cache metadata explicitly records `evaluation_input_only_no_pose_targets`. The immutable evaluator used for all author-track numbers has SHA-256 `2722b5cd30d4baba23599a455cab483b143e6595d292f02de9643af4eebd5300`.
+
+The released fitting pipeline does not always serialize the same orientation candidate in its PKL that it used to render the stored OBJ. Therefore a fresh PKL forward pass is not an exact identity renderer. CUSP-SL preserves candidate 0 by bit-exact file copy. For an edited candidate it applies only the same-model SMPL-X deformation difference, \(V_{\mathrm{stored\ base}}+[V(\Theta_{edit})-V(\Theta_{pkl\ base})]\). This keeps zero residual exactly equal to the existing baseline while avoiding a hidden renderer-origin shift.
+
+## H.2. Source and checkpoint feasibility decisions
+
+- The complete source/checkpoint/license admission record is versioned in `cusp_sl/THIRD_PARTY_AUDIT.md`. The official HandFlow repository was inspected at local commit `67fa7df536db233408fe6270ca5d2de28d5959c3`; its public v1 provides inference/configuration mechanisms but not the required training/data/evaluation pipeline. Although its root license is MIT, several embedded flow/transformer files explicitly declare CC BY-NC 4.0, so no such implementation file is copied into native CUSP modules. CUSP-SL reimplements residual-flow training using repository-native SMPL-X caches and adopts normalized targets, three-step Euler sampling, and per-step overlap-velocity blending as attributed mechanisms.
+- Direct comparison with the released overlap code exposed two CUSP sampler deviations before v2 flow evaluation: boundary weights were clamped at 0.05 rather than 0.01, and a 32-frame clip used final-window starts `[0,14,16]` rather than HandFlow's padded stride grid `[0,14,28]`. Both are corrected with regression tests. No prior SGNify number is retrospectively relabeled; deterministic A3 is unaffected because it does not call the window sampler.
+- No official SignDINO checkpoint/code package with locked preprocessing and license was found. A generic DINOv2 checkpoint is not relabeled as SignDINO. The form scorer remains an unexecuted module and \(w_s=0\).
+- The official MaskHand page exposes no model code/checkpoint; the similarly named anonymous repository is a project website without a declared code license. The official A2P repository likewise contains only project-page assets. MaskHand and the penetration-free diffusion paper therefore inform evidence-corruption and physical-validity design only; no unavailable checkpoint is claimed as used and neither website repository is cloned as a model dependency.
+- Tamaththul3D describes the required SMPLer-X/WiLoR fusion but does not expose a verified official implementation package. Its fusion must be independently implemented and tested, not represented as source-code reuse. Existing official SMPLer-X and WiLoR artifacts in the workspace are reused without redundant clones. The repository-local WiLoR exporter previously discarded the model's global wrist orientation and MANO shape, so old outputs cannot execute the paper's wrist-alignment stage. Its versioned integration record now retains global orientation, local finger rotations, MANO betas, camera translation, focal length, image size and chirality metadata without changing official weights.
+- The available mesh-intersection CUDA binary targets Python 3.10, whereas the core run uses Python 3.13. Executed physical selection is therefore ROM-only with \(\lambda_{pen}=0\).
+
+## H.3. Training and development diagnostics
+
+The reliability checkpoint after 500 pilot steps has SHA-256 `26e5246537da12deaf16f0c377abe5b9faa6944033505b46e397a31535e2385f`. On 334,656 How2Sign validation tokens, temperature was 1.11079, Brier score 0.02468 and ECE-15 0.02726. On targetless SGNify inputs, 18.2% of tokens had a non-zero gate and mean gate magnitude was 0.1705; this is a domain-transfer diagnostic, not an SGNify error calibration result.
+
+The 500-step flow checkpoint has SHA-256 `2f570e0dcb457d80c6612f8c11db840301b7d4ffa1d21b36f1340ecb3239aae2` and validation flow MSE 0.26765. Continued training produced a step-1,000 checkpoint with SHA-256 `097e970cf5b3da1b1bfeb7961ee6e6e640533e6242402efcd44df49941a6b8cd` and validation flow MSE 0.22201. The original development report measured only post-gate candidates:
+
+| Development metric, 128 How2Sign clips / 172,032 tokens | Step 500 | Step 1,000 |
+|---|---:|---:|
+| Base geodesic error | 6.02714° | 6.02714° |
+| K=1 generated error | 6.03333° | 6.03113° |
+| Best generated candidate | 6.03224° | 6.03067° |
+| Best of base + generated | 6.02706° | 6.02701° |
+| Clips where generated oracle beats base | 3.125% | 3.906% |
+
+Training was stopped after the post-gate stop analysis at step 1,000; an already-started batch reached log step 1,025, but no later checkpoint is used. A later causal audit evaluated the same step-1,000 sampled residuals before and after the gate. Without the v1 gate, K=1 error was 5.91496°, best-generated error was 5.63091°, best of base plus generated was 5.56573°, and generated candidates beat base on 82.03% of clips. With the gate, mean gate magnitude was only 0.11927 and the table above was reproduced. Thus the earlier stop attributed a gate failure to candidate coverage. The step-1,000 model was not evaluated on SGNify.
+
+The v1 Q target is also severely imbalanced: 98.76% of inspected development tokens fall inside its 15° body / 20° hand tolerance, predicted Q is approximately 0.995 throughout error strata, and correlation with actual error is approximately 0.03. Its low Brier/ECE therefore reflects prevalence more than discrimination. The official HandFlow source additionally normalizes flow targets using training statistics; v1 CUSP-SL flow-matched raw radian residuals against unit Gaussian noise. A versioned v2 implementation declares 3°/5° Q tolerances, train-only per-joint residual normalization with checkpoint hash enforcement, discrimination metrics, a disjoint-fold development gate calibrator, and a parameter-matched deterministic K=1 control. Before execution, the gate split was corrected from clip hashing to source-video hashing: the locked 128-clip manifest now produces 52 fit/76 audit clips from 23/29 source groups with zero overlap. The selected threshold artifact is accepted by inference only when its source-split contract and config/Q/G hashes match.
+
+The train-only statistics pass consumed one seeded window from each of 10,822 training clips (677 batches), with 5,288,623 weighted tokens and empirical mode fractions 0.4981 real, 0.3516 synthetic and 0.1503 clean. Forty-two refinable joints had positive support; nine joints excluded by the declared refinement mask received identity statistics. The statistics artifact SHA-256 is `8250b449026ad08f8758c6f3e10bd3caf8092c8f602392215b37ca061ba77001`; median supported-coordinate standard deviation is 4.2115°.
+
+The full v2 Q run completed 2,500 steps and selected step 2,500 by validation Brier. Its checkpoint SHA-256 is `704c5dcc00b30c3e77ba427d1573f455e1624b5dcd167cb459a157b9e8ddae4e`. On 334,656 mixture-validation tokens, positive prevalence was 0.67939, AUROC 0.98642, average precision 0.99439, balanced accuracy 0.95202, Brier 0.04074, ECE-15 0.03001 and log loss 0.14185.
+
+The separately authorized rerun of the uncorrupted natural frontend-error audit also completed on 334,656 tokens. Overall positive prevalence was 0.46407, AUROC 0.97221, balanced accuracy 0.92727, Brier 0.05522, ECE-15 0.02978 and Pearson correlation between predicted correctness probability and error was −0.88401. Body-only AUROC/correlation was 0.90734/−0.79494; hands-only was 0.96918/−0.90810. Thus Q v2 transfers beyond the synthetic/clean construction on this pseudo-target development split. It does not establish calibration against independent mocap ground truth.
+
+The parameter-matched deterministic A3 seed-42 control completed the declared 10,000 steps. Its selected final checkpoint has SHA-256 `31b9644824501d0eb504c664ac8fd7164cbcacf400cf68c292c728128313ca95` and validation residual MSE 0.21981. An append-only provenance-bound copy (`best_bound_v1.pt`, SHA-256 `e10b5848610aee586a26ad4b22cd88828092a3b3fd03a0a90f8f275938e01fd1`) retains bit-identical model tensors and binds the exact Q checkpoint SHA-256. On the locked 128-clip/172,032-token How2Sign development manifest, the SMPLer-X-only base has overall/body/hands geodesic error 6.0271/2.5456/7.4198°. Gated A3 obtains 1.9018/1.3027/2.1414° and improves every clip. The paired 10,000-replicate bootstrap over 52 source groups estimates a −4.1253° method-minus-base change with 95% CI [−4.2113, −4.0380] and improvement probability 1.0. The same output without Q/gating obtains 1.7788° overall. These are mechanism results from pseudo-labels and the then-used non-A1 initializer. Strong-A1 and matched-restart execution are reported in H.3.1.
+
+The normalized residual flow subsequently completed the same 10,000-step release budget and selected step 10,000 at validation flow MSE 0.83194. Its source checkpoint SHA-256 is `78b8ecbc919d493a37812b1524f684c4790bd756e39523996a1f23577b9cf08a`; the loader-verified, Q-bound artifact is SHA-256 `44aef8ad6c1afc195f3f6c3f0d49a6208dd7916d08b5715e413cf7ebff6da9f5` and retains 83/83 tensors bit-identically. Source-group calibration selected `(tau_low,tau_high)=(0.9,1.0)` on 23 fit groups. On 29 untouched audit groups it reduced K1 overall/body/hands error from 2.3850/1.4035/2.7776° under the config-default gate to 2.3213/1.2144/2.7640°. The threshold artifact SHA-256 is `7969b9fe5920e0ec6e89f3febe2dc8ffae9026fb525b88837c2974a28c4f998b`.
+
+With these thresholds, target-isolated A4 K=1, A5 fixed-random K=4, A7 geometry selection and A6 oracle obtain 2.3032°, 2.3117°, 2.2997° and 2.2368° overall, respectively, versus the 6.0271° base. A5 and A7 candidate rotations/residuals are bit-identical; targets are joined only afterward by exact clip and frame identity. A7 selected-minus-base is −3.7274° with 95% cluster-bootstrap CI [−3.8243,−3.6255], but its selector improves only 0.0035° over A4 and 0.0120° over random while retaining 0.0629° oracle regret. The correct inference is therefore that normalized flow has strong pseudo-target coverage but geometry-only selection contributes little on this development task. This does not support a form-selector claim, an independent-3D claim, or an A1-conditioned claim. Strong-A1 and A11 results are reported in H.3.1; A8/A9 stay disabled by the form-source feasibility rule.
+
+Development deployment-style inference now consumes a physically target-free copy rather than merely avoiding target fields in code. The immutable artifact contains 128 clips/4,096 frames and has manifest SHA-256 `436c6008c4fab422d9280c643a79283a96b8b9697702bad5ec8c1884f5d889e8`; all cache hashes pass, rotation/joint target arrays are absent, and target-quality arrays are zero. The inference entry point rejects any target-bearing cache. Evaluation joins the separate target manifest only after prediction by exact clip and frame identifiers. Using the Q-bound deterministic checkpoint, this isolated run reproduces overall/body/hands error 1.901800/1.302729/2.141429° at 24.92 CPU frames/s. The selected-minus-base 52-source cluster CIs are [−4.2105,−4.0370]° overall, [−1.2870,−1.1962]° body, [−5.3901,−5.1601]° hands, [−5.6837,−5.3611]° left and [−5.1410,−4.9082]° right; all bootstrap improvement probabilities are 1.0. This strengthens target-isolation evidence but does not remove pseudo-label bias.
+
+The independent A1 adapter/integration path has fourteen passing focused adapter/fusion tests covering identity/rest pose, known single-axis chirality, left-hand reflection round trip, official SMPL-X body-parent FK, SO(3) validity, joint-count rejection, highest-confidence side selection, detector-dropout fallback, original-image projection, preservation of unrelated joints, and exact forward-kinematic wrist alignment. Additional tests lock both accepted image-size conventions, raw-artifact provenance/coverage and A1-cache observation metadata. The valid targetless WiLoR input is `outputs/cusp_sl/wilor_frame_manifest_protocol1493_v3.json`, which binds 1,493 unique raw PNGs across 57 signs (SHA-256 `8856785041c5186b25be68fde2cc375391ffa6ca44cd6f7b78d5fe1d255bc4bf`); all source hashes pass, all SGNify cache tuples are explicitly identified as `height_width`, and a WiLoR decoder smoke test returns the original `(height,width,channels)=(300,514,3)` image. Direct comparison with the official WiLoR demo caught a full-camera error before accepted v3 execution: the exporter reads `EXTRA.FOCAL_LENGTH=5000` from the official config instead of hard-coding 1000. Raw-v3 consumers reject incomplete keys, inconsistent dropout counts, unverified source manifests, or missing checkpoint/config hashes. `prepare_wilor_caches.py` additionally updates WiLoR detector/crop/disagreement/fallback features and recomputes the SMPL-X reprojection residual after fusion. Append-only v1/v2 protocol manifests remain negative provenance records because they respectively selected fitting visualizations and assumed the wrong image-size order. Fresh v3 export, camera/chirality overlays and direct A1/A2 evaluation subsequently completed and are reported in H.3.1; the older 1,450-frame WiLoR-derived output is not promoted. Since Q/G v2 were trained on SMPLer-X-only caches, applying them to a derived A1 cache remains a frontend-domain-transfer diagnostic; an A1-conditioned training claim would require fresh WiLoR coverage of the admitted train split.
+
+#### H.3.1. Executed strong-A1 controls and test-exposed domain transfer
+
+Fresh WiLoR raw-v3 inference is now complete on 4,096/4,096 development frames and 1,493/1,493 protocol frames. The accepted development and protocol pickle SHA-256 values are `af51afbb89eaf3bb8b8fe28d2da0c45f1d9cbd9758a179b094723f62d857417a` and `0d07490dde320673404c3d41ff988f5d63c7006fcbcf86f7b74cc78838adcb59`. The protocol run records 27 full-frame detector dropouts rather than silently imputing detections. A spread-sampled original-image overlay audit found no systematic mirror, scale or camera offset. The strong-A1 development manifest SHA-256 is `78a02d1cdc05277d9a5722dfbbc76902451a0594f5e7a7d8140678394cedb8e6`; its physically targetless inference copy is `2815ae708cb51496a9d3bf8e8317d662f79dc73d31a4d96099d9452557f5a1d6`.
+
+The pre-benchmark target-free frontend criterion selected coordinate-retargeted A1 rather than the radius-one A2 filter. A1 reduces hand observation Huber evidence from 0.039649 to 0.022511 and visible-motion evidence from 0.037143 to 0.028272 relative to the original frontend; both hand-side source-cluster intervals exclude zero while body rotations remain unchanged. A2 slightly improves observation but worsens the locked weighted observation-plus-motion criterion. On the complete test-exposed protocol, author-comparability A1 is 29.9030/13.1492/12.7304 mm for UBody(-F)/left/right, and A2 is 29.8965/13.1306/12.7116 mm. A1's audited method-minus-local-DexAvatar intervals are [−0.0631,0.0505], [−0.8189,−0.1255] and [−0.4786,0.0267] mm. Thus only the left-hand interval excludes zero; the development lock is not retrospectively changed to A2.
+
+Strong-A1-specific source-group gate calibration selects `(0.9,1.0)` for both the flow and deterministic paths. Their artifacts have SHA-256 `3ad2ec3f42258876cb38c5260a7a378e5c2f77a0fb995bcc4144c38fc94afb58` and `5fef659b54b1a7f33b077e339513590511f9a213c842045a5d556bbb48fedee8`; the latter was implemented with the same zero-state/time deterministic execution path used at inference rather than incorrectly integrating it as a flow. Frozen strong-A1 energy statistics have SHA-256 `0037101436fffb251df2ebadc013fb4efdecf00808d18a75fe775b4a949fb705`.
+
+Before SGNify execution, A3/A4/A5/A7/A10 all passed the zero-target-read image-evidence gate on 128 clips/4,096 frames and 52 source groups. For example A3 changed observation/motion from 0.021338/0.025983 to 0.012458/0.017515; A7 changed them to 0.013437/0.019942. Every corresponding 95% source-cluster interval was negative. The separate pseudo-target join also favored the learned outputs. This evidence did not transfer to official TR-V2V: A3 obtains 36.0381/15.7783/15.6325 mm, A4 obtains 35.9999/16.7500/16.0900 mm, and A5 obtains 35.8666/16.7339/16.0395 mm. All three audited method-minus-DexAvatar intervals are strictly positive for all regions. This is direct evidence of a How2Sign-to-SGNify objective/domain gap and invalidates a positive learned-refinement claim.
+
+A7 geometry selection and A10 always-on selection both choose candidate zero for all 57 protocol signs. Their selected rotation tensors are bit-identical, so both reproduce the A1 author result 29.9030/13.1492/12.7304 mm and the A1 audited intervals above. This is a safe-abstention result, not a learned improvement. A6 remains a development-only oracle diagnostic. A8/A9 are not run because no validated form checkpoint and counterfactual annotations passed the declared feasibility rule. The benchmark was already exploratory/test-exposed before these ablations; no thresholds or weights were changed after reading it.
+
+A11 is complete with equal-budget deterministic seeds 42, 43 and 44, each trained for 10,000 steps with 2,431,491 parameters and identical config, Q, residual-statistics and architecture provenance. Their checkpoint SHA-256 values are `e10b5848610aee586a26ad4b22cd88828092a3b3fd03a0a90f8f275938e01fd1`, `b1410d840b26e3b4daf1f0eae40f47ba1391b1f2794abac781e2a078d4152b9e` and `a8ed7fdbe3fa8a5dfd4bcccd90e5f13d7299de0c2a722852974ab1b09da8f709`; validation residual MSE is 0.21981, 0.26502 and 0.24668. Each seed received its own checkpoint-bound source-group gate calibration and selected `(0.9,1.0)`. On the physically targetless strong-A1 development artifact, selected observation is 0.012458/0.014981/0.013925 and selected motion is 0.017515/0.018228/0.018130, versus common bases 0.021338/0.025983; all six source-cluster intervals exclude zero in the improving direction and target reads are zero. The independent pseudo-target join yields 29.8549/29.2355/29.8689° versus 30.9010°, but remains a mechanism diagnostic. The provenance-checked A11 summary SHA-256 is `cad400161707b1ef408cdd5fefb5395df42b856c5989d594475bb7bbfbc8339f`. No additional SGNify evaluation was performed for seeds 43/44: the already executed seed-42 A3 protocol failure is retained, avoiding further test exposure. Thus matched restarts support repeatable development-image evidence but do not overturn the cross-domain failure or support superiority.
+
+## H.4. Local baseline reproduction and pilot benchmark
+
+The user's supplied reference was 30.13/13.53/13.08 mm for upper body/left/right hand. Re-running the attached evaluator on the current local `outputs/method_hamer` gives 29.9074/13.5735/12.9271 mm for `Tr Above Pelvis Minus Face`/left/right. The evaluator also prints 26.4560 mm for a different `Above Pelvis Upper Body` vertex set. The audited track reproduces the 29.9074 result when it uses the same vertex-frame weighting; its secondary equal-frame mean is 30.0323 mm.
+
+The first SGNify exposure used the 500-step pilot, frozen energy statistics from 128 How2Sign validation clips, seed 42, four generated candidates plus base, and geometry-only A7 selection. Coverage was 1,493/1,493 with zero failures; 12/57 sign sequences selected a generated candidate.
+
+A later code-to-artifact audit found that the executed v1 inference path did not multiply the reliability gate by the declared cache `refine_mask`. In the saved targetless artifacts, 13,437 tokens belonged to nine out-of-scope joints; their mean gate was 0.62801 and 66.11% had nonzero gate, whereas supported tokens had mean gate 0.07248 and 7.94% nonzero. Because excluded root/spine rotations can displace broad mesh regions, the v1 benchmark remains an honest execution record but is not a clean A7 implementation of the specified selective identity path. v2 multiplies every inference/calibration gate by `refine_mask` and assigns identity normalization statistics to unsupported joints. This deviation is not corrected by retrospective SGNify tuning.
+
+| Region / metric | Local baseline (mm) | CUSP-SL pilot A7 (mm) | Difference (method − baseline) | Paired sign-cluster diagnostic |
+|---|---:|---:|---:|---:|
+| Author `Above Pelvis Minus Face` | 29.9074 | 31.0461 | +1.1387 | — |
+| Author left hand | 13.5735 | 13.5715 | −0.0019 | — |
+| Author right hand | 12.9271 | 12.9212 | −0.0059 | — |
+| Audited upper-body-minus-face, equal-frame | 30.0323 | 31.1721 | +1.1398 | sign mean +1.2041; 95% CI [0.6135, 1.8902] |
+| Audited left hand, equal-frame | 13.5735 | 13.5715 | −0.0019 | sign mean −0.0018; 95% CI [−0.0080, 0.0025] |
+| Audited right hand, equal-frame | 12.9271 | 12.9212 | −0.0059 | sign mean −0.0056; 95% CI [−0.0114, −0.0006] |
+
+Lower is better. The pilot does **not** outperform the baseline: upper-body degradation is material, the left-hand interval includes no change, and the statistically non-zero right-hand effect is approximately six micrometres and not practically meaningful. An exploratory, explicitly test-exposed hands-only control removed the body degradation but produced only near-zero changes; it cannot be used as a confirmatory result.
+
+## H.5. Test-exposure and claim ledger
+
+SGNify was opened once for the frozen flow-500 A7 pilot. The subsequent hands-only control was run after observing that result and is labeled exploratory/test-exposed. The flow-1,000 continuation was chosen by the already-declared development stop analysis and was not run on SGNify after it also failed oracle headroom. Consequently, this execution supports a falsification/reproducibility result, not model selection or superiority. Any future positive experiment requires a new independent test set or a formally declared test-exposed status.
+
+The implemented result is therefore: exact identity behavior and the evaluation plumbing are feasible and reproducible; the current A7 deployed configuration damages upper-body reconstruction; and its Q/gate, rather than sampled residual coverage, is the principal diagnosed bottleneck. The correct next step is to train and audit the versioned v2 Q/gate plus normalized flow and deterministic control on development/internal data, not to tune against SGNify.
 
 ---
 

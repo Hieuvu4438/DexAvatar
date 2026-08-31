@@ -1,0 +1,68 @@
+{
+  "checks": [
+    {
+      "detail": "experiment.seed, experiment.deterministic, data.window_length, data.window_overlap, observation.artifact_root, observation.calibration_artifact, observation.camera_calibration, initialization.artifact_root, initialization.commit, geometry.patch_map, geometry.smplx_model, geometry.selfcontact_essentials_root, geometry.selfcontact_essentials_registry, geometry.selfcontact_essentials_registry_sha256, contact.checkpoint, contact.semi_markov.max_duration, diffusion.checkpoint, diffusion.dposer_registry, diffusion.train_steps, guidance.gradient_clip_norm, inference.rounds, inference.diffusion_steps, inference.num_hypotheses, inference.retry_guidance_factor, ranking.artifact",
+      "name": "author_freezes",
+      "status": "BLOCKED"
+    },
+    {
+      "detail": "all runtime fields present",
+      "name": "configuration_contract",
+      "status": "PASS"
+    },
+    {
+      "detail": "ValueError: ../signal4d/artifacts/manifests/sgnify_available_15fps_development.jsonl:1: 24 validation errors for ManifestItem",
+      "name": "manifest",
+      "status": "BLOCKED"
+    },
+    {
+      "detail": "path unresolved",
+      "name": "patch_map",
+      "status": "BLOCKED"
+    },
+    {
+      "detail": "artifact unresolved",
+      "name": "calibration",
+      "status": "BLOCKED"
+    },
+    {
+      "detail": "artifact roots unresolved",
+      "name": "per_clip_inputs",
+      "status": "BLOCKED"
+    },
+    {
+      "detail": "checkpoint unresolved",
+      "name": "contact_checkpoint",
+      "status": "BLOCKED"
+    },
+    {
+      "detail": "checkpoint unresolved",
+      "name": "diffusion_checkpoint",
+      "status": "BLOCKED"
+    },
+    {
+      "detail": "artifact unresolved",
+      "name": "ranker",
+      "status": "BLOCKED"
+    },
+    {
+      "detail": "artifact unresolved",
+      "name": "camera_projection",
+      "status": "BLOCKED"
+    },
+    {
+      "detail": "no end-to-end fixture has yet exercised calibrated cameras, the licensed selfcontact essentials, and frozen production checkpoints together",
+      "name": "licensed_full_runtime_integration",
+      "status": "BLOCKED"
+    }
+  ],
+  "config": "/home/haipd/DexAvatar/dcg-sign4d/configs/inference/dcg_sign4d_v1.yaml",
+  "config_sha256": "83f0fb543570e892e00480353c9bc8cd51a8266734fb7b2b440469e9f71a6055",
+  "development_only": false,
+  "manifest": "/home/haipd/DexAvatar/signal4d/artifacts/manifests/sgnify_available_15fps_development.jsonl",
+  "manifest_sha256": "02e06c946f9400d8eb2b238c0297b07e188912121748db68ee1d66d12ea7c362",
+  "output_created": false,
+  "requested_output": "/home/haipd/DexAvatar/dcg-sign4d/artifacts/predictions/dcg_sign4d_v1",
+  "schema_version": "dcg_reconstruction_readiness_v1",
+  "status": "BLOCKED"
+}

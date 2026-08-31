@@ -1,9 +1,11 @@
 # Python
 __pycache__/
+*/__pycache__/
 *.py[cod]
 *$py.class
 *.so
 *.egg-info/
+*/*.egg-info/
 dist/
 build/
 *.egg
@@ -13,9 +15,15 @@ outputs/
 */outputs/
 output/
 output*/
+runs/
+*/runs/
+SMPLer-X/*extract*/
+SMPLer-X/*test*/
+SMPLer-X/test_*/
 
 # Logs
 *.log
+*/logs/
 output_log.txt
 
 # IDE
@@ -29,26 +37,39 @@ output_log.txt
 .DS_Store
 Thumbs.db
 
-# Data (large files)
+# Data (large files / datasets)
 _DATA/
 data/frames/
 data/frames_*/
 data/smplx_gt*/
 data/signbposer_data/
+data/signbposer_data_sign/
 data/dummy_test/
 data/images_sgnify
-# New: extracted hand-pose data for VQVAE fine-tuning
 data/vqvae_hand_data/
 data/ARCTIC/
 data/InterHand2.6M/
 data/WHIM/
+data/STS-Mocap-v1/
+data/SignAvatar_SOKE/
+data/SignAvatars/
+data/phonex_extract/
+data/vsl_glosses/
+data/vsl_glosses_mp4/
+data/SOKE/
+data/_tmp/
+data/evaluation_from_author/
+data/phase2_*
+data/phase3_*
 opencode-quota/
 opencode.json
 tui.json
-# Papers (third-party copyrighted PDFs - keep markdown notes only)
-data/paper/*.pdf
+
+# Binary files, weights, meshes, videos & paper PDFs
+*.pdf
 *.zip
 *.tar.gz
+*.tar
 *.pth
 *.pt
 *.pt2
@@ -59,12 +80,16 @@ data/paper/*.pdf
 *.pkl
 *.h5
 *.hdf5
+*.obj
+*.mp4
 
 # Evaluation data
 evaluation/data/
 evaluation/SMPLer-X/
 
-# Large external projects (not part of core pipeline)
+# Large external projects & third-party clones (not part of core pipeline)
+OmniHands/
+ScoreHMR/
 LHM-plusplus/
 checkpoints/
 sapiens/
@@ -72,13 +97,19 @@ WiLoR/
 OSX/
 frankmocap/
 HandFlow/
-# New: cloned SOKE and DPoser-X repos (added by VQVAE+DPoserX prior work)
 SOKE/
 DPoser-X/
-# New: NLF (background, unrelated to this work)
 nlf/
-# New: training log dir from prior training scripts
+*/third_party/
+third_party/
 data/signbposer_data/*/train_*.log
+
+# Subproject runtime artifacts
+SignEFT-X/baseline_states/
+SignEFT-X/observations/
+SignPK-BA/cache/
+SignPK-BA/data/manifests/
+SignPK-BA/OmniHands/
 
 # MLflow / experiment tracking
 mlruns/
@@ -103,34 +134,28 @@ mlartifacts/
 .venv/
 env/
 venv/
-*.egg-info/
 .eggs/
 
 # Jupyter
 .ipynb_checkpoints/
 
-# pytest
+# pytest & ruff & mypy caches
 .pytest_cache/
+*/.pytest_cache/
+.ruff_cache/
+*/.ruff_cache/
 .coverage
 htmlcov/
-
-# mypy
 .mypy_cache/
+*/.mypy_cache/
 
 # Local untracked directories
 body_models/
-data/_tmp/
-data/evaluation_from_author/
 logs/
 scratch/
 cache/
-data/phase2_*
-data/phase3_*
 
 # SIGNAL-4D local runtime and licensed/generated material
-# Keep source, configs, manifests, compact calibration/gating metadata, and
-# reports versioned.  The paths below contain caches, predictions, logs,
-# meshes/images, or symlinks back to licensed legacy outputs.
 signal4d/.pytest_cache/
 signal4d/.ruff_cache/
 signal4d/logs/

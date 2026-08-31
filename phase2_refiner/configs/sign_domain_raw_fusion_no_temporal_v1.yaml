@@ -1,0 +1,91 @@
+# Matched ablation A1: disable only temporal attention.
+seed: 42
+output_dir: outputs/phase2r/sign_domain_raw_fusion_no_temporal_v1_seed42
+
+data:
+  train_glob: cache/signal4d_external/sign_domain_raw_fusion_reprojection_train_v1/splits/train.json
+  val_glob: cache/signal4d_external/sign_domain_raw_fusion_reprojection_val_v1/splits/val.json
+  calibration_glob: cache/signal4d_external/sign_domain_raw_fusion_reprojection_calibration_v1/splits/calibration.json
+  test_glob: cache/signal4d_external/sign_domain_raw_fusion_reprojection_test_v1/splits/test.json
+  lineage_report: outputs/sign_domain_experts_v1/sign_domain_raw_fusion_lineage_v1.json
+  require_phase2r_semantics: true
+  physical_time_motion: true
+  motion_reference_seconds: 0.04
+  reprojection_residual_scale: 10.0
+
+model:
+  input_dim: 45
+  use_reprojection_skip: true
+  hidden_size: 256
+  num_layers: 6
+  num_heads: 8
+  mlp_ratio: 4
+  dropout: 0.1
+  max_frames: 16
+  temporal_attention: false
+  causal: false
+  predict_uncertainty: true
+  uncertainty_feedback: true
+  predict_benefit: true
+  body_max_degrees: 20.0
+  hand_max_degrees: 30.0
+
+loss:
+  rotation_weight: 1.0
+  vertex_weight: 0.0
+  joint_weight: 0.0
+  fingertip_weight: 0.0
+  palm_weight: 0.0
+  observation_weight: 0.0
+  velocity_weight: 0.15
+  acceleration_weight: 0.05
+  anchor_weight: 0.03
+  biomechanical_weight: 0.01
+  uncertainty_weight: 0.05
+  uncertainty_ranking_weight: 0.02
+  benefit_weight: 0.10
+  benefit_target: rotation
+  benefit_margin_degrees: 0.10
+  target_quality_weighting: true
+  minimum_target_quality: 0.25
+  physical_time_motion: true
+  motion_reference_seconds: 0.04
+
+training: &training
+  batch_size: 32
+  gradient_accumulation: 1
+  workers: 0
+  bucket_by_length: true
+  learning_rate: 0.0001
+  weight_decay: 0.05
+  warmup_fraction: 0.05
+  gradient_clip: 1.0
+  precision: bf16
+  ema_decay: 0.999
+  max_steps: 3000
+  log_every: 10
+  validate_every: 250
+  checkpoint_every: 500
+  early_stopping_patience: 5
+  uncertainty_only_steps: 100
+  checkpoint_metric: rotation
+  checkpoint_validation: clean
+  residual_mixture:
+    real_fraction: 0.70
+    synthetic_fraction: 0.20
+    clean_fraction: 0.10
+
+corruption: &corruption
+  probability: 1.0
+  min_duration: 2
+  max_duration: 12
+  max_rotation_degrees: 30.0
+  modes: [upper_body, left_hand, right_hand, both_hands, finger_chain,
+          wrist_attachment, keypoint_dropout, hand_swap, crop_truncation]
+
+validation_corruption: *corruption
+
+geometry:
+  enabled: false
+  model_folder: SMPLer-X/common/utils/human_model_files
+  assets_root: null

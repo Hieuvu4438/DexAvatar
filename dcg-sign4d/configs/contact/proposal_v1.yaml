@@ -1,0 +1,30 @@
+experiment:
+  seed: 12345
+  development_only: false
+data:
+  train_bundle: AUTHOR_REQUIRED
+  validation_bundle: AUTHOR_REQUIRED
+model:
+  hidden_dim: AUTHOR_REQUIRED
+  heads: AUTHOR_REQUIRED
+  layers: AUTHOR_REQUIRED
+  dropout: AUTHOR_REQUIRED
+  max_duration: AUTHOR_REQUIRED
+optimization:
+  steps: AUTHOR_REQUIRED
+  batch_size: AUTHOR_REQUIRED
+  learning_rate: AUTHOR_REQUIRED
+  weight_decay: AUTHOR_REQUIRED
+  gradient_clip_norm: AUTHOR_REQUIRED
+  validation_interval: AUTHOR_REQUIRED
+sampling:
+  balanced: true
+  effective_number_beta: AUTHOR_REQUIRED
+objective:
+  event_weight: AUTHOR_REQUIRED
+  duration_weight: AUTHOR_REQUIRED
+  transition_weight: AUTHOR_REQUIRED
+  calibration_weight: AUTHOR_REQUIRED
+  gold_label_weight: AUTHOR_REQUIRED
+  accepted_pseudo_label_weight: AUTHOR_REQUIRED
+third_party_manifest: third_party/manifest.yaml

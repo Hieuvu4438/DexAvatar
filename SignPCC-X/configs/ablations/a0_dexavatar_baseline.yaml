@@ -1,0 +1,39 @@
+experiment:
+  name: dexavatar_hamer_baseline
+  seed: 20260830
+  deterministic: true
+
+paths:
+  image_root: ../../../data/frames
+  gt_root: ../../../data/smplx_gt
+  signs_file: ../../../data/evaluation_from_author/data/data/signs.txt
+  segments_file: ../../../data/evaluation_from_author/data/data/segment.json
+  evaluator: ../../../data/evaluation_from_author/evaluate_new_fitting.py
+  evaluator_assets: ../../../data/evaluation_from_author/data/data
+  canonical_model: ../../../data/evaluation_from_author/data/data/SMPLX_NEUTRAL.npz
+  eval_layout: ../../../signal4d/outputs/strict_dexavatar_obj_20260820/full_1493/DexAvatar_HaMeR
+  run_root: ../../runs/a0_dexavatar_hamer_baseline
+
+topology:
+  vertex_count: 10475
+  face_count: 20908
+  faces_sha256_int64: 2cb81d8e6c789896d764805d58fb44bdce62424bab97b519bbd6c1668d66ce2b
+  canonical_gender: neutral
+  require_face_hash_match: true
+
+data:
+  never_drop_frame: true
+  expected_signs: 57
+  expected_frames: 1493
+
+temporal:
+  pose_smoothing: false
+  velocity_loss: false
+  acceleration_loss: false
+
+preflight:
+  reject_nan: true
+  reject_inf: true
+  require_contiguous_names: false
+  require_exact_count: true
+  require_exact_faces: true

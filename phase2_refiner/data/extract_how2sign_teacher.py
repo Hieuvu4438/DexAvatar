@@ -41,6 +41,15 @@ TARGET_KEYS = {
 }
 
 
+class _NumpyCoreCompatUnpickler(pickle.Unpickler):
+    """Read NumPy-2 pickles in the frozen NumPy-1 SMPLer-X environment."""
+
+    def find_class(self, module: str, name: str):
+        if module == "numpy._core" or module.startswith("numpy._core."):
+            module = "numpy.core" + module[len("numpy._core") :]
+        return super().find_class(module, name)
+
+
 def _split_paths(root: Path, split: str) -> tuple[Path, Path]:
     if split == "train":
         return root / "train" / "raw_videos", root / "train" / "train_pose"
@@ -68,13 +77,47 @@ def _hash_order(name: str, seed: int) -> str:
 
 def _load_track(path: Path) -> tuple[np.ndarray, np.ndarray]:
     with path.open("rb") as handle:
-        payload = pickle.load(handle)
-    keypoints = np.asarray(payload["keypoints"], dtype=np.float32)
-    scores = np.asarray(payload["scores"], dtype=np.float32)
-    if keypoints.ndim == 4 and keypoints.shape[1] == 1:
-        keypoints = keypoints[:, 0]
-    if scores.ndim == 3 and scores.shape[1] == 1:
-        scores = scores[:, 0]
+        payload = _NumpyCoreCompatUnpickler(handle).load()
+    raw_keypoints = payload["keypoints"]
+    raw_scores = payload["scores"]
+
+    # PHOENIX/WLASL tracks are usually [T,1,133,*], but a small fraction of
+    # frames contain 2--4 person detections and are therefore pickled as ragged
+    # lists.  Select the strongest whole-body signer detection deterministically
+    # rather than coercing the ragged list into an object array.
+    keypoint_rows = list(raw_keypoints)
+    score_rows = list(raw_scores)
+    if len(keypoint_rows) != len(score_rows):
+        raise ValueError(f"Keypoint/score frame mismatch in {path}")
+    selected_keypoints = []
+    selected_scores = []
+    evidence_indices = np.r_[5:17, 91:133]
+    # Length equality is checked above; avoid ``zip(strict=...)`` so this
+    # extractor remains runnable in the frozen Python 3.8 expert environment.
+    for frame_index, (points, logits) in enumerate(zip(keypoint_rows, score_rows)):
+        points = np.asarray(points, dtype=np.float32)
+        logits = np.asarray(logits, dtype=np.float32)
+        if points.ndim == 2:
+            points = points[None]
+        if logits.ndim == 1:
+            logits = logits[None]
+        if (
+            points.ndim != 3
+            or points.shape[1:] != (133, 2)
+            or logits.shape != points.shape[:2]
+            or len(points) == 0
+        ):
+            raise ValueError(
+                f"Unexpected detection shape at {path} frame {frame_index}: "
+                f"keypoints={points.shape} scores={logits.shape}"
+            )
+        evidence = logits[:, evidence_indices]
+        evidence = np.where(np.isfinite(evidence), evidence, -1e6)
+        person = int(np.argmax(evidence.mean(axis=1)))
+        selected_keypoints.append(points[person])
+        selected_scores.append(logits[person])
+    keypoints = np.stack(selected_keypoints)
+    scores = np.stack(selected_scores)
     if keypoints.ndim != 3 or keypoints.shape[1:] != (133, 2):
         raise ValueError(f"Unexpected keypoints shape in {path}: {keypoints.shape}")
     if scores.shape != keypoints.shape[:2]:

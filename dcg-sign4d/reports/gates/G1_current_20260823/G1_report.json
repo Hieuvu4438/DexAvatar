@@ -1,0 +1,17 @@
+{
+  "checks": {
+    "agreement_not_development": false,
+    "annotation_agreement": true,
+    "patch_map_frozen": false,
+    "pseudo_audit_not_development": false,
+    "pseudo_label_quality": true
+  },
+  "evidence_sha256": {
+    "agreement_report": "d5014e5dd52a3ca844f92abb5da642adfdb517421de92205caa49f5ae3d29b08",
+    "patch_map": "a69b7a9254eb1e203022ad32609c156a8165197d8585f73eec9875b805104ee4",
+    "pseudo_label_report": "23cb5cd0c4375aa8ef61393955f2c4264a18d0723c43dc34049882b6e174c5c0"
+  },
+  "gate": "G1",
+  "schema_version": "dcg_g1_gate_v1",
+  "status": "BLOCKED"
+}

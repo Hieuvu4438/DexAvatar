@@ -15,7 +15,9 @@ from phase2_refiner.data.dataset import (
     REPROJECTION_RESIDUAL_2D,
     REPROJECTION_RESIDUAL_SCALE,
     TOKEN_FEATURE_DIM,
+    TOKEN_FEATURE_DIM_WITH_EXPERT_PROPOSAL,
     TOKEN_FEATURE_DIM_WITH_REPROJECTION,
+    TOKEN_FEATURE_DIM_WITH_REPROJECTION_AND_EXPERT_PROPOSAL,
     features_from_clip,
 )
 from phase2_refiner.data.materialize_exact_a1_cache import (
@@ -57,6 +59,8 @@ def test_cache_round_trip(tmp_path: Path) -> None:
     assert np.array_equal(loaded.frame_names, clip.frame_names)
     assert np.array_equal(loaded.init_axis_angle, clip.init_axis_angle)
     assert loaded.target_axis_angle is None
+    assert not loaded.alternate_rotation_valid.any()
+    np.testing.assert_array_equal(loaded.alternate_axis_angle, loaded.init_axis_angle)
     assert loaded.frame_numbers.tolist() == list(range(5))
     assert loaded.torso_to_camera.shape == (5, 4, 4)
     with np.load(path, allow_pickle=False) as data:
@@ -138,6 +142,32 @@ def test_v3_reprojection_layout_is_opt_in_and_backward_compatible() -> None:
         enriched[..., REPROJECTION_RESIDUAL_2D].numpy(),
         0.25 * REPROJECTION_RESIDUAL_SCALE,
     )
+
+
+def test_v5_expert_proposal_is_a_directed_normalized_so3_residual() -> None:
+    clip = make_clip()
+    clip.alternate_axis_angle = clip.init_axis_angle.copy()
+    clip.alternate_axis_angle[:, 0, 2] = np.pi / 2
+    clip.alternate_rotation_valid = np.zeros((5, 51), dtype=bool)
+    clip.alternate_rotation_valid[:, 0] = True
+
+    proposal, _ = features_from_clip(
+        clip, input_dim=TOKEN_FEATURE_DIM_WITH_EXPERT_PROPOSAL
+    )
+    combined, _ = features_from_clip(
+        clip,
+        input_dim=TOKEN_FEATURE_DIM_WITH_REPROJECTION_AND_EXPERT_PROPOSAL,
+    )
+
+    assert proposal.shape[-1] == TOKEN_FEATURE_DIM_WITH_EXPERT_PROPOSAL
+    assert combined.shape[-1] == TOKEN_FEATURE_DIM_WITH_REPROJECTION_AND_EXPERT_PROPOSAL
+    np.testing.assert_allclose(
+        proposal[:, 0, -4:-1].numpy(),
+        np.tile([0.0, 0.0, 0.5], (5, 1)),
+        atol=1e-5,
+    )
+    np.testing.assert_array_equal(proposal[:, 0, -1].numpy(), np.ones(5))
+    assert np.count_nonzero(proposal[:, 1:, -4:].numpy()) == 0
 
 
 def test_cache_rejects_non_finite() -> None:

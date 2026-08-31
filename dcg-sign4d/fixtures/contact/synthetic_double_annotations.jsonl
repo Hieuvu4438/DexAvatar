@@ -1,0 +1,4 @@
+{"annotator_id":"ann_a","clip_id":"synthetic_smoke","confidence":0.9,"edge":["left_tip","face"],"event_id":"event_000","hold_end":5,"hold_start":3,"onset_frame":2,"release_frame":6,"uncertain":false}
+{"annotator_id":"ann_b","clip_id":"synthetic_smoke","confidence":0.9,"edge":["left_tip","face"],"event_id":"event_000","hold_end":6,"hold_start":4,"onset_frame":3,"release_frame":7,"uncertain":false}
+{"annotator_id":"ann_a","clip_id":"synthetic_smoke","confidence":0.8,"edge":["left_tip","right_tip"],"event_id":"event_001","hold_end":13,"hold_start":11,"onset_frame":10,"release_frame":14,"uncertain":false}
+{"annotator_id":"ann_b","clip_id":"synthetic_smoke","confidence":0.8,"edge":["left_tip","right_tip"],"event_id":"event_001","hold_end":14,"hold_start":12,"onset_frame":11,"release_frame":15,"uncertain":false}

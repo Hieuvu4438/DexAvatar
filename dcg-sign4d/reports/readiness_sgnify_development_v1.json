@@ -1,0 +1,67 @@
+{
+  "checks": [
+    {
+      "detail": "no unresolved placeholders; development inputs are not author freezes",
+      "name": "author_freezes",
+      "status": "PASS"
+    },
+    {
+      "detail": "all runtime fields present",
+      "name": "configuration_contract",
+      "status": "PASS"
+    },
+    {
+      "detail": "5 clips",
+      "name": "manifest",
+      "status": "PASS"
+    },
+    {
+      "detail": "60 development edges; a69b7a9254eb1e203022ad32609c156a8165197d8585f73eec9875b805104ee4",
+      "name": "patch_map",
+      "status": "PASS"
+    },
+    {
+      "detail": "0f671d58aa398b37c990fc72ea817f7fba6cf49ca09cca53b99797af545cbf40",
+      "name": "calibration",
+      "status": "PASS"
+    },
+    {
+      "detail": "5 calibrated observation/initialization pairs",
+      "name": "per_clip_inputs",
+      "status": "PASS"
+    },
+    {
+      "detail": "verified",
+      "name": "contact_checkpoint",
+      "status": "PASS"
+    },
+    {
+      "detail": "verified",
+      "name": "diffusion_checkpoint",
+      "status": "PASS"
+    },
+    {
+      "detail": "development-only validation-contract GT-free ranker",
+      "name": "ranker",
+      "status": "PASS"
+    },
+    {
+      "detail": "development projection convention",
+      "name": "camera_projection",
+      "status": "PASS"
+    },
+    {
+      "detail": "production component builder and atomic per-clip artifact path implemented",
+      "name": "runtime_assembly",
+      "status": "PASS"
+    }
+  ],
+  "config": "/home/haipd/DexAvatar/dcg-sign4d/configs/runs/reconstruct_sgnify_development_v1.yaml",
+  "config_sha256": "905ef64fbec87fb26bd7c2acfff2ad323a66c27969ba925efbfb14e9d15f6b3a",
+  "development_only": true,
+  "manifest": "/home/haipd/DexAvatar/dcg-sign4d/artifacts/manifests/sgnify_57_development_protocol_v2/sgnify_validation.jsonl",
+  "manifest_sha256": "d2274b31ed1a7d8c5772cb5352372a1947efd19033820988946155f9b1a0a0e5",
+  "schema_version": "dcg_reconstruction_readiness_v1",
+  "scientific_status": "DEVELOPMENT_ONLY_BOOTSTRAP_RANKER_NOT_A_FINAL_DCG_RESULT",
+  "status": "READY"
+}

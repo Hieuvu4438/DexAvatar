@@ -1,0 +1,26 @@
+{
+  "author_evaluator_sha256": "2722b5cd30d4baba23599a455cab483b143e6595d292f02de9643af4eebd5300",
+  "engineering_checks": {
+    "global_translation_invariance": true,
+    "legacy_region_metric_removes_rigid_placement": true,
+    "primary_detects_50mm_hand_placement": true,
+    "wrist_metric_detects_articulation": true,
+    "wrist_metric_removes_rigid_placement": true
+  },
+  "engineering_status": "PASS",
+  "gate": "G0",
+  "interpretation": "The attached-author region-centering endpoint removes rigid hand placement; root/pelvis alignment is the DCG primary endpoint.",
+  "manifest_sha256": "02e06c946f9400d8eb2b238c0297b07e188912121748db68ee1d66d12ea7c362",
+  "perturbation_metrics_mm": {
+    "articulation_wrist_aligned": 25.0,
+    "placement_legacy_region": 0.0,
+    "placement_root_aligned": 50.0,
+    "placement_wrist_aligned": 0.0
+  },
+  "schema_version": "dcg_g0_evaluator_audit_v1",
+  "scientific_checks": {
+    "coordinate_policy_frozen": false,
+    "signer_policy_available": false
+  },
+  "scientific_status": "BLOCKED"
+}

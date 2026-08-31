@@ -1,0 +1,12 @@
+{
+  "author_asset_root": "../data/evaluation_from_author/data/data",
+  "author_sign_file": "../data/evaluation_from_author/data/data/signs.txt",
+  "bootstrap_unit": "signer",
+  "development_only": true,
+  "gt_root": "../data/smplx_gt",
+  "manifest": "artifacts/manifests/muell_evaluation_development_v1.jsonl",
+  "output": "reports/dcg/muell_real_components_cpu_v2",
+  "predictions": "artifacts/evaluation_inputs/muell_dcg_real_components_cpu_v2",
+  "primary_endpoint": "root_aligned_hand_pve",
+  "trusted_author_assets": true
+}

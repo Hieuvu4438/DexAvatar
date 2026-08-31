@@ -1,0 +1,20 @@
+name: signpccx
+channels:
+  - conda-forge
+dependencies:
+  - python=3.13
+  - pip
+  - pip:
+      - numpy==2.2.6
+      - PyYAML==6.0.3
+      - torch==2.11.0
+      - smplx==0.1.28
+      - scipy==1.17.1
+      - matplotlib==3.10.8
+      - loguru==0.7.3
+      - tqdm==4.68.1
+      - pytest==9.0.3
+
+# The retained run's provenance/environment directory is the exact lock.
+# Torch used the locally available CUDA 12.8 wheel; select the matching
+# PyTorch index/channel when rebuilding on a different host.

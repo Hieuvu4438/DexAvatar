@@ -1,0 +1,63 @@
+data_config: configs/data/sgnify.yaml
+model_config: configs/model/pkc_base.yaml
+
+fit:
+  output_root: outputs/signpk_ba
+  device: cuda
+  modes: [h4w_init, pkc_feedforward, signpk_ba]
+  strict_cache: true
+  save_parameters: true
+  save_factor_log: true
+
+bundle_adjustment:
+  enabled: true
+  shared_body_shape_per_clip: true
+  optimize_focal_length: false
+  force_contact: false
+  grad_clip_norm: 1.0
+  stages:
+    - name: shape_camera
+      iterations: 60
+      optimizer: adam
+      learning_rate: 0.01
+      early_stop_patience: 15
+      relative_tolerance: 0.00001
+      variables: [body_shape, translation]
+      weights: {reprojection_2d: 0.1, shape: 1.0, pkc: 1.0}
+    - name: upper_body
+      iterations: 100
+      optimizer: adam
+      learning_rate: 0.003
+      early_stop_patience: 20
+      relative_tolerance: 0.00001
+      variables: [root, upper_body]
+      weights: {reprojection_2d: 0.1, h4w: 1.0, palm: 0.5, pkc: 1.0, motion: 0.25, sign_prior: 0.01}
+    - name: hands
+      iterations: 140
+      optimizer: adam
+      learning_rate: 0.002
+      early_stop_patience: 25
+      relative_tolerance: 0.00001
+      variables: [left_hand, right_hand, wrists]
+      weights: {reprojection_2d: 0.1, omni_hand: 2.0, palm: 0.5, pkc: 1.0, relation: 0.5, penetration: 0.02, sign_prior: 0.01}
+    - name: joint
+      iterations: 100
+      optimizer: adam
+      learning_rate: 0.0008
+      early_stop_patience: 20
+      relative_tolerance: 0.00001
+      variables: [root, upper_body, left_hand, right_hand, translation]
+      weights: {reprojection_2d: 0.1, h4w: 1.0, omni_hand: 2.0, palm: 0.5, pkc: 1.0, motion: 0.25, relation: 0.5, shape: 1.0, penetration: 0.02, sign_prior: 0.01}
+
+robustifiers:
+  body_2d_px: 10.0
+  hand_2d_px: 6.0
+  hand_vertex_m: 0.008
+  wrist_relation_m: 0.015
+  palm_radians: 0.261799
+
+fallback:
+  max_reprojection_ratio: 1.25
+  max_body_residual_degrees: 20.0
+  max_wrist_residual_degrees: 30.0
+  max_finger_residual_degrees: 25.0

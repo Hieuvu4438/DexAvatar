@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "signpk-ba"
+version = "0.1.0"
+description = "Sign-structured palm-kinematic coupling and clip bundle adjustment"
+requires-python = ">=3.10"
+dependencies = [
+  "numpy>=1.24",
+  "PyYAML>=6.0",
+  "torch>=2.1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.6"]
+smplx = ["smplx>=0.1.28"]
+observer = ["opencv-python>=4.8"]
+diagnostics = ["matplotlib>=3.7"]
+
+[tool.setuptools.packages.find]
+include = ["signpk*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100

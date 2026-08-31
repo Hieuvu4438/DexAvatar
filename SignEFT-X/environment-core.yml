@@ -1,0 +1,19 @@
+name: signeft-core
+channels: [pytorch, nvidia, conda-forge]
+dependencies:
+  - python=3.10
+  - pip
+  - numpy
+  - scipy
+  - opencv
+  - pyyaml
+  - trimesh
+  - imageio
+  - pytest
+  - pip:
+      - smplx
+      - safetensors
+      - einops
+      - rich
+      - jsonschema
+

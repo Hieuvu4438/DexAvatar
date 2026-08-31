@@ -10,7 +10,7 @@ set -e
 
 VQVAE_CKPT=${VQVAE_CKPT:-/home/haipd/DexAvatar/checkpoints/vqvae_hand/signhposer_vqvae/last.ckpt}
 DPOSERX_CKPT=${DPOSERX_CKPT:-/home/haipd/DexAvatar/DPoser-X/checkpoints/dposer/sign/sign_body_ft/last.ckpt}
-DPOSERX_CONFIG=${DPOSERX_CONFIG:-/home/haipd/DexAvatar/DPoser-X/configs/body/subvp/timefc.py}
+DPOSERX_CONFIG=${DPOSERX_CONFIG:-/home/haipd/DexAvatar/DPoser-X/configs/body/subvp/sign_timefc.py}
 # Sign normalizer (min/max) -- MUST match the sign-trained checkpoint.
 DPOSERX_NORMALIZER=${DPOSERX_NORMALIZER:-/home/haipd/DexAvatar/checkpoints/dposerx_body_sign/body_normalizer}
 

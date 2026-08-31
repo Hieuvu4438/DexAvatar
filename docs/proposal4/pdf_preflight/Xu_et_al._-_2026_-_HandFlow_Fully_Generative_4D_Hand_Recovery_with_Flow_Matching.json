@@ -1,0 +1,14 @@
+{
+  "schema": "pdf_read_preflight/1",
+  "verdict": "UNAVAILABLE",
+  "file": "docs/proposal4/Xu et al. - 2026 - HandFlow Fully Generative 4D Hand Recovery with Flow Matching.pdf",
+  "sha256": "e3e4ded43459952f3a88eb0e9bea6cf3b5fd3e6e91edb96fceff2f302eed3c4e",
+  "declared_page_count": null,
+  "enumerated_page_count": null,
+  "reader_page_count": null,
+  "warnings": [
+    "pypdf-not-installed: preflight cannot parse the document"
+  ],
+  "generated_at": "2026-08-21T11:31:40.959043+00:00",
+  "tool": "pdf_read_preflight/1.0.0"
+}

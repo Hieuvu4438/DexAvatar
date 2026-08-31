@@ -1,0 +1,5 @@
+extends: base.yaml
+experiment: {name: signpccx_full_a1_h4wpp, seed: 20260830, deterministic: true}
+paths: {run_root: ../../runs/signpccx_full_a1_h4wpp}
+method: {shared_beta: false, shared_camera: false, hypotheses: false, contact: false}
+

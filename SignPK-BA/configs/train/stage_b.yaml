@@ -1,0 +1,44 @@
+defaults:
+  data: ../data/training.yaml
+  model: ../model/pkc_base.yaml
+
+train:
+  stage: sign_domain
+  split: train
+  cache_index: data/signavatars_windows.jsonl
+  output_dir: runs/pkc_stage_b
+  epochs: 30
+  batch_size: 32
+  num_workers: 4
+  learning_rate: 0.00005
+  uncertainty_learning_rate: 0.0001
+  weight_decay: 0.05
+  warmup_fraction: 0.05
+  grad_clip_norm: 1.0
+  precision: bf16
+  device: cuda
+  seed: 42
+  use_sgnify_gt: false
+  signer_disjoint: true
+  augmentation:
+    observation_dropout: 0.10
+    feature_mask_probability: 0.05
+    token_noise_std: 0.003
+  losses:
+    centered_ubody: 1.0
+    centered_lhand: 2.0
+    centered_rhand: 2.0
+    uncentered_ubody: 0.25
+    rotation: 0.2
+    fk: 1.0
+    palm: 0.5
+    relation: 0.5
+    velocity: 0.25
+    angular_velocity: 0.25
+    reprojection_2d: 0.1
+    uncertainty_nll: 0.05
+    penetration: 0.02
+    residual: 0.01
+    sign_prior: 0.01
+    phase_gate: 0.05
+    interaction_gate: 0.05

@@ -1,0 +1,24 @@
+defaults:
+  data: ../data/training.yaml
+  model: ../model/pkc_base.yaml
+
+train:
+  stage: uncertainty_calibration
+  split: val
+  cache_index: data/signavatars_windows.jsonl
+  output_dir: runs/pkc_stage_c
+  epochs: 5
+  batch_size: 32
+  num_workers: 4
+  learning_rate: 0.0
+  uncertainty_learning_rate: 0.0001
+  weight_decay: 0.0
+  warmup_fraction: 0.0
+  grad_clip_norm: 1.0
+  precision: bf16
+  device: cuda
+  seed: 42
+  use_sgnify_gt: false
+  signer_disjoint: true
+  losses:
+    uncertainty_nll: 1.0

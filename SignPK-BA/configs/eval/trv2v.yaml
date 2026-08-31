@@ -1,0 +1,15 @@
+evaluation:
+  manifest_root: data/manifests/sgnify
+  gt_root: ../data/smplx_gt
+  data_root: ../data/evaluation_from_author/data/data
+  signs_file: ../data/evaluation_from_author/signs.txt
+  official_evaluator: ../data/evaluation_from_author/evaluate_new_fitting.py
+  strict_frame_ids: true
+  vertex_count: 10475
+  units: meters
+  class0_exclude_left_hand: true
+  report_per_sign: true
+  report_percentiles: true
+  report_subgroups: true
+  report_temporal_diagnostics: true
+  output_json: outputs/evaluation.json

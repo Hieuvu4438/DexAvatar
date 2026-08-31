@@ -1,0 +1,76 @@
+experiment:
+  name: signpccx_a3e_external_v1_free_identity
+  seed: 20260830
+  deterministic: true
+
+paths:
+  image_root: ../../../data/frames
+  gt_root: ../../../data/smplx_gt
+  signs_file: ../../../data/evaluation_from_author/data/data/signs.txt
+  segments_file: ../../../data/evaluation_from_author/data/data/segment.json
+  evaluator: ../../../data/evaluation_from_author/evaluate_new_fitting.py
+  evaluator_assets: ../../../data/evaluation_from_author/data/data
+  canonical_model: ../../../data/evaluation_from_author/data/data/SMPLX_NEUTRAL.npz
+  external_v1_root: ../../../outputs/signal4d_external/full1493_wilor_clipnorm_v1
+  smplx_model_root: ../../../SMPLer-X/common/utils/human_model_files
+  mano_smplx_vertex_ids: ../../../SMPLer-X/common/utils/human_model_files/smplx/MANO_SMPLX_vertex_ids.pkl
+  run_root: ../../runs/signpccx_a3e_external_v1_free_identity
+
+topology:
+  vertex_count: 10475
+  face_count: 20908
+  faces_sha256_int64: 2cb81d8e6c789896d764805d58fb44bdce62424bab97b519bbd6c1668d66ce2b
+  canonical_gender: neutral
+  source_coordinate_frame: smplx_internal_camera
+  export_transform: x180_exactly_once_in_canonical_refit
+  require_face_hash_match: true
+
+data:
+  never_drop_frame: true
+  expected_signs: 57
+  expected_frames: 1493
+
+identity:
+  scope: signer
+  calibration_frames: 50
+  selection: farthest_point_upper_limb_and_hand_pose_diversity
+  robust_beta: huber_then_canonical_refinement
+  huber_delta: 1.5
+  canonical_refine_steps: 300
+  learning_rate: 0.01
+  beta_anchor_weight: 0.0
+  whole_mesh_weight: 0.02
+
+canonical_refit:
+  steps: 300
+  learning_rate: 0.01
+  chunk_size: 32
+  hand_weight: 1.0
+  whole_mesh_weight: 0.02
+  pose_anchor_weight: 0.0
+  max_hand_residual_mm: 8.0
+  hand_objective: translation_aligned_mano_smplx_correspondence
+  ground_truth_in_objective: false
+  evaluator_upper_body_mask_in_objective: false
+
+teachers:
+  external_v1:
+    enabled: true
+    temporal_pose_loss: false
+  interwild:
+    enabled: false
+
+contact:
+  enabled: false
+
+temporal:
+  pose_smoothing: false
+  velocity_loss: false
+  acceleration_loss: false
+
+preflight:
+  reject_nan: true
+  reject_inf: true
+  require_contiguous_names: true
+  require_exact_count: true
+  require_exact_faces: true

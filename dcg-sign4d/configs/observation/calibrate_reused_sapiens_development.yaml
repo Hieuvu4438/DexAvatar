@@ -1,0 +1,15 @@
+backend: calibrate_reused_raw
+development_only: true
+source_root: artifacts/observations/sgnify_full1493_sapiens1b_raw_v1
+source_report_sha256: 8496326c38f6d5d8412fbbdede0739895c427116da7b98b3bc700a532268110a
+output: artifacts/observations/sgnify_full1493_synthetic_calibrated_development_v2
+calibrator: artifacts/calibration/synthetic_temperature_scalar_development_v2/calibrator.json
+extractor_name: Sapiens-1B WholeBody
+extractor_version: reused_output_unknown_runtime
+extractor_checkpoint_sha256: "0000000000000000000000000000000000000000000000000000000000000000"
+allow_incomplete_extractor_provenance: true
+use_raw_frame_source_identity: true
+preprocessing:
+  selection_policy: require_exactly_one_instance
+  keypoint_topology: sapiens_wholebody_133
+  score_semantics: raw_scalar_then_synthetic_development_temperature

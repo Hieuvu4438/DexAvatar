@@ -1,0 +1,6 @@
+extends: c0_a3f.yaml
+experiment: {name: signeft_c0_a3f_engineering12}
+paths:
+  manifest: ../../manifests/splits/engineering12.jsonl
+  signs_file: ../protocol/engineering12_signs.txt
+  run_root: ../../runs/signeft_c0_engineering12

@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "decision": "PASS_WITH_DOMAIN_SHIFT_LIMITATION",
+  "method": "SIGNAL4D_EXTERNAL_HOW2SIGN_CLIPNORM_V1",
+  "training_selection": {
+    "dataset": "How2Sign",
+    "train": {"clips": 10822, "frames": 346304},
+    "validation": {"clips": 498, "frames": 15936},
+    "calibration": {"clips": 497, "frames": 15904},
+    "source_group_overlaps": 0,
+    "sgnify_training_or_selection_reads": 0,
+    "best_step": 1500,
+    "best_selection_score": 0.5512393134023615,
+    "checkpoint_sha256": "09ca34e42e88b550af3b046f1f35bff30ae0c66aff65b9cfba430594ccdb90bf"
+  },
+  "calibration": {
+    "decision": "PASS",
+    "thresholds": {"lhand": 0.75, "rhand": 0.7, "ubody": 0.8},
+    "candidate_over_baseline": {
+      "lhand": 0.4821167302247744,
+      "rhand": 0.5191916083973416,
+      "ubody": 0.6386535085656755
+    },
+    "sha256": "a3180aa4c203af61892d74ea297193bc5ae40d3f8230a966252b36823909785e"
+  },
+  "frozen_inference": {
+    "clips": 57,
+    "frames": 1493,
+    "meshes": 1493,
+    "changed_clips": 4,
+    "refined_region_frames": 6,
+    "total_region_frames": 4479,
+    "sgnify_target_reads_before_evaluation": 0,
+    "run_manifest_sha256": "37a0e54ef0e1ecbc6337292d03cf1674407ea449f82ae54a74861426e421a682",
+    "obj_export_manifest_sha256": "da2878d01047890dfbe167ab12fda3c2c7c2cf3b83dfd82709aa6f7dacd92748"
+  },
+  "official_author_evaluator_mm": {
+    "DexAvatar": {
+      "all": 42.58672103600072,
+      "upper_body": 26.45599852631247,
+      "upper_body_minus_face": 29.907412675419735,
+      "left_hand": 13.573461936015676,
+      "right_hand": 12.927136809229967
+    },
+    "SIGNAL4D_EXTERNAL": {
+      "all": 42.24230709353972,
+      "upper_body": 26.223591207913596,
+      "upper_body_minus_face": 29.619595545905547,
+      "left_hand": 12.810229051090541,
+      "right_hand": 12.11483483115812
+    },
+    "improvement_vs_DexAvatar": {
+      "all": 0.34441394246099577,
+      "upper_body": 0.23240731839887374,
+      "upper_body_minus_face": 0.28781712951418825,
+      "left_hand": 0.7632328849251344,
+      "right_hand": 0.8123019780718472
+    },
+    "comparison_sha256": "2037d545f7851097375c1ffa967ad2147856ee4fe223c810ffa056faf330c3fb"
+  },
+  "historical_comparison": {
+    "contaminated_SIGNAL4D_v6_mm": {
+      "all": 42.1116241383613,
+      "upper_body": 26.139410918335823,
+      "upper_body_minus_face": 29.51968305604211,
+      "left_hand": 11.633895037565162,
+      "right_hand": 11.805623811320977
+    },
+    "retained_fraction_of_v6_gain_percent": {
+      "all": 72.49341011744391,
+      "upper_body": 73.41011225430441,
+      "upper_body_minus_face": 74.23140124713316,
+      "left_hand": 39.350686255517566,
+      "right_hand": 72.42911848425717
+    }
+  },
+  "limitation": "How2Sign calibration transferred poorly to SGNify inputs: the locked benefit gate refined only 6 of 4479 region-frames. Nearly all final gain is attributable to the clean WiLoR/HaMeR initializer, not the newly trained refiner."
+}

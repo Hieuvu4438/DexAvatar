@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import glob
+import hashlib
 import json
 from pathlib import Path
 
@@ -17,6 +18,7 @@ from phase2_refiner.data.cache_schema import (
 )
 from phase2_refiner.geometry.rotations import (
     axis_angle_to_matrix,
+    matrix_to_axis_angle,
     matrix_to_rotation_6d,
 )
 from phase2_refiner.geometry.palm import MCP_INDICES, palm_normal
@@ -40,6 +42,8 @@ REPROJECTION_RESIDUAL_2D = slice(43, 45)
 REPROJECTION_RESIDUAL_SCALE = 10.0
 TOKEN_FEATURE_DIM = 43
 TOKEN_FEATURE_DIM_WITH_REPROJECTION = 45
+TOKEN_FEATURE_DIM_WITH_EXPERT_PROPOSAL = 47
+TOKEN_FEATURE_DIM_WITH_REPROJECTION_AND_EXPERT_PROPOSAL = 49
 
 
 def _masked_coordinates(value: np.ndarray, valid: np.ndarray) -> torch.Tensor:
@@ -160,12 +164,41 @@ def features_from_clip(
         palm_valid[..., None].float(),
         time_delta,
     ]
-    if input_dim == TOKEN_FEATURE_DIM_WITH_REPROJECTION:
+    include_reprojection = input_dim in {
+        TOKEN_FEATURE_DIM_WITH_REPROJECTION,
+        TOKEN_FEATURE_DIM_WITH_REPROJECTION_AND_EXPERT_PROPOSAL,
+    }
+    include_expert_proposal = input_dim in {
+        TOKEN_FEATURE_DIM_WITH_EXPERT_PROPOSAL,
+        TOKEN_FEATURE_DIM_WITH_REPROJECTION_AND_EXPERT_PROPOSAL,
+    }
+    if include_reprojection:
         components.append(reprojection_residual * reprojection_residual_scale)
-    elif input_dim != TOKEN_FEATURE_DIM:
+    if include_expert_proposal:
+        alternate_aa = torch.from_numpy(clip.alternate_axis_angle[window]).float()
+        alternate_matrix = axis_angle_to_matrix(alternate_aa)
+        # compose_residual() left-multiplies the primary initializer, so this
+        # is the directed tangent-space motion from primary to alternate.
+        relative_matrix = alternate_matrix @ init_matrix.transpose(-1, -2)
+        relative = matrix_to_axis_angle(relative_matrix) / np.pi
+        alternate_valid = torch.from_numpy(
+            clip.alternate_rotation_valid[window]
+        ).bool()
+        relative = torch.where(
+            alternate_valid[..., None], relative, torch.zeros_like(relative)
+        )
+        components.extend((relative, alternate_valid[..., None].float()))
+    if input_dim not in {
+        TOKEN_FEATURE_DIM,
+        TOKEN_FEATURE_DIM_WITH_REPROJECTION,
+        TOKEN_FEATURE_DIM_WITH_EXPERT_PROPOSAL,
+        TOKEN_FEATURE_DIM_WITH_REPROJECTION_AND_EXPERT_PROPOSAL,
+    }:
         raise ValueError(
-            f"Unsupported token feature dimension {input_dim}; expected "
-            f"{TOKEN_FEATURE_DIM} or {TOKEN_FEATURE_DIM_WITH_REPROJECTION}"
+            f"Unsupported token feature dimension {input_dim}; expected one of "
+            f"{TOKEN_FEATURE_DIM}, {TOKEN_FEATURE_DIM_WITH_REPROJECTION}, "
+            f"{TOKEN_FEATURE_DIM_WITH_EXPERT_PROPOSAL}, or "
+            f"{TOKEN_FEATURE_DIM_WITH_REPROJECTION_AND_EXPERT_PROPOSAL}"
         )
     features = torch.cat(components, dim=-1)
     if features.shape[-1] != input_dim:
@@ -217,23 +250,40 @@ class SequenceCacheDataset(Dataset):
         physical_time_motion: bool = False,
         motion_reference_seconds: float = 0.04,
         require_phase2r_semantics: bool = False,
+        all_windows: bool = False,
+        expected_split: str | None = None,
     ) -> None:
         manifest_path = Path(cache_glob)
+        expected_cache_sha256: dict[Path, str] = {}
         if manifest_path.suffix == ".json" and manifest_path.exists():
             with manifest_path.open("r", encoding="utf-8") as handle:
                 manifest = json.load(handle)
             entries = manifest.get("clips", manifest)
             if not isinstance(entries, list):
                 raise ValueError(f"Invalid split manifest: {manifest_path}")
-            self.paths = [
+            source_paths = [
                 (manifest_path.parent / entry).resolve()
                 if not Path(entry).is_absolute()
                 else Path(entry)
                 for entry in entries
             ]
+            declared_hashes = manifest.get("clip_sha256")
+            if declared_hashes is not None:
+                if not isinstance(declared_hashes, dict) or set(declared_hashes) != set(entries):
+                    raise ValueError(
+                        f"Manifest clip_sha256 does not exactly cover clips: {manifest_path}"
+                    )
+                expected_cache_sha256 = {
+                    (
+                        (manifest_path.parent / entry).resolve()
+                        if not Path(entry).is_absolute()
+                        else Path(entry).resolve()
+                    ): str(declared_hashes[entry])
+                    for entry in entries
+                }
         else:
-            self.paths = [Path(path) for path in sorted(glob.glob(cache_glob))]
-        if not self.paths:
+            source_paths = [Path(path) for path in sorted(glob.glob(cache_glob))]
+        if not source_paths:
             raise ValueError(f"No cache files match: {cache_glob}")
         self.max_frames = max_frames
         self.training = training
@@ -247,25 +297,80 @@ class SequenceCacheDataset(Dataset):
         if self.motion_reference_seconds <= 0:
             raise ValueError("motion_reference_seconds must be positive")
         self.require_phase2r_semantics = bool(require_phase2r_semantics)
-        self.rng = np.random.default_rng(seed)
+        self.all_windows = bool(all_windows)
+        self.expected_split = str(expected_split) if expected_split is not None else None
+        if self.all_windows and self.training:
+            raise ValueError("all_windows is evaluation-only")
+        self.seed = int(seed)
+        # Retain the legacy generator for callers that index a training dataset
+        # directly. Production LengthBucketBatchSampler indices carry an epoch
+        # and use the stateless path below, so forked DataLoader workers never
+        # inherit correlated copies of mutable RNG state.
+        self.rng = np.random.default_rng(self.seed)
+        self.paths = []
+        self.fixed_windows: list[slice | None] = []
         self.lengths = []
-        for path in self.paths:
+        for path in source_paths:
+            expected_hash = expected_cache_sha256.get(path.resolve())
+            if expected_hash is not None:
+                digest = hashlib.sha256()
+                with path.open("rb") as handle:
+                    for block in iter(lambda: handle.read(1024 * 1024), b""):
+                        digest.update(block)
+                if digest.hexdigest() != expected_hash:
+                    raise ValueError(f"Cache SHA-256 mismatch: {path}")
             clip = load_cache_clip(path)
+            if self.expected_split is not None:
+                metadata = json.loads(clip.metadata_json)
+                declared_split = metadata.get(
+                    "phase2_split", metadata.get("official_split")
+                )
+                if declared_split != self.expected_split:
+                    raise ValueError(
+                        f"{path}: cache split {declared_split!r} does not match "
+                        f"expected {self.expected_split!r}"
+                    )
             if self.require_phase2r_semantics:
                 try:
                     validate_phase2r_semantics(clip)
                 except ValueError as error:
                     raise ValueError(f"{path}: {error}") from error
-            self.lengths.append(len(clip.frame_names))
+            length = len(clip.frame_names)
+            if self.all_windows:
+                for start in range(0, length, self.max_frames):
+                    stop = min(start + self.max_frames, length)
+                    self.paths.append(path)
+                    self.fixed_windows.append(slice(start, stop))
+                    self.lengths.append(stop - start)
+            else:
+                self.paths.append(path)
+                self.fixed_windows.append(None)
+                self.lengths.append(length)
 
     def __len__(self) -> int:
         return len(self.paths)
 
-    def _window(self, length: int) -> slice:
+    def _window(
+        self,
+        length: int,
+        *,
+        sample_index: int | None = None,
+        epoch: int | None = None,
+    ) -> slice:
         if length <= self.max_frames:
             return slice(0, length)
         if self.training:
-            start = int(self.rng.integers(0, length - self.max_frames + 1))
+            if sample_index is not None and epoch is not None:
+                # SeedSequence avoids Python's process-randomized hash and is
+                # stable across worker count, scheduling, and checkpoint resume.
+                generator = np.random.default_rng(
+                    np.random.SeedSequence((self.seed, int(epoch), int(sample_index)))
+                )
+                start = int(
+                    generator.integers(0, length - self.max_frames + 1)
+                )
+            else:
+                start = int(self.rng.integers(0, length - self.max_frames + 1))
         else:
             start = (length - self.max_frames) // 2
         return slice(start, start + self.max_frames)
@@ -277,9 +382,18 @@ class SequenceCacheDataset(Dataset):
         padding = [0, 0] * (value.ndim - 1) + [0, pad]
         return torch.nn.functional.pad(value, tuple(padding))
 
-    def __getitem__(self, index: int) -> dict[str, torch.Tensor | str | list[str]]:
+    def __getitem__(
+        self, index: int | tuple[int, int]
+    ) -> dict[str, torch.Tensor | str | list[str]]:
+        window_epoch = None
+        if isinstance(index, tuple):
+            if len(index) != 2:
+                raise ValueError("A windowed dataset index must be (index, epoch)")
+            index, window_epoch = int(index[0]), int(index[1])
         clip = load_cache_clip(self.paths[index])
-        window = self._window(len(clip.frame_names))
+        window = self.fixed_windows[index] or self._window(
+            len(clip.frame_names), sample_index=index, epoch=window_epoch
+        )
         features, init_matrix = features_from_clip(
             clip,
             window,
@@ -410,7 +524,10 @@ class SequenceCacheDataset(Dataset):
         }
 
 
-class LengthBucketBatchSampler(Sampler[list[int]]):
+# Keep the runtime base unsubscripted so the frozen SMPLer-X Python 3.8
+# environment can import the package.  The yielded item type remains declared
+# on methods and is unaffected by this compatibility change.
+class LengthBucketBatchSampler(Sampler):
     """Group similar clip lengths while retaining deterministic epoch shuffling."""
 
     def __init__(
@@ -446,7 +563,9 @@ class LengthBucketBatchSampler(Sampler[list[int]]):
         while self.cursor < len(batches):
             batch = batches[self.cursor]
             self.cursor += 1
-            yield batch
+            # Carry the sampler epoch into each Dataset lookup. This makes the
+            # temporal crop a pure function rather than mutable worker-local RNG.
+            yield [(index, self.epoch) for index in batch]
         self.epoch += 1
         self.cursor = 0
 

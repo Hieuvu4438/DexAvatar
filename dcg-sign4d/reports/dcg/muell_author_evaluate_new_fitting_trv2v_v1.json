@@ -1,0 +1,71 @@
+{
+  "schema_version": "dcg_author_evaluate_new_fitting_trv2v_v1",
+  "development_only": true,
+  "scientific_claim": false,
+  "method": "dcg_sign4d",
+  "clip_id": "Muell",
+  "sign_class": "0",
+  "prediction_frames": 15,
+  "prediction_frame_ids": [
+    116,
+    118,
+    120,
+    122,
+    124,
+    126,
+    128,
+    130,
+    132,
+    134,
+    136,
+    138,
+    140,
+    142,
+    144
+  ],
+  "gt_frame_ids": [
+    232,
+    236,
+    240,
+    244,
+    248,
+    252,
+    256,
+    260,
+    264,
+    268,
+    272,
+    276,
+    280,
+    284,
+    288
+  ],
+  "coverage": 1.0,
+  "results_mm": {
+    "v2v_right_wrist": 15.6398,
+    "tr_all": 44.7805,
+    "tr_right_hand": 15.6398,
+    "tr_above_pelvis_upper_body": 26.4231,
+    "tr_above_pelvis_minus_head": 43.7071,
+    "tr_above_pelvis_minus_face": 29.7320
+  },
+  "left_hand_status": "EXCLUDED_BY_AUTHOR_CLASS_0_RULE",
+  "command": "MPLBACKEND=Agg python data/evaluation_from_author/evaluate_new_fitting.py --method dcg_sign4d --central true --evaluate_folder dcg-sign4d/artifacts/evaluation_inputs/muell_dcg_real_components_cpu_v2 --gt_folder data/smplx_gt --sign_file dcg-sign4d/artifacts/manifests/muell_author_trv2v_v1.txt --sign_seg data/evaluation_from_author/data/data/segment.json",
+  "inputs": {
+    "prediction_root": "dcg-sign4d/artifacts/evaluation_inputs/muell_dcg_real_components_cpu_v2",
+    "prediction_obj_registry_sha256": "310d5acf0c457ae152843a8704325856e95bfb87299e177f4103ffbb0f8532a9",
+    "prediction_export_report_sha256": "81529b2c02fdd4e16a01aa9751d69882225a7626d3675b03ac48b72e6ec51472",
+    "evaluate_new_fitting_sha256": "2722b5cd30d4baba23599a455cab483b143e6595d292f02de9643af4eebd5300",
+    "segment_json_sha256": "e5d9bd504ef8158695a09d2fa279ba33bccda78d43a9575435ee838223d1aac2",
+    "single_sign_file_sha256": "574e3b60614270d00109236504d075737381b1712f4e26e5ff290048b92b9ffc",
+    "mano_smplx_vertex_ids_sha256": "e5abe70b6574de25470475091e8008314a5b90127eb48c3e63bfa0adf8c04dcf",
+    "smplx_neutral_sha256": "376021446ddc86e99acacd795182bbef903e61d33b76b9d8b359c2b0865bd992"
+  },
+  "metric_note": "The author implementation centers prediction and GT independently per evaluated vertex region. Its V2V right-wrist value is therefore numerically identical to TR right hand for this clip.",
+  "limitations": [
+    "only one development clip is reconstructed",
+    "only the right hand is evaluated under the author class-0 rule",
+    "the current DCG checkpoint and ranker are development-only",
+    "no signer-cluster confidence interval is possible"
+  ]
+}

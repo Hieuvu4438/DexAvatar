@@ -1,0 +1,20 @@
+{
+  "aggregation": "frame_to_clip_then_equal_weight_clip_macro",
+  "clips": 57,
+  "coverage": 1.0,
+  "frames": 1493,
+  "legacy_region_tr_hand_pve_mm": 13.550407482010575,
+  "legacy_region_tr_left_hand_pve_mm": 13.796739881455386,
+  "legacy_region_tr_right_hand_pve_mm": 13.026468093031209,
+  "manifest_sha256": "02e06c946f9400d8eb2b238c0297b07e188912121748db68ee1d66d12ea7c362",
+  "prediction_root": "../signal4d/outputs/strict_dexavatar_obj_20260820/full_1493/DexAvatar_HaMeR",
+  "primary_endpoint": "root_aligned_hand_pve",
+  "root_aligned_body_pve_mm": 55.64895016056453,
+  "root_aligned_hand_pve_mm": 67.68927181622375,
+  "root_aligned_left_hand_pve_mm": 63.98082559132542,
+  "root_aligned_right_hand_pve_mm": 70.92915877275486,
+  "signer_cluster_bootstrap_status": "BLOCKED_SIGNER_IDS_UNAVAILABLE",
+  "wrist_aligned_hand_pve_mm": 22.36980436382402,
+  "wrist_aligned_left_hand_pve_mm": 23.888452556274437,
+  "wrist_aligned_right_hand_pve_mm": 21.011812135902503
+}

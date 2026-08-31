@@ -23,6 +23,7 @@ Ranh giới quan trọng:
 
 Cho chuỗi ảnh RGB của một người thực hiện ngôn ngữ ký hiệu, cần tái dựng chuỗi mesh SMPL-X sao cho:
 
+
 1. thân trên, cánh tay, cổ tay và bàn tay đúng hình học tương đối;
 2. chuyển động không rung và không bị làm mượt quá mức ở các pha chuyển động nhanh;
 3. output giữ đúng topology SMPL-X neutral của evaluator;

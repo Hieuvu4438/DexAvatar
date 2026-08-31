@@ -1,0 +1,77 @@
+{
+  "checks": [
+    {
+      "detail": "no unresolved placeholders; development inputs are not author freezes",
+      "name": "author_freezes",
+      "status": "PASS"
+    },
+    {
+      "detail": "all runtime fields present",
+      "name": "configuration_contract",
+      "status": "PASS"
+    },
+    {
+      "detail": "57 clips",
+      "name": "manifest",
+      "status": "PASS"
+    },
+    {
+      "detail": "60 development edges; a69b7a9254eb1e203022ad32609c156a8165197d8585f73eec9875b805104ee4",
+      "name": "patch_map",
+      "status": "PASS"
+    },
+    {
+      "detail": "0f671d58aa398b37c990fc72ea817f7fba6cf49ca09cca53b99797af545cbf40",
+      "name": "calibration",
+      "status": "PASS"
+    },
+    {
+      "detail": "57 calibrated observation/initialization pairs",
+      "name": "per_clip_inputs",
+      "status": "PASS"
+    },
+    {
+      "detail": "verified",
+      "name": "contact_checkpoint",
+      "status": "PASS"
+    },
+    {
+      "detail": "verified",
+      "name": "diffusion_checkpoint",
+      "status": "PASS"
+    },
+    {
+      "detail": "development-only validation-contract GT-free ranker",
+      "name": "ranker",
+      "status": "PASS"
+    },
+    {
+      "detail": "development projection convention",
+      "name": "camera_projection",
+      "status": "PASS"
+    },
+    {
+      "detail": "production component builder and atomic per-clip artifact path implemented",
+      "name": "runtime_assembly",
+      "status": "PASS"
+    }
+  ],
+  "completed_clips": 7,
+  "config": "/home/haipd/DexAvatar/dcg-sign4d/configs/runs/reconstruct_sgnify_full1493_development_1x1_v1.yaml",
+  "config_sha256": "9330d924d21ba88f6ebaca77567a6eb6ed63c19c7e60027effa585e008e3dd7c",
+  "development_only": true,
+  "last_completed_clip": "IdiomPffIgnorieren",
+  "manifest": "/home/haipd/DexAvatar/dcg-sign4d/artifacts/manifests/sgnify_57_development_protocol_v2/sgnify_all.jsonl",
+  "manifest_sha256": "fbdbdda7702bbd67400c294176d7e73c5732899b49e17890d7584e44ad1653fd",
+  "manifest_total_clips": 57,
+  "output_created": false,
+  "requested_output": "/home/haipd/DexAvatar/dcg-sign4d/artifacts/predictions/sgnify_full1493_dcg_development_1x1_sharded_v2",
+  "resumable": true,
+  "run_status": "IN_PROGRESS",
+  "schema_version": "dcg_reconstruction_readiness_v1",
+  "shard_clips": 14,
+  "shard_count": 4,
+  "shard_index": 1,
+  "status": "READY",
+  "total_clips": 14
+}

@@ -1,0 +1,100 @@
+{
+  "dposer_runtime": {
+    "checkpoint_hashes_pass": true,
+    "files": [
+      {
+        "exists": true,
+        "pass": true,
+        "path": "pretrained_models/body/BaseMLP/last.ckpt",
+        "sha256": "1be3a99b031b0145ce96fea3eff5b401a56b41089f01738216e498dbad595b81"
+      },
+      {
+        "exists": true,
+        "pass": true,
+        "path": "pretrained_models/hand/BaseMLP/last.ckpt",
+        "sha256": "4c6b5f6aa3edde1d44329302283082731a6faa9fceb586e69bb701bdb05a2c94"
+      },
+      {
+        "exists": true,
+        "pass": true,
+        "path": "pretrained_models/face/BaseMLP/last.ckpt",
+        "sha256": "d5f78a8e14b7fb897886f55e925e67a99fc9ca8feedddc8949ccdf764aca2975"
+      },
+      {
+        "exists": true,
+        "pass": true,
+        "path": "pretrained_models/wholebody/mixed/last.ckpt",
+        "sha256": "dcb7e91dbc93e4cc79f27bd2f28cb53bb7a18417f7fc706249c3d59a714eab22"
+      },
+      {
+        "exists": true,
+        "pass": true,
+        "path": "data/body_data/body_normalizer/axis_normalize2.pt",
+        "sha256": "1d42f3594c9ccd7eea6e96d4be5456278314ffebcea2a4d018c7c23dadb7451c"
+      },
+      {
+        "exists": true,
+        "pass": true,
+        "path": "data/hand_data/hand_normalizer/axis_normalize2.pt",
+        "sha256": "3bf35e02b525b1a69704e85dbd9de231a800abcb597f9615419fa9281eb5b0ad"
+      },
+      {
+        "exists": true,
+        "pass": true,
+        "path": "data/face_data/jaw_normalizer/axis_normalize2.pt",
+        "sha256": "5aaa90082b9d6a2c4590dc844d12508748c01228ea171c57bd5bde4688b40523"
+      },
+      {
+        "exists": true,
+        "pass": true,
+        "path": "data/face_data/expression_normalizer/axis_normalize2.pt",
+        "sha256": "49e85cd02dc376dadd46ec82b152f3538ad8deb79eae7466a6835c64982a07a1"
+      }
+    ],
+    "registry_sha256": "e321c6371151924f04bc1fc086a4c02c50ccda24cfdcfb37a0f717ad7d597e27",
+    "safe_load_status": "legacy_checkpoint_requires_explicit_trust_and_upstream_loader",
+    "scientifically_frozen": false,
+    "source_commit": "c373fce3d364a4a0946e8445fdea5cbfd490e837",
+    "source_commit_pass": true
+  },
+  "third_party": {
+    "engineering_pass": true,
+    "manifest_sha256": "7e882a3ff6b6b48534d75f49501937068d9d62f7421a75ea39955df96e7432c5",
+    "pin_status": "implementation_candidate_not_scientifically_frozen",
+    "repositories": [
+      {
+        "clean": true,
+        "commit": "a0dfd427f60f5811aadb35c8657b3856d47f56b5",
+        "license_sha256": "4e761dbfa73db59c8cee90618ee98ea75d61be7c5975c1f0da7baf2317251bff",
+        "name": "DexAvatar",
+        "pass": true,
+        "url": "https://github.com/kaustesseract/DexAvatar.git"
+      },
+      {
+        "clean": true,
+        "commit": "e15732bdc6bf3f214d305f47b30bfd9ef4a85f20",
+        "license_sha256": "ea74c601b1ceeae9fbb679f5ccce4aedea8405d9e8d734abd9a77f10b0efabf3",
+        "name": "tuch",
+        "pass": true,
+        "url": "https://github.com/muelea/tuch.git"
+      },
+      {
+        "clean": true,
+        "commit": "08da422526419c24736c0616bca49623e442c26a",
+        "license_sha256": "ea74c601b1ceeae9fbb679f5ccce4aedea8405d9e8d734abd9a77f10b0efabf3",
+        "name": "selfcontact",
+        "pass": true,
+        "url": "https://github.com/muelea/selfcontact.git"
+      },
+      {
+        "clean": true,
+        "commit": "c373fce3d364a4a0946e8445fdea5cbfd490e837",
+        "license_sha256": "3e6548440b0de01f7a88a37d4aa8acb05ed7a7cd314e437a4543535217912e9d",
+        "name": "DPoser-X",
+        "pass": true,
+        "url": "https://github.com/moonbow721/DPoser-X.git"
+      }
+    ],
+    "scientifically_frozen": false
+  }
+}

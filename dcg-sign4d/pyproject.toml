@@ -1,0 +1,69 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dcg-sign4d"
+version = "0.1.0.dev0"
+description = "Dynamic-contact-guided monocular 4D sign reconstruction"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "Research code; third-party and model/data licenses apply"}
+dependencies = [
+  "numpy>=1.24",
+  "pydantic>=2.0",
+  "PyYAML>=6.0",
+  "scipy>=1.10",
+  "torch>=2.1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.6"]
+report = ["pandas>=1.5", "pyarrow>=14"]
+
+[project.scripts]
+dcg-sign4d-audit = "dcg_sign4d.cli.audit_environment:main"
+dcg-sign4d-validate-manifest = "dcg_sign4d.cli.validate_manifest:main"
+dcg-sign4d-build-patch-assets = "dcg_sign4d.cli.build_patch_assets:main"
+dcg-sign4d-compile-development-contacts = "dcg_sign4d.cli.compile_development_contacts:main"
+dcg-sign4d-audit-dposer-runtime = "dcg_sign4d.cli.audit_dposer_runtime:main"
+dcg-sign4d-compile-raw-observations = "dcg_sign4d.cli.compile_raw_observations:main"
+dcg-sign4d-tiny-overfit = "dcg_sign4d.cli.tiny_overfit:main"
+dcg-sign4d-validate-prediction = "dcg_sign4d.cli.validate_prediction:main"
+dcg-sign4d-fit-calibrators = "dcg_sign4d.cli.fit_calibrators:main"
+dcg-sign4d-audit-contact-labels = "dcg_sign4d.cli.audit_contact_labels:main"
+dcg-sign4d-audit-pseudo-contacts = "dcg_sign4d.cli.audit_pseudo_contacts:main"
+dcg-sign4d-audit-g1 = "dcg_sign4d.cli.audit_g1:main"
+dcg-sign4d-audit-evaluator = "dcg_sign4d.cli.audit_evaluator:main"
+dcg-sign4d-train-contact = "dcg_sign4d.cli.train_contact:main"
+dcg-sign4d-train-diffusion = "dcg_sign4d.cli.train_diffusion:main"
+dcg-sign4d-bootstrap-report = "dcg_sign4d.cli.bootstrap_report:main"
+dcg-sign4d-evaluate = "dcg_sign4d.cli.evaluate:main"
+dcg-sign4d-extract-observations = "dcg_sign4d.cli.extract_observations:main"
+dcg-sign4d-run-initialization = "dcg_sign4d.cli.run_initialization:main"
+dcg-sign4d-generate-pseudo-contacts = "dcg_sign4d.cli.generate_pseudo_contacts:main"
+dcg-sign4d-reconstruct = "dcg_sign4d.cli.reconstruct:main"
+dcg-sign4d-fit-ranker = "dcg_sign4d.cli.fit_ranker:main"
+dcg-sign4d-register-selfcontact-assets = "dcg_sign4d.cli.register_selfcontact_assets:main"
+dcg-sign4d-convert-sgnify-manifest = "dcg_sign4d.cli.convert_sgnify_manifest:main"
+dcg-sign4d-compile-supervised-windows = "dcg_sign4d.cli.compile_supervised_windows:main"
+dcg-sign4d-build-camera-projection = "dcg_sign4d.cli.build_camera_projection_asset:main"
+dcg-sign4d-export-prediction-obj = "dcg_sign4d.cli.export_prediction_obj:main"
+dcg-sign4d-export-prediction-manifest-obj = "dcg_sign4d.cli.export_prediction_manifest_obj:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]

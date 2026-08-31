@@ -1,0 +1,37 @@
+experiment:
+  seed: 12345
+  development_only: false
+data:
+  train_bundle: AUTHOR_REQUIRED
+  validation_bundle: AUTHOR_REQUIRED
+dposer_x:
+  source_root: third_party/DPoser-X
+  runtime_root: ../DPoser-X
+  registry: configs/diffusion/dposer_x_registry.json
+  expected_commit: c373fce3d364a4a0946e8445fdea5cbfd490e837
+model:
+  hidden_dim: AUTHOR_REQUIRED
+  heads: AUTHOR_REQUIRED
+  layers: AUTHOR_REQUIRED
+  dropout: AUTHOR_REQUIRED
+diffusion:
+  steps: AUTHOR_REQUIRED
+  beta_start: AUTHOR_REQUIRED
+  beta_end: AUTHOR_REQUIRED
+  conditioning_mode: dynamic
+  graph_dropout_probability: AUTHOR_REQUIRED
+  edge_dropout_probability: AUTHOR_REQUIRED
+  reliability_dropout_probability: AUTHOR_REQUIRED
+  root_weight: AUTHOR_REQUIRED
+  body_weight: AUTHOR_REQUIRED
+  left_hand_weight: AUTHOR_REQUIRED
+  right_hand_weight: AUTHOR_REQUIRED
+  face_weight: AUTHOR_REQUIRED
+optimization:
+  train_steps: AUTHOR_REQUIRED
+  batch_size: AUTHOR_REQUIRED
+  learning_rate: AUTHOR_REQUIRED
+  weight_decay: AUTHOR_REQUIRED
+  gradient_clip_norm: AUTHOR_REQUIRED
+  validation_interval: AUTHOR_REQUIRED
+third_party_manifest: third_party/manifest.yaml

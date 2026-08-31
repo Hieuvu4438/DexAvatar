@@ -1,0 +1,68 @@
+experiment:
+  name: dcg_sign4d_v1
+  seed: AUTHOR_REQUIRED
+  deterministic: AUTHOR_REQUIRED
+  development_only: false
+data:
+  window_length: AUTHOR_REQUIRED
+  window_overlap: AUTHOR_REQUIRED
+observation:
+  artifact_root: AUTHOR_REQUIRED
+  calibration_artifact: AUTHOR_REQUIRED
+  camera_calibration: AUTHOR_REQUIRED
+initialization:
+  backend: dexavatar
+  artifact_root: AUTHOR_REQUIRED
+  commit: AUTHOR_REQUIRED
+geometry:
+  patch_map: AUTHOR_REQUIRED
+  smplx_model: AUTHOR_REQUIRED
+  smplx_model_sha256: AUTHOR_REQUIRED
+  trusted_smplx_model: AUTHOR_REQUIRED
+  selfcontact_source_root: third_party/selfcontact
+  selfcontact_commit: AUTHOR_REQUIRED
+  selfcontact_essentials_root: AUTHOR_REQUIRED
+  selfcontact_essentials_registry: AUTHOR_REQUIRED
+  selfcontact_essentials_registry_sha256: AUTHOR_REQUIRED
+  trusted_selfcontact_assets: AUTHOR_REQUIRED
+  selfcontact_test_segments: AUTHOR_REQUIRED
+  separation_margin_m: AUTHOR_REQUIRED
+  sigma_distance_m: AUTHOR_REQUIRED
+  sigma_normal: AUTHOR_REQUIRED
+  sigma_velocity_m_per_s: AUTHOR_REQUIRED
+  normal_weight: AUTHOR_REQUIRED
+  hold_velocity_weight: AUTHOR_REQUIRED
+  penetration_area_weight: AUTHOR_REQUIRED
+contact:
+  checkpoint: AUTHOR_REQUIRED
+  training_config: AUTHOR_REQUIRED
+  semi_markov:
+    max_duration: AUTHOR_REQUIRED
+diffusion:
+  checkpoint: AUTHOR_REQUIRED
+  training_config: AUTHOR_REQUIRED
+  trajectory_normalizer: AUTHOR_REQUIRED
+  dposer_registry: AUTHOR_REQUIRED
+  train_steps: AUTHOR_REQUIRED
+guidance:
+  enabled_terms: [keypoint, contact]
+  guidance_scale: AUTHOR_REQUIRED
+  gradient_clip_norm: AUTHOR_REQUIRED
+  trust_region_norm: AUTHOR_REQUIRED
+  keypoint_sigma_min_px: AUTHOR_REQUIRED
+  keypoint_sigma_occluded_px: AUTHOR_REQUIRED
+inference:
+  rounds: AUTHOR_REQUIRED
+  diffusion_steps: AUTHOR_REQUIRED
+  num_hypotheses: AUTHOR_REQUIRED
+  retry_guidance_factor: AUTHOR_REQUIRED
+  fixed_rounds: true
+  alternating: true
+ranking:
+  artifact: AUTHOR_REQUIRED
+  fit_split: validation
+  use_ground_truth: false
+evaluation:
+  primary_endpoint: root_aligned_hand_pve
+  bootstrap_unit: signer
+third_party_manifest: third_party/manifest.yaml

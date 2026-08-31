@@ -1,0 +1,47 @@
+data:
+  frames_root: ../data/frames
+  gt_root: ../data/smplx_gt
+  segment_file: ../data/evaluation_from_author/segment.json
+  signs_file: ../data/evaluation_from_author/signs.txt
+  manifest_root: data/manifests/sgnify
+  image_glob: "low_*.png"
+  image_id_regex: "(?:low_)?(\\d+)"
+  gt_id_multiplier: 2
+  fps: 25.0
+  temporal_window: 9
+  temporal_gap: 1
+  boundary_padding: reflect
+  use_only_central_segment: true
+  strict_gt: true
+
+observers:
+  h4w:
+    cache_root: ../SignCAST/data/cache/v3/h4wpp
+    source_root: ../signalign-tr/third_party/hand4whole_pp
+    expected_commit: f81d35ddd2b74206c40142243eb62b6d64ce0d65
+  omnihands:
+    source_root: OmniHands
+    config: OmniHands/checkpoints/config_video.yaml
+    checkpoint: OmniHands/checkpoints/Eval_Video.pth
+    cache_root: cache/omni
+    expected_commit: 935e1f580975263be799ebf56932e27ab18e1a01
+    sequence_length: 9
+    sequence_gap: 1
+  dex_priors:
+    enabled: true
+    body_root: ../dexavatar_fitting/smplifyx/signbposer
+    hand_root: ../dexavatar_fitting/smplifyx/signhposer/signhposer
+    weight: 0.01
+
+geometry:
+  units: meters
+  canonical_coordinates: x_right_y_down_z_forward
+  # SGNify GT OBJ files are stored with a 180-degree camera-x rotation relative
+  # to the inference camera convention. This is applied only at OBJ export.
+  benchmark_export_rotation:
+    - [1.0, 0.0, 0.0]
+    - [0.0, -1.0, 0.0]
+    - [0.0, 0.0, -1.0]
+  smplx_model: ../data/evaluation_from_author/data/data/SMPLX_NEUTRAL.npz
+  mano_smplx_ids: ../data/evaluation_from_author/data/data/MANO_SMPLX_vertex_ids.pkl
+  upper_body_indices: ../data/evaluation_from_author/data/data/sgnify_part_segm_above_pelvis_joint/upper_body_minus_face.npy

@@ -1,0 +1,76 @@
+output_dir: outputs/cusp_sl/v2_normalized_seed42
+
+data:
+  train_manifest: cache/phase2/t2_how2sign_2d_temporal_reprojection_v2/splits/train.json
+  val_manifest: cache/phase2/t2_how2sign_2d_temporal_reprojection_v2/splits/val.json
+  input_dim: 45
+  window_size: 16
+  fps: 24.0
+  require_phase2r_semantics: false
+
+reliability:
+  hidden_size: 96
+  temporal_layers: 3
+  body_tolerance_degrees: 3.0
+  hand_tolerance_degrees: 5.0
+  # Development default g=1-q. Replace only with a validation-fitted pair.
+  tau_low: 0.0
+  tau_high: 1.0
+  dilation: 1
+
+flow:
+  hidden_size: 192
+  layers: 4
+  heads: 6
+  mlp_ratio: 4.0
+  dropout: 0.1
+  ode_steps: 3
+  candidates: 4
+  overlap: 2
+  body_max_degrees: 25.0
+  hand_max_degrees: 35.0
+  normalization_statistics: outputs/cusp_sl/v2_normalized_seed42/residual_statistics_train.npz
+
+form:
+  enabled: false
+  video_feature_dim: 1024
+  hidden_size: 256
+  embedding_dim: 128
+  temperature: 0.07
+  counterfactual_margin: 0.15
+  checkpoint: null
+
+selection:
+  observation_weight: 1.0
+  motion_weight: 0.5
+  physical_weight: 0.25
+  form_weight: 0.0
+  energy_temperature: 1.0
+  huber_delta: 0.03
+  rom_threshold_degrees: 150.0
+
+training:
+  seed: 42
+  batch_size: 16
+  workers: 0
+  learning_rate: 0.0001
+  weight_decay: 0.0001
+  reliability_steps: 2500
+  flow_steps: 10000
+  validate_every: 500
+  gradient_clip: 1.0
+  precision: bf16
+  real_fraction: 0.50
+  synthetic_fraction: 0.35
+  clean_fraction: 0.15
+
+protocol:
+  baseline_root: outputs/method_hamer
+  frames_root: data/frames
+  gt_root: data/smplx_gt
+  signs_file: data/evaluation_from_author/data/data/signs.txt
+  segments_file: data/evaluation_from_author/data/data/segment.json
+  assets_root: data/evaluation_from_author/data/data
+  smplx_model_folder: SMPLer-X/common/utils/human_model_files
+  expected_frames: 1493
+  bootstrap_replicates: 10000

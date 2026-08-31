@@ -1,0 +1,59 @@
+{
+  "schema_version": "dcg_author_trv2v_evaluation_v1",
+  "status": "COMPLETE",
+  "evaluated_at": "2026-08-23T15:24:55+07:00",
+  "method": "dcg_sign4d",
+  "scientific_status": "development_only",
+  "protocol": {
+    "evaluator": "/home/haipd/DexAvatar/data/evaluation_from_author/evaluate_new_fitting.py",
+    "evaluator_sha256": "2722b5cd30d4baba23599a455cab483b143e6595d292f02de9643af4eebd5300",
+    "central": true,
+    "sign_file": "/home/haipd/DexAvatar/data/evaluation_from_author/data/data/signs.txt",
+    "segment_file": "/home/haipd/DexAvatar/data/evaluation_from_author/data/data/segment.json",
+    "ground_truth_root": "/home/haipd/DexAvatar/data/smplx_gt",
+    "signs": 57,
+    "frames": 1493
+  },
+  "inputs": {
+    "prediction_root": "/home/haipd/DexAvatar/dcg-sign4d/artifacts/predictions/sgnify_full1493_dcg_development_1x1_sharded_v2",
+    "obj_root": "/home/haipd/DexAvatar/dcg-sign4d/artifacts/evaluation_inputs/sgnify_full1493_dcg_development_1x1_sharded_v2",
+    "manifest": "/home/haipd/DexAvatar/dcg-sign4d/artifacts/manifests/sgnify_57_development_protocol_v2/sgnify_all.jsonl",
+    "manifest_sha256": "fbdbdda7702bbd67400c294176d7e73c5732899b49e17890d7584e44ad1653fd",
+    "export_report_sha256": "f0a5527fb653bc3159e2caf0121661f5bd19ab9d2c1fa9047de16b860facb220",
+    "config": "/home/haipd/DexAvatar/dcg-sign4d/configs/runs/reconstruct_sgnify_full1493_development_1x1_v1.yaml",
+    "config_sha256": "9330d924d21ba88f6ebaca77567a6eb6ed63c19c7e60027effa585e008e3dd7c",
+    "num_hypotheses": 1,
+    "diffusion_steps": 1,
+    "rounds": 1,
+    "execution_device_clip_counts": {
+      "cuda": 34,
+      "cpu": 23
+    },
+    "failure_count": 0,
+    "retry_count": 0
+  },
+  "coverage": {
+    "manifest_clips": 57,
+    "validated_prediction_clips": 57,
+    "exported_obj_clips": 57,
+    "manifest_frames": 1493,
+    "validated_prediction_frames": 1493,
+    "exported_obj_frames": 1493
+  },
+  "metrics_mm": {
+    "V2V Left Wrist": 13.2994,
+    "V2V Right Wrist": 12.5818,
+    "Tr All": 42.5799,
+    "Tr Left Hand": 13.2994,
+    "Tr Right Hand": 12.5818,
+    "Tr Above Pelvis Upper Body": 26.4454,
+    "Tr Above Pelvis Minus Head": 40.7661,
+    "Tr Above Pelvis Minus Face": 29.8972
+  },
+  "command": "MPLBACKEND=Agg python ../data/evaluation_from_author/evaluate_new_fitting.py --method dcg_sign4d --central true --evaluate_folder artifacts/evaluation_inputs/sgnify_full1493_dcg_development_1x1_sharded_v2 --gt_folder ../data/smplx_gt --sign_file ../data/evaluation_from_author/data/data/signs.txt --sign_seg ../data/evaluation_from_author/data/data/segment.json",
+  "notes": [
+    "Metrics are the aggregate values printed by the unmodified author evaluator.",
+    "Runtime warnings for empty left-hand subsets are expected for one-handed class-0 signs; the author evaluator records those per-sign left-hand values as zero.",
+    "This is a development 1-hypothesis/1-step run and is not an author-frozen benchmark result."
+  ]
+}

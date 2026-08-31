@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+
+# Runtime products and licensed/external assets.
+cache/
+runs/
+outputs/
+checkpoints/*.pt
+data/manifests/
+OmniHands/

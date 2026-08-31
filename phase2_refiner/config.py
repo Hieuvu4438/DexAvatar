@@ -34,22 +34,36 @@ def validate_config(
 ) -> None:
     from phase2_refiner.data.dataset import (
         TOKEN_FEATURE_DIM,
+        TOKEN_FEATURE_DIM_WITH_EXPERT_PROPOSAL,
         TOKEN_FEATURE_DIM_WITH_REPROJECTION,
+        TOKEN_FEATURE_DIM_WITH_REPROJECTION_AND_EXPERT_PROPOSAL,
     )
 
     model = config.get("model", {})
     data = config.get("data", {})
     input_dim = int(model.get("input_dim", TOKEN_FEATURE_DIM))
-    if input_dim not in (TOKEN_FEATURE_DIM, TOKEN_FEATURE_DIM_WITH_REPROJECTION):
+    supported_input_dims = (
+        TOKEN_FEATURE_DIM,
+        TOKEN_FEATURE_DIM_WITH_REPROJECTION,
+        TOKEN_FEATURE_DIM_WITH_EXPERT_PROPOSAL,
+        TOKEN_FEATURE_DIM_WITH_REPROJECTION_AND_EXPERT_PROPOSAL,
+    )
+    if input_dim not in supported_input_dims:
         raise ValueError(
             f"model.input_dim={input_dim}, but supported token layouts are "
-            f"{TOKEN_FEATURE_DIM} and {TOKEN_FEATURE_DIM_WITH_REPROJECTION}"
+            f"{supported_input_dims}"
         )
     if (
         model.get("use_reprojection_skip", False)
-        and input_dim != TOKEN_FEATURE_DIM_WITH_REPROJECTION
+        and input_dim not in (
+            TOKEN_FEATURE_DIM_WITH_REPROJECTION,
+            TOKEN_FEATURE_DIM_WITH_REPROJECTION_AND_EXPERT_PROPOSAL,
+        )
     ):
-        raise ValueError("model.use_reprojection_skip requires the 45-feature layout")
+        raise ValueError(
+            "model.use_reprojection_skip requires a token layout with "
+            "reprojection residuals"
+        )
     if model.get("uncertainty_feedback", False) and not model.get(
         "predict_uncertainty", False
     ):

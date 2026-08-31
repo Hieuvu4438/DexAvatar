@@ -1,0 +1,16 @@
+# Training-only assets. This config intentionally contains no SGNify frames,
+# manifests, segments, or GT root.
+observers:
+  dex_priors:
+    enabled: true
+    body_root: ../dexavatar_fitting/smplifyx/signbposer
+    hand_root: ../dexavatar_fitting/smplifyx/signhposer/signhposer
+    weight: 0.01
+
+geometry:
+  units: meters
+  canonical_coordinates: x_right_y_down_z_forward
+  smplx_model: ../SMPLer-X/common/utils/human_model_files/smplx/SMPLX_NEUTRAL.npz
+  mano_smplx_ids: ../SMPLer-X/common/utils/human_model_files/smplx/MANO_SMPLX_vertex_ids.pkl
+  # Static evaluator topology subset only; no SGNify vertices/parameters are read.
+  upper_body_indices: ../data/evaluation_from_author/data/data/sgnify_part_segm_above_pelvis_joint/upper_body_minus_face.npy

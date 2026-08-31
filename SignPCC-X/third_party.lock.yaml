@@ -1,0 +1,35 @@
+schema_version: signpccx.third-party-lock.v1
+repositories:
+  dexavatar:
+    path: ..
+    commit: 8401491c9eb4dea8db8a228187d867b23ceee159
+    role: baseline_reference
+  hand4whole_pp:
+    path: ../signalign-tr/third_party/hand4whole_pp
+    commit: f81d35ddd2b74206c40142243eb62b6d64ce0d65
+    role: frozen_primary_teacher
+    tracked_source_patch_sha256: 37752c66f2b024f20d8a4be8fd13e6f5eaa738f57034017016707c11116c450a
+    tracked_source_patch_files: [demo/demo.py, main/model.py]
+  wilor:
+    path: ../WiLoR
+    commit: fcb911312a38fa8badd30d9656a167485d61b8f9
+    role: frozen_hand_teacher
+  smplfitter:
+    path: ../nlf/libs/smplfitter
+    commit: ea9e6322b2e279c8fe910891c113c4f930c88690
+    parent_nlf_commit: f8611fc76ff60f262eb0ab2c6abc3947e42a954a
+    role: optional_canonical_initializer
+  smpler_x:
+    path: ../SMPLer-X
+    commit: 8401491c9eb4dea8db8a228187d867b23ceee159
+    role: baseline_only
+  interwild:
+    path: null
+    commit: 7c01e4ad4909652056a68af93b4c16ceabbce8fe
+    role: optional_not_installed
+artifacts:
+  external_v1:
+    path: ../outputs/signal4d_external/full1493_wilor_clipnorm_v1
+    role: leakage_clean_frozen_initializer
+    provenance: ../signal4d_external/reports/EXTERNAL_ONLY_FINAL_20260824.md
+    note: historical Signal4D V6 is excluded because its lineage used SGNify selection/calibration

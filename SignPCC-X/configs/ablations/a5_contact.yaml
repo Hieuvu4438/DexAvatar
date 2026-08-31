@@ -1,0 +1,22 @@
+extends: a3f_external_v1_identity200.yaml
+
+experiment:
+  name: signpccx_a5_contact
+
+paths:
+  run_root: ../../runs/signpccx_a5_contact
+  source_fit_root: ../../runs/signpccx_a3f_external_v1_identity200/fit_sequences
+  h4wpp_frame_cache: ../../../signalign-tr/runs/h4wpp_live_full_source_frames
+
+hypotheses:
+  enabled: false
+
+contact:
+  enabled: true
+  types: [hand_hand]
+  confidence_threshold: 0.70
+  target_distance_m: 0.003
+  steps: 40
+  learning_rate: 0.001
+  teacher_agreement_required: true
+  penetration_margin_m: 0.001

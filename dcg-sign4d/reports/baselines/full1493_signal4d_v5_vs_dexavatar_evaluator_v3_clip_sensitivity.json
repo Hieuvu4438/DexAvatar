@@ -1,0 +1,63 @@
+{
+  "baseline": "reports/baselines/full1493_dexavatar_hamer_evaluator_v3/per_clip.csv",
+  "candidate": "reports/baselines/full1493_signal4d_v5_evaluator_v3/per_clip.csv",
+  "cluster_unit": "clip_sensitivity_not_registered_signer_bootstrap",
+  "metrics": {
+    "root_aligned_hand_pve_mm": {
+      "ci95_high": -0.9195696418178804,
+      "ci95_low": -2.5243916275665637,
+      "clusters": 57,
+      "mean_delta": -1.7155740516136448,
+      "replicates": 10000,
+      "seed": 12345
+    },
+    "temporal_hand_acceleration_error_mm_per_s2": {
+      "ci95_high": 2076.175643697805,
+      "ci95_low": 814.8224066185741,
+      "clusters": 57,
+      "mean_delta": 1418.7407616056546,
+      "replicates": 10000,
+      "seed": 12345
+    },
+    "temporal_hand_high_frequency_energy_ratio": {
+      "ci95_high": 0.5478625481892995,
+      "ci95_low": 0.11253136790104395,
+      "clusters": 57,
+      "mean_delta": 0.3103967135764119,
+      "replicates": 10000,
+      "seed": 12345
+    },
+    "temporal_hand_jerk_error_mm_per_s3": {
+      "ci95_high": 61396.61800180701,
+      "ci95_low": 24344.819188963145,
+      "clusters": 57,
+      "mean_delta": 42005.19369616541,
+      "replicates": 10000,
+      "seed": 12345
+    },
+    "temporal_hand_motion_amplitude_ratio": {
+      "ci95_high": 0.04719137752117309,
+      "ci95_low": -0.00028452784044671214,
+      "clusters": 57,
+      "mean_delta": 0.02218770526415719,
+      "replicates": 10000,
+      "seed": 12345
+    },
+    "temporal_hand_spectral_l1_distance": {
+      "ci95_high": 0.07215414671977442,
+      "ci95_low": 0.02364381140959926,
+      "clusters": 57,
+      "mean_delta": 0.045805283345737254,
+      "replicates": 10000,
+      "seed": 12345
+    },
+    "temporal_hand_velocity_error_mm_per_s": {
+      "ci95_high": 63.41586509602744,
+      "ci95_low": 22.053889952644386,
+      "clusters": 57,
+      "mean_delta": 41.87102647637247,
+      "replicates": 10000,
+      "seed": 12345
+    }
+  }
+}

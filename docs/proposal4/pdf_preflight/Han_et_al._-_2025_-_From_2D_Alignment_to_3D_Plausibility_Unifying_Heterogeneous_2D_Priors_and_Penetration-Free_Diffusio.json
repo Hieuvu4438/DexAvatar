@@ -1,0 +1,14 @@
+{
+  "schema": "pdf_read_preflight/1",
+  "verdict": "UNAVAILABLE",
+  "file": "docs/proposal4/Han et al. - 2025 - From 2D Alignment to 3D Plausibility Unifying Heterogeneous 2D Priors and Penetration-Free Diffusio.pdf",
+  "sha256": "18475e4b9c29795fa3f9731de874130b06f1508a21c400e2a9b65bdbcf753782",
+  "declared_page_count": null,
+  "enumerated_page_count": null,
+  "reader_page_count": null,
+  "warnings": [
+    "pypdf-not-installed: preflight cannot parse the document"
+  ],
+  "generated_at": "2026-08-21T11:31:40.882905+00:00",
+  "tool": "pdf_read_preflight/1.0.0"
+}

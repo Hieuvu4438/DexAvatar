@@ -25,7 +25,7 @@ import torch.nn.functional as F
 
 # Make the DPoser-X repo importable without polluting global sys.path too much.
 _DPOSERX_REPO = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))),
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))),
     "DPoser-X",
 )
 # Path layout: .../DexAvatar/dexavatar_fitting/smplifyx/signbposer_dposerx/dposerx_body.py
@@ -362,7 +362,6 @@ class DPoserXBodyPrior(nn.Module):
             x = x.repeat(2, 1)
             B = 2
 
-        t_end = torch.full((B,), 1e-3, device=device)
         time_traj = torch.linspace(self.sde.T, 1e-3, num_steps + 1, device=device)
         for i in range(num_steps):
             t_current = time_traj[i]

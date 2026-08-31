@@ -1,0 +1,5 @@
+extends: c2_nlf.yaml
+experiment: {name: signeft_c3_wrist_protect}
+paths: {run_root: ../../runs/signeft_c3_wrist_protect}
+modules: {wrist_protection: true}
+

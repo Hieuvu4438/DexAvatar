@@ -1,0 +1,5 @@
+backend: artifact_replay
+development_only: true
+source_root: artifacts/initialization/sgnify_full1493_dexavatar_pkl_clipshape_v1
+source_report_sha256: ac4560423ec0d601679ba46a9518c14200932f212b9f577822427ccf506ea306
+output: artifacts/indexes/sgnify_initialization_reuse_v1

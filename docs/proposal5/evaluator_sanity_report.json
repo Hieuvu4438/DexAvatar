@@ -1,0 +1,127 @@
+{
+  "evidence_status": "VERIFIED",
+  "evaluator_path": "/workspace/scratch/0111b18b05a2/upload/evaluate_new_fitting.py",
+  "evaluator_sha256": "2722b5cd30d4baba23599a455cab483b143e6595d292f02de9643af4eebd5300",
+  "metric_spec": {
+    "alignment": "independent vertex-centroid translation removal per evaluated region",
+    "rotation_alignment": false,
+    "scale_alignment": false,
+    "per_vertex_error": "Euclidean distance",
+    "aggregation": "concatenate all included frame/vertex errors, arithmetic mean, multiply by 1000",
+    "unit": "mm when OBJ coordinates are meters",
+    "direction": "lower is better"
+  },
+  "tests": [
+    {
+      "name": "identity_is_zero",
+      "status": "PASS",
+      "actual": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "expected": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "translation_is_removed",
+      "status": "PASS",
+      "actual": [
+        3.510833468576701e-16,
+        4.577566798522237e-16,
+        4.002966042486721e-16
+      ],
+      "expected": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "rotation_is_not_removed",
+      "status": "PASS",
+      "actual": [
+        1.3333333333333333,
+        2.1081851067789197,
+        2.1081851067789197
+      ],
+      "expected_condition": "at least one error > 1e-9"
+    },
+    {
+      "name": "euclidean_distance",
+      "status": "PASS",
+      "actual": [
+        3.0,
+        3.0,
+        3.0
+      ],
+      "expected": [
+        3.0,
+        3.0,
+        3.0
+      ]
+    },
+    {
+      "name": "common_center_equals_independent_centroid_alignment",
+      "status": "PASS",
+      "actual": [
+        0.0,
+        1.7763568394002505e-15,
+        0.0
+      ],
+      "expected": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "explicit_centers_remove_translation",
+      "status": "PASS",
+      "actual": [
+        3.510833468576701e-16,
+        4.577566798522237e-16,
+        4.002966042486721e-16
+      ],
+      "expected": [
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "pelvis_alignment",
+      "status": "PASS",
+      "actual": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "expected": [
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "name": "concatenate_then_mean_aggregation",
+      "status": "PASS",
+      "actual_mm": 4.0,
+      "expected_mm": 4.0
+    }
+  ],
+  "static_findings": {
+    "central_cli_read_but_not_passed_to_main": true,
+    "hard_coded_data_root": true,
+    "nan_predictions_are_skipped": true,
+    "left_hand_excluded_for_class_zero": true,
+    "frame_pairing_by_list_position": true,
+    "face_topology_assertion_present": true
+  },
+  "overall": "PASS"
+}
