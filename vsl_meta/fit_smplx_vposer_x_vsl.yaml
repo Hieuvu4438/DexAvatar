@@ -1,0 +1,9 @@
+# Bản copy cfg của DexAvatar, chỉ đổi 2 đường dẫn metadata sang bộ tiếng Việt.
+# Gốc: cfg_files/fit_smplx_vposer_x.yaml. KHÔNG sửa file gốc.
+# Cách dùng:
+#   cp signs_vsl.txt segment_vsl.json  <DexAvatar>/data/
+#   cp fit_smplx_vposer_x_vsl.yaml  <DexAvatar>/dexavatar_fitting/cfg_files/
+#   rồi thêm dòng dưới vào ĐẦU file cfg đã copy từ bản gốc, hoặc
+#   sửa 2 khoá này trong bản copy đó:
+sign_class: '../data/signs_vsl.txt'
+sign_segment: '../data/segment_vsl.json'
