@@ -1,2 +1,1 @@
-"""Canonical SMPL-X and kinematic helpers."""
-
+"""SMPL-X decoding and rotation utilities."""

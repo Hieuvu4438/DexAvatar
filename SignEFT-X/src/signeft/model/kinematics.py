@@ -65,26 +65,3 @@ def apply_lie_residual(
     norm = torch.linalg.vector_norm(delta, dim=-1, keepdim=True).clamp_min(1e-8)
     bounded = delta * torch.clamp(radius / norm, max=1.0)
     return so3_exp_map(bounded) @ baseline_rotation, bounded
-
-
-def compensate_wrist(
-    global_parent_new: torch.Tensor,
-    global_wrist_baseline: torch.Tensor,
-) -> torch.Tensor:
-    local_new = global_parent_new.transpose(-1, -2) @ global_wrist_baseline
-    determinant = torch.det(local_new)
-    if not torch.allclose(determinant, torch.ones_like(determinant), atol=1e-4):
-        raise ValueError("wrist compensation produced an improper rotation")
-    return local_new
-
-
-def center_vertices(vertices: torch.Tensor) -> torch.Tensor:
-    return vertices - vertices.mean(dim=-2, keepdim=True)
-
-
-def translation_aligned_hand_distance(
-    candidate: torch.Tensor,
-    baseline: torch.Tensor,
-) -> torch.Tensor:
-    residual = center_vertices(candidate) - center_vertices(baseline)
-    return torch.linalg.vector_norm(residual, dim=-1).mean(dim=-1)

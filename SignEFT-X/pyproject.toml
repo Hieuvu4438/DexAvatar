@@ -4,20 +4,29 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "signeft-x"
-version = "0.1.0"
-description = "Evidence-factorized trust-region refinement for RGB-only sign reconstruction"
+version = "1.0.0"
+description = "Target-free signer-consistent 3D sign-language reconstruction"
+license = {file = "LICENSE"}
+readme = "README.md"
 requires-python = ">=3.10"
-dependencies = ["numpy", "PyYAML", "torch"]
+dependencies = [
+  "numpy>=1.24",
+  "Pillow>=10",
+  "PyYAML>=6",
+  "smplx>=0.1.28",
+  "torch>=2.1",
+]
 
-[project.optional-dependencies]
-test = ["pytest"]
-
-[tool.setuptools]
-package-dir = {"" = "src"}
+[project.scripts]
+signeft = "signeft.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.pytest.ini_options]
+pythonpath = ["src"]
 testpaths = ["tests"]
 
+[tool.ruff]
+line-length = 100
+target-version = "py310"

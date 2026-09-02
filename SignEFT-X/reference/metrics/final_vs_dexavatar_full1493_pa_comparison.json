@@ -1,0 +1,373 @@
+{
+  "schema_version": "pampvpe.paired-sign-comparison.v1",
+  "gain_convention": "positive means lower candidate error",
+  "baseline": {
+    "path": "/home/haipd/DexAvatar/SignEFT-X/reports/dexavatar_full1493_pa_mpvpe.json",
+    "sha256": "e637a7b269cff96ab3326cb771f89b50aee08684a0463275a2affe8087690d9e"
+  },
+  "candidate": {
+    "path": "/home/haipd/DexAvatar/SignEFT-X/reports/final_canonical_handshape_full1493_pa_mpvpe.json",
+    "sha256": "ffef6d66dc761636890858a6bb29d85484410c9389261f72fd7f333e726ef8d7"
+  },
+  "signs": 57,
+  "frames": 1493,
+  "paired_frame_counts_equal": true,
+  "bootstrap": {
+    "replicates": 100000,
+    "seed": 20260902
+  },
+  "comparisons": {
+    "mpvpe_all": {
+      "baseline_micro_mm": 59.630694134476514,
+      "candidate_micro_mm": 58.92167990365766,
+      "micro_gain_mm": 0.7090142308188518,
+      "relative_micro_gain_percent": 1.1890088504083387,
+      "mean_sign_gain_mm": 0.7660259975690743,
+      "median_sign_gain_mm": 0.6610487769631774,
+      "ci95_sign_bootstrap_gain_mm": [
+        0.5001472929632158,
+        1.0464439800991252
+      ],
+      "probability_nonpositive_gain": 0.0,
+      "improved_signs": 43,
+      "worse_signs": 14,
+      "unchanged_signs": 0
+    },
+    "mpvpe_face": {
+      "baseline_micro_mm": 20.293086900219212,
+      "candidate_micro_mm": 20.701388581998383,
+      "micro_gain_mm": -0.4083016817791716,
+      "relative_micro_gain_percent": -2.0120235220338065,
+      "mean_sign_gain_mm": -0.2853925459427802,
+      "median_sign_gain_mm": -0.3700636366139296,
+      "ci95_sign_bootstrap_gain_mm": [
+        -0.655121514319249,
+        0.10349935148478508
+      ],
+      "probability_nonpositive_gain": 0.92807,
+      "improved_signs": 22,
+      "worse_signs": 35,
+      "unchanged_signs": 0
+    },
+    "mpvpe_hand": {
+      "baseline_micro_mm": 30.867834731387518,
+      "candidate_micro_mm": 29.308658831086003,
+      "micro_gain_mm": 1.5591759003015149,
+      "relative_micro_gain_percent": 5.051134664512405,
+      "mean_sign_gain_mm": 1.6346713974902862,
+      "median_sign_gain_mm": 1.5585554169445501,
+      "ci95_sign_bootstrap_gain_mm": [
+        1.2765924890028824,
+        2.002468480834575
+      ],
+      "probability_nonpositive_gain": 0.0,
+      "improved_signs": 50,
+      "worse_signs": 7,
+      "unchanged_signs": 0
+    },
+    "mpvpe_lhand": {
+      "baseline_micro_mm": 41.03492793027618,
+      "candidate_micro_mm": 40.069257019193714,
+      "micro_gain_mm": 0.9656709110824693,
+      "relative_micro_gain_percent": 2.35329013547501,
+      "mean_sign_gain_mm": 1.0132116823443718,
+      "median_sign_gain_mm": 1.2633969924029174,
+      "ci95_sign_bootstrap_gain_mm": [
+        0.3723675510532853,
+        1.6707163588351697
+      ],
+      "probability_nonpositive_gain": 0.00076,
+      "improved_signs": 37,
+      "worse_signs": 20,
+      "unchanged_signs": 0
+    },
+    "mpvpe_rhand": {
+      "baseline_micro_mm": 20.70074153249885,
+      "candidate_micro_mm": 18.54806064297829,
+      "micro_gain_mm": 2.1526808895205605,
+      "relative_micro_gain_percent": 10.399052063622882,
+      "mean_sign_gain_mm": 2.2561311126361994,
+      "median_sign_gain_mm": 1.941205596923826,
+      "ci95_sign_bootstrap_gain_mm": [
+        1.7468934813371826,
+        2.793039497393168
+      ],
+      "probability_nonpositive_gain": 0.0,
+      "improved_signs": 51,
+      "worse_signs": 6,
+      "unchanged_signs": 0
+    },
+    "pa_mpvpe_all": {
+      "baseline_micro_mm": 36.46266054995333,
+      "candidate_micro_mm": 36.44056192054416,
+      "micro_gain_mm": 0.022098629409164516,
+      "relative_micro_gain_percent": 0.060606190211736494,
+      "mean_sign_gain_mm": 0.054161450416508904,
+      "median_sign_gain_mm": -0.10158864463247852,
+      "ci95_sign_bootstrap_gain_mm": [
+        -0.14989506753184711,
+        0.26803707238728164
+      ],
+      "probability_nonpositive_gain": 0.30985,
+      "improved_signs": 28,
+      "worse_signs": 29,
+      "unchanged_signs": 0
+    },
+    "pa_mpvpe_body_only": {
+      "baseline_micro_mm": 40.102650815500006,
+      "candidate_micro_mm": 39.63375363410597,
+      "micro_gain_mm": 0.46889718139403413,
+      "relative_micro_gain_percent": 1.1692423614371186,
+      "mean_sign_gain_mm": 0.43106660922381884,
+      "median_sign_gain_mm": 0.4989524568830248,
+      "ci95_sign_bootstrap_gain_mm": [
+        0.2587140711908421,
+        0.6004106978349356
+      ],
+      "probability_nonpositive_gain": 0.0,
+      "improved_signs": 43,
+      "worse_signs": 14,
+      "unchanged_signs": 0
+    },
+    "pa_mpvpe_face": {
+      "baseline_micro_mm": 3.537487939628913,
+      "candidate_micro_mm": 3.5230031993991164,
+      "micro_gain_mm": 0.014484740229796511,
+      "relative_micro_gain_percent": 0.4094640173194761,
+      "mean_sign_gain_mm": 0.009757864270197624,
+      "median_sign_gain_mm": 0.013918391589460732,
+      "ci95_sign_bootstrap_gain_mm": [
+        -0.0076435203317436196,
+        0.02692180713382612
+      ],
+      "probability_nonpositive_gain": 0.13555,
+      "improved_signs": 35,
+      "worse_signs": 22,
+      "unchanged_signs": 0
+    },
+    "pa_mpvpe_hand": {
+      "baseline_micro_mm": 9.316973422328978,
+      "candidate_micro_mm": 8.474009323183994,
+      "micro_gain_mm": 0.842964099144984,
+      "relative_micro_gain_percent": 9.04761729946276,
+      "mean_sign_gain_mm": 0.8410876016157343,
+      "median_sign_gain_mm": 0.8721543351809196,
+      "ci95_sign_bootstrap_gain_mm": [
+        0.6552227517168943,
+        1.0259121156712079
+      ],
+      "probability_nonpositive_gain": 0.0,
+      "improved_signs": 50,
+      "worse_signs": 7,
+      "unchanged_signs": 0
+    },
+    "pa_mpvpe_hand_active": {
+      "baseline_micro_mm": 9.638509425794368,
+      "candidate_micro_mm": 8.636463873991612,
+      "micro_gain_mm": 1.0020455518027553,
+      "relative_micro_gain_percent": 10.396270912192117,
+      "mean_sign_gain_mm": 1.0162081153032743,
+      "median_sign_gain_mm": 1.1144711266864435,
+      "ci95_sign_bootstrap_gain_mm": [
+        0.7954564211673041,
+        1.2326644761346048
+      ],
+      "probability_nonpositive_gain": 0.0,
+      "improved_signs": 50,
+      "worse_signs": 7,
+      "unchanged_signs": 0
+    },
+    "pa_mpvpe_lhand": {
+      "baseline_micro_mm": 8.852778507093415,
+      "candidate_micro_mm": 8.149290279821509,
+      "micro_gain_mm": 0.7034882272719063,
+      "relative_micro_gain_percent": 7.9465246612487395,
+      "mean_sign_gain_mm": 0.697769273605666,
+      "median_sign_gain_mm": 0.46514437275548204,
+      "ci95_sign_bootstrap_gain_mm": [
+        0.4909616178517628,
+        0.9185086351032792
+      ],
+      "probability_nonpositive_gain": 0.0,
+      "improved_signs": 49,
+      "worse_signs": 8,
+      "unchanged_signs": 0
+    },
+    "pa_mpvpe_no_face": {
+      "baseline_micro_mm": 54.887998218114795,
+      "candidate_micro_mm": 54.354273525884466,
+      "micro_gain_mm": 0.5337246922303294,
+      "relative_micro_gain_percent": 0.9723886998199602,
+      "mean_sign_gain_mm": 0.5620986567070961,
+      "median_sign_gain_mm": 0.4927552541097029,
+      "ci95_sign_bootstrap_gain_mm": [
+        0.28471555432283746,
+        0.839325753717391
+      ],
+      "probability_nonpositive_gain": 3e-05,
+      "improved_signs": 38,
+      "worse_signs": 19,
+      "unchanged_signs": 0
+    },
+    "pa_mpvpe_rhand": {
+      "baseline_micro_mm": 9.781168337564539,
+      "candidate_micro_mm": 8.798728366546477,
+      "micro_gain_mm": 0.9824399710180618,
+      "relative_micro_gain_percent": 10.04419857743379,
+      "mean_sign_gain_mm": 0.9844059296258026,
+      "median_sign_gain_mm": 1.2933227148923008,
+      "ci95_sign_bootstrap_gain_mm": [
+        0.7356643895949478,
+        1.2243565155736198
+      ],
+      "probability_nonpositive_gain": 0.0,
+      "improved_signs": 46,
+      "worse_signs": 11,
+      "unchanged_signs": 0
+    },
+    "pa_mpvpe_ub_minus_face": {
+      "baseline_micro_mm": 30.691586159733582,
+      "candidate_micro_mm": 30.141827127235654,
+      "micro_gain_mm": 0.5497590324979278,
+      "relative_micro_gain_percent": 1.7912369521624618,
+      "mean_sign_gain_mm": 0.611482471932403,
+      "median_sign_gain_mm": 0.631854709826019,
+      "ci95_sign_bootstrap_gain_mm": [
+        0.3665912231487926,
+        0.8591079763982927
+      ],
+      "probability_nonpositive_gain": 0.0,
+      "improved_signs": 43,
+      "worse_signs": 14,
+      "unchanged_signs": 0
+    },
+    "pa_mpvpe_ub_minus_head": {
+      "baseline_micro_mm": 40.074078064833564,
+      "candidate_micro_mm": 39.25183998332755,
+      "micro_gain_mm": 0.8222380815060149,
+      "relative_micro_gain_percent": 2.05179537798914,
+      "mean_sign_gain_mm": 0.8258906135914907,
+      "median_sign_gain_mm": 0.8682911780572695,
+      "ci95_sign_bootstrap_gain_mm": [
+        0.4647010255926095,
+        1.1914615682369631
+      ],
+      "probability_nonpositive_gain": 1e-05,
+      "improved_signs": 44,
+      "worse_signs": 13,
+      "unchanged_signs": 0
+    },
+    "pa_mpvpe_upper_body": {
+      "baseline_micro_mm": 26.826445997280317,
+      "candidate_micro_mm": 26.403350185565476,
+      "micro_gain_mm": 0.4230958117148411,
+      "relative_micro_gain_percent": 1.57715938875293,
+      "mean_sign_gain_mm": 0.4801146437479047,
+      "median_sign_gain_mm": 0.49395375024704435,
+      "ci95_sign_bootstrap_gain_mm": [
+        0.26385918982068834,
+        0.7007422996201911
+      ],
+      "probability_nonpositive_gain": 0.0,
+      "improved_signs": 42,
+      "worse_signs": 15,
+      "unchanged_signs": 0
+    },
+    "tr_all": {
+      "baseline_micro_mm": 47.138896824606135,
+      "candidate_micro_mm": 46.621708197315826,
+      "micro_gain_mm": 0.5171886272903095,
+      "relative_micro_gain_percent": 1.0971589539200692,
+      "mean_sign_gain_mm": 0.59348203373479,
+      "median_sign_gain_mm": 0.4006645029241369,
+      "ci95_sign_bootstrap_gain_mm": [
+        0.3537547379204636,
+        0.8415630215926503
+      ],
+      "probability_nonpositive_gain": 0.0,
+      "improved_signs": 39,
+      "worse_signs": 18,
+      "unchanged_signs": 0
+    },
+    "tr_lhand": {
+      "baseline_micro_mm": 20.66073149127283,
+      "candidate_micro_mm": 19.665868150413395,
+      "micro_gain_mm": 0.9948633408594354,
+      "relative_micro_gain_percent": 4.815237743541023,
+      "mean_sign_gain_mm": 1.0150021939428118,
+      "median_sign_gain_mm": 0.8359638662899247,
+      "ci95_sign_bootstrap_gain_mm": [
+        0.7160850200172117,
+        1.3200007788409285
+      ],
+      "probability_nonpositive_gain": 0.0,
+      "improved_signs": 46,
+      "worse_signs": 11,
+      "unchanged_signs": 0
+    },
+    "tr_rhand": {
+      "baseline_micro_mm": 12.927090896509354,
+      "candidate_micro_mm": 11.415661437832423,
+      "micro_gain_mm": 1.5114294586769308,
+      "relative_micro_gain_percent": 11.691953516665189,
+      "mean_sign_gain_mm": 1.520468123878025,
+      "median_sign_gain_mm": 1.4373265675136029,
+      "ci95_sign_bootstrap_gain_mm": [
+        1.2542391570669067,
+        1.7865783734454523
+      ],
+      "probability_nonpositive_gain": 0.0,
+      "improved_signs": 53,
+      "worse_signs": 4,
+      "unchanged_signs": 0
+    },
+    "tr_ub_minus_face": {
+      "baseline_micro_mm": 37.16233244280806,
+      "candidate_micro_mm": 36.37781414407576,
+      "micro_gain_mm": 0.7845182987323014,
+      "relative_micro_gain_percent": 2.111057748971102,
+      "mean_sign_gain_mm": 0.8225524834892645,
+      "median_sign_gain_mm": 0.6756139596303328,
+      "ci95_sign_bootstrap_gain_mm": [
+        0.5607845865071538,
+        1.0877806701471209
+      ],
+      "probability_nonpositive_gain": 0.0,
+      "improved_signs": 46,
+      "worse_signs": 11,
+      "unchanged_signs": 0
+    },
+    "tr_ub_minus_head": {
+      "baseline_micro_mm": 51.54828447570596,
+      "candidate_micro_mm": 50.381251946440976,
+      "micro_gain_mm": 1.1670325292649864,
+      "relative_micro_gain_percent": 2.263959976815511,
+      "mean_sign_gain_mm": 1.1898727266236904,
+      "median_sign_gain_mm": 1.1205674148187441,
+      "ci95_sign_bootstrap_gain_mm": [
+        0.7744088463497113,
+        1.6011671459925736
+      ],
+      "probability_nonpositive_gain": 0.0,
+      "improved_signs": 47,
+      "worse_signs": 10,
+      "unchanged_signs": 0
+    },
+    "tr_upper_body": {
+      "baseline_micro_mm": 32.818960066537926,
+      "candidate_micro_mm": 32.166376265278615,
+      "micro_gain_mm": 0.6525838012593113,
+      "relative_micro_gain_percent": 1.9884353432779334,
+      "mean_sign_gain_mm": 0.6951538889479837,
+      "median_sign_gain_mm": 0.48147243923611427,
+      "ci95_sign_bootstrap_gain_mm": [
+        0.46327295722257145,
+        0.9345317605405359
+      ],
+      "probability_nonpositive_gain": 0.0,
+      "improved_signs": 46,
+      "worse_signs": 11,
+      "unchanged_signs": 0
+    }
+  }
+}

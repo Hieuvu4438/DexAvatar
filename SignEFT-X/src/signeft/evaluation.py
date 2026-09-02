@@ -1,3 +1,5 @@
+"""Official evaluation isolated from the inference pipeline."""
+
 from __future__ import annotations
 
 import os
@@ -9,59 +11,78 @@ import sys
 from signeft.io_utils import atomic_write_json, atomic_write_text, sha256_file
 
 
-_METRIC = re.compile(
+METRIC = re.compile(
     r"\[(?P<method>[^\]]+)\]:\s+(?P<metric>[^:]+):\s+(?P<value>[0-9.+-eE]+)\s+\(mm\)"
 )
 
 
 def parse_metrics(text: str) -> dict[str, float]:
-    metrics = {
+    values = {
         " ".join(match.group("metric").lower().split()): float(match.group("value"))
-        for match in _METRIC.finditer(text)
+        for match in METRIC.finditer(text)
     }
     required = {
-        "tr all", "tr above pelvis upper body", "tr above pelvis minus face",
-        "tr above pelvis minus head", "tr left hand", "tr right hand",
+        "tr all",
+        "tr above pelvis upper body",
+        "tr above pelvis minus face",
+        "tr above pelvis minus head",
+        "tr left hand",
+        "tr right hand",
     }
-    if missing := required - set(metrics):
-        raise ValueError(f"missing official metrics: {sorted(missing)}")
-    return metrics
+    if missing := required - set(values):
+        raise ValueError(f"official metrics missing: {sorted(missing)}")
+    return values
 
 
 def evaluate_official(
     evaluator: Path,
-    expected_sha256: str,
+    evaluator_sha256: str,
     prediction_root: Path,
-    gt_root: Path,
+    reference_root: Path,
     signs_file: Path,
     segments_file: Path,
     output_root: Path,
-    method: str,
+    method: str = "SignEFT-X",
     python: str = sys.executable,
 ) -> dict[str, object]:
+    """Evaluate already-frozen meshes; this function is never imported by pipeline.py."""
     digest = sha256_file(evaluator)
-    if digest != expected_sha256:
+    if digest != evaluator_sha256:
         raise RuntimeError(f"official evaluator checksum mismatch: {digest}")
     command = [
-        python, str(evaluator), "--method", method, "--central", "true",
-        "--evaluate_folder", str(prediction_root), "--gt_folder", str(gt_root),
-        "--sign_file", str(signs_file), "--sign_seg", str(segments_file),
+        python,
+        str(evaluator),
+        "--method",
+        method,
+        "--central",
+        "true",
+        "--evaluate_folder",
+        str(prediction_root),
+        "--gt_folder",
+        str(reference_root),
+        "--sign_file",
+        str(signs_file),
+        "--sign_seg",
+        str(segments_file),
     ]
     environment = os.environ.copy()
     environment.setdefault("MPLBACKEND", "Agg")
-    result = subprocess.run(command, env=environment, text=True, capture_output=True, check=False)
+    process = subprocess.run(
+        command, env=environment, text=True, capture_output=True, check=False
+    )
     output_root.mkdir(parents=True, exist_ok=True)
-    atomic_write_text(output_root / "official_stdout.txt", result.stdout)
-    atomic_write_text(output_root / "official_stderr.txt", result.stderr)
+    atomic_write_text(output_root / "official_stdout.txt", process.stdout)
+    atomic_write_text(output_root / "official_stderr.txt", process.stderr)
     report: dict[str, object] = {
         "schema_version": "signeft.official-evaluation.v1",
         "command": command,
         "evaluator_sha256": digest,
-        "returncode": result.returncode,
+        "returncode": process.returncode,
+        "predictions_frozen_before_evaluation": True,
     }
-    if result.returncode == 0:
-        report["metrics_mm"] = parse_metrics(result.stdout + "\n" + result.stderr)
+    if process.returncode == 0:
+        report["metrics_mm"] = parse_metrics(process.stdout + "\n" + process.stderr)
     atomic_write_json(output_root / "official_result.json", report)
-    if result.returncode != 0:
-        raise RuntimeError(f"official evaluator failed: see {output_root}")
+    if process.returncode:
+        raise RuntimeError(f"official evaluator failed; inspect {output_root}")
     return report

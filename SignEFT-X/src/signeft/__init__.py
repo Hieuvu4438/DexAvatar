@@ -1,4 +1,3 @@
-"""SignEFT-X: evidence-factorized RGB-only refinement."""
+"""SignEFT-X: target-free monocular sign-language mesh reconstruction."""
 
-__version__ = "0.1.0"
-
+__version__ = "1.0.0"

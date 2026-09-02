@@ -1,5 +1,0 @@
-extends: ../trv2v_a3f_nomarker.yaml
-experiment: {name: signeft_c1_heatmap}
-paths: {run_root: ../../runs/signeft_c1_heatmap}
-modules: {heatmap: true}
-

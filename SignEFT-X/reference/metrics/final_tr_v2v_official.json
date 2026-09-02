@@ -1,0 +1,31 @@
+{
+  "command": [
+    "python",
+    "/home/haipd/DexAvatar/data/evaluation_from_author/evaluate_new_fitting.py",
+    "--method",
+    "paper_ablation_native_radius12_full57",
+    "--central",
+    "true",
+    "--evaluate_folder",
+    "/home/haipd/DexAvatar/SignEFT-X/runs/paper_ablation_native_radius12_full57/official_meshes",
+    "--gt_folder",
+    "/home/haipd/DexAvatar/data/smplx_gt",
+    "--sign_file",
+    "/home/haipd/DexAvatar/data/evaluation_from_author/data/data/signs.txt",
+    "--sign_seg",
+    "/home/haipd/DexAvatar/data/evaluation_from_author/data/data/segment.json"
+  ],
+  "evaluator_sha256": "2722b5cd30d4baba23599a455cab483b143e6595d292f02de9643af4eebd5300",
+  "metrics_mm": {
+    "tr above pelvis minus face": 29.0829,
+    "tr above pelvis minus head": 39.5782,
+    "tr above pelvis upper body": 25.7788,
+    "tr all": 42.0501,
+    "tr left hand": 12.2807,
+    "tr right hand": 11.4156,
+    "v2v left wrist": 12.2807,
+    "v2v right wrist": 11.4156
+  },
+  "returncode": 0,
+  "schema_version": "signeft.official-evaluation.v1"
+}

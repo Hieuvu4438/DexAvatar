@@ -1,6 +1,0 @@
-extends: c2_nlf.yaml
-experiment: {name: signeft_c2_nlf_engineering12}
-paths:
-  manifest: ../../manifests/splits/engineering12.jsonl
-  signs_file: ../protocol/engineering12_signs.txt
-  run_root: ../../runs/signeft_c2_engineering12

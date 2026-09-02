@@ -1,2 +1,1 @@
-"""State and mesh I/O."""
-
+"""Artifact I/O with atomic writes and strict mesh contracts."""

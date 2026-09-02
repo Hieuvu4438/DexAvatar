@@ -1,0 +1,248 @@
+{
+  "changed_frames": 30,
+  "changed_frames_detail": [
+    {
+      "frame_id": 104,
+      "parameters": [
+        "betas"
+      ],
+      "sign": "Auto"
+    },
+    {
+      "frame_id": 106,
+      "parameters": [
+        "betas"
+      ],
+      "sign": "Auto"
+    },
+    {
+      "frame_id": 178,
+      "parameters": [
+        "betas"
+      ],
+      "sign": "Einkaufen"
+    },
+    {
+      "frame_id": 180,
+      "parameters": [
+        "betas"
+      ],
+      "sign": "Einkaufen"
+    },
+    {
+      "frame_id": 182,
+      "parameters": [
+        "betas"
+      ],
+      "sign": "Einkaufen"
+    },
+    {
+      "frame_id": 137,
+      "parameters": [
+        "betas"
+      ],
+      "sign": "Frisch"
+    },
+    {
+      "frame_id": 139,
+      "parameters": [
+        "betas"
+      ],
+      "sign": "Frisch"
+    },
+    {
+      "frame_id": 141,
+      "parameters": [
+        "betas"
+      ],
+      "sign": "Frisch"
+    },
+    {
+      "frame_id": 143,
+      "parameters": [
+        "betas",
+        "right_hand_pose"
+      ],
+      "sign": "Frisch"
+    },
+    {
+      "frame_id": 170,
+      "parameters": [
+        "betas"
+      ],
+      "sign": "Jahr"
+    },
+    {
+      "frame_id": 172,
+      "parameters": [
+        "betas",
+        "right_hand_pose"
+      ],
+      "sign": "Jahr"
+    },
+    {
+      "frame_id": 174,
+      "parameters": [
+        "betas"
+      ],
+      "sign": "Jahr"
+    },
+    {
+      "frame_id": 176,
+      "parameters": [
+        "betas",
+        "right_hand_pose"
+      ],
+      "sign": "Jahr"
+    },
+    {
+      "frame_id": 178,
+      "parameters": [
+        "betas",
+        "right_hand_pose"
+      ],
+      "sign": "Jahr"
+    },
+    {
+      "frame_id": 186,
+      "parameters": [
+        "betas"
+      ],
+      "sign": "Regen"
+    },
+    {
+      "frame_id": 188,
+      "parameters": [
+        "betas"
+      ],
+      "sign": "Regen"
+    },
+    {
+      "frame_id": 241,
+      "parameters": [
+        "betas"
+      ],
+      "sign": "Schnee"
+    },
+    {
+      "frame_id": 243,
+      "parameters": [
+        "betas",
+        "right_hand_pose"
+      ],
+      "sign": "Schnee"
+    },
+    {
+      "frame_id": 156,
+      "parameters": [
+        "betas"
+      ],
+      "sign": "Schwach"
+    },
+    {
+      "frame_id": 158,
+      "parameters": [
+        "betas"
+      ],
+      "sign": "Schwach"
+    },
+    {
+      "frame_id": 160,
+      "parameters": [
+        "betas"
+      ],
+      "sign": "Schwach"
+    },
+    {
+      "frame_id": 162,
+      "parameters": [
+        "betas"
+      ],
+      "sign": "Schwach"
+    },
+    {
+      "frame_id": 164,
+      "parameters": [
+        "betas"
+      ],
+      "sign": "Schwach"
+    },
+    {
+      "frame_id": 157,
+      "parameters": [
+        "betas"
+      ],
+      "sign": "Schwer"
+    },
+    {
+      "frame_id": 159,
+      "parameters": [
+        "betas"
+      ],
+      "sign": "Schwer"
+    },
+    {
+      "frame_id": 161,
+      "parameters": [
+        "betas"
+      ],
+      "sign": "Schwer"
+    },
+    {
+      "frame_id": 163,
+      "parameters": [
+        "betas"
+      ],
+      "sign": "Schwer"
+    },
+    {
+      "frame_id": 165,
+      "parameters": [
+        "betas"
+      ],
+      "sign": "Schwer"
+    },
+    {
+      "frame_id": 167,
+      "parameters": [
+        "betas",
+        "right_hand_pose"
+      ],
+      "sign": "Schwer"
+    },
+    {
+      "frame_id": 169,
+      "parameters": [
+        "betas"
+      ],
+      "sign": "Schwer"
+    }
+  ],
+  "changed_region_frames_reported": 6,
+  "conclusion": "The learned refiner changed only six right-hand poses; body and left-hand poses were identical over all 1,493 frames. Thirty frames also reflect cache-time beta consolidation, which is not a learned Transformer pose update.",
+  "decision": "EXCLUDE_TRANSFORMER",
+  "frames": 1493,
+  "initializer_manifest_sha256": "f8e44c5a07ce19f23ca6499fc0bf298f86f8a31e23ea30b374c17e158ffbdb95",
+  "initializer_root": "/home/haipd/DexAvatar/outputs/phase2_gates/g1_views/output_wilor",
+  "learned_pose_changed_frames": 6,
+  "parameter_changed_frame_counts": {
+    "betas": 30,
+    "right_hand_pose": 6
+  },
+  "parameter_max_absolute_differences": {
+    "betas": 0.0013511180877685547,
+    "body_pose": 0.0,
+    "expression": 0.0,
+    "global_orient": 0.0,
+    "jaw_pose": 0.0,
+    "left_hand_pose": 0.0,
+    "leye_pose": 0.0,
+    "reye_pose": 0.0,
+    "right_hand_pose": 0.41230034828186035,
+    "transl": 0.0
+  },
+  "schema_version": "signeft.transformer-exclusion-audit.v1",
+  "total_region_frames_reported": 4479,
+  "transformer_output_root": "/home/haipd/DexAvatar/outputs/signal4d_external/full1493_wilor_clipnorm_v1",
+  "transformer_run_manifest_sha256": "37a0e54ef0e1ecbc6337292d03cf1674407ea449f82ae54a74861426e421a682"
+}
