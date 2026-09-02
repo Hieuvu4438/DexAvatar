@@ -1,0 +1,17 @@
+experiment:
+  name: training_free_consensus_full1493_descriptive_evaluation
+  seed: 20260902
+  inference_uses_gt: false
+  trains_on_sgnify: false
+candidate_space: collar_shoulder_elbow_wrist
+paths:
+  manifest: /home/haipd/DexAvatar/SignEFT-X/manifests/trv2v.jsonl
+  h1_state_root: /home/haipd/DexAvatar/SignEFT-X/baseline_states/a3f
+  model_root: /home/haipd/DexAvatar/SMPLer-X/common/utils/human_model_files
+  candidate_root: /home/haipd/DexAvatar/SignDART-NLF/runs/training_free_full1493_candidates
+  report_root: /home/haipd/DexAvatar/SignDART-NLF/reports/training_free_full1493
+  protocol_lock: /home/haipd/DexAvatar/SignEFT-X/runs/protocol_lock.json
+  gt_root: /home/haipd/DexAvatar/data/smplx_gt
+  author_assets: /home/haipd/DexAvatar/data/evaluation_from_author/data/data
+runtime:
+  device: cuda:0

@@ -1,0 +1,33 @@
+experiment:
+  name: signdart_distal_risk_constrained_engineering12_v6
+  seed: 20260902
+  inference_uses_gt: false
+candidate_space: collar_shoulder_elbow_wrist
+paths:
+  manifest: /home/haipd/DexAvatar/SignEFT-X/manifests/splits/engineering12.jsonl
+  h1_state_root: /home/haipd/DexAvatar/SignEFT-X/runs/signeft_final_h1_full57/frames
+  h1_obj_root: /home/haipd/DexAvatar/SignEFT-X/runs/signeft_final_h1_full57/official_meshes
+  model_root: /home/haipd/DexAvatar/SMPLer-X/common/utils/human_model_files
+  candidate_root: /home/haipd/DexAvatar/SignDART-NLF/runs/engineering12_candidates_v6
+  report_root: /home/haipd/DexAvatar/SignDART-NLF/reports/v6
+  protocol_lock: /home/haipd/DexAvatar/SignEFT-X/runs/protocol_lock.json
+  gt_root: /home/haipd/DexAvatar/data/smplx_gt
+  author_assets: /home/haipd/DexAvatar/data/evaluation_from_author/data/data
+runtime:
+  device: cuda:0
+invariants:
+  baseline_vertex_max_mm: 0.02
+  reprojection_max_px: 0.25
+  bone_length_abs_mm: 0.05
+  target_joint_abs_mm: 0.10
+  global_wrist_angle_deg: 0.01
+  centered_hand_rms_mm: 1.5
+hand_preservation:
+  mode: smplx_lbs_with_fixed_wrist_frame_and_distal_risk_filter
+oracle_gate:
+  target_metric: UBody-H
+  min_gain_mm:
+    All: 0.15
+    UBody: 0.30
+    UBody-H: 0.75
+  max_hand_regression_mm: 0.02

@@ -1,0 +1,31 @@
+experiment:
+  name: signdart_candidate_bank_engineering12_v1
+  seed: 20260901
+  inference_uses_gt: false
+paths:
+  manifest: /home/haipd/DexAvatar/SignEFT-X/manifests/splits/engineering12.jsonl
+  h1_state_root: /home/haipd/DexAvatar/SignEFT-X/runs/signeft_final_h1_full57/frames
+  h1_obj_root: /home/haipd/DexAvatar/SignEFT-X/runs/signeft_final_h1_full57/official_meshes
+  model_root: /home/haipd/DexAvatar/SMPLer-X/common/utils/human_model_files
+  candidate_root: /home/haipd/DexAvatar/SignDART-NLF/runs/engineering12_candidates_v1
+  report_root: /home/haipd/DexAvatar/SignDART-NLF/reports
+  protocol_lock: /home/haipd/DexAvatar/SignEFT-X/runs/protocol_lock.json
+  gt_root: /home/haipd/DexAvatar/data/smplx_gt
+  author_assets: /home/haipd/DexAvatar/data/evaluation_from_author/data/data
+runtime:
+  device: cuda:0
+invariants:
+  baseline_vertex_max_mm: 0.02
+  reprojection_max_px: 0.25
+  bone_length_abs_mm: 0.05
+  target_joint_abs_mm: 0.10
+  global_wrist_angle_deg: 0.01
+  centered_hand_rms_mm: 0.02
+oracle_gate:
+  target_metric: UBody-H
+  min_gain_mm:
+    All: 0.10
+    UBody: 0.20
+    UBody-H: 0.50
+  max_hand_regression_mm: 0.02
+
