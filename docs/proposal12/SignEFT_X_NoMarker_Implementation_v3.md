@@ -5,6 +5,39 @@
 > Baseline an toàn: SignPCC-X A3f, kế thừa từ DexAvatar  
 > Giao thức đánh giá: giữ nguyên tuyệt đối code SGNify do tác giả cung cấp
 
+## Execution status audit — 2026-09-01
+
+Tài liệu này là **implementation blueprint và gated ablation plan**, không phải mô tả của một monolithic method đã được chạy nguyên khối. Section 19 ghi rõ “không chạy full method ngay”: module chỉ được đưa vào final khi row trước vượt no-regression gate. Vì vậy cần phân biệt bốn trạng thái sau:
+
+| Nhánh | Trạng thái thực tế | Bằng chứng/quyết định |
+|---|---|---|
+| C0 | **RAN — parity pass** | Reproduce A3f trên engineering12 và full57. |
+| C1 heatmap | **RAN — rejected** | 0/298 candidate được gate nhận; một family `pose2d` không đủ điều kiện hai-family consensus. |
+| C2 + NLF | **RAN — rejected** | 0/298 candidate được nhận; `pose2d` và `nlf3d` không tạo consensus đủ mạnh. |
+| C3 wrist-protected coupling | **RAN — rejected** | Initial C3 nhận 0/298. C3-lite-v3 nhận 59/298 nhưng làm xấu `All`, `UBody`, `UBody-F`, `UBody-H` và `LHand` so với C0. |
+| C4 Sapiens2 segmentation | **RAN — rejected** | Bản triển khai dùng 8-channel Sapiens2 probabilities và differentiable soft point-splat part renderer. Nó nhận 48/298 nhưng làm xấu `All`, `UBody`, `UBody-F`, `UBody-H`; không được promote. Đây không phải triangle-rasterizer implementation đúng từng chi tiết của công thức blueprint. |
+| C5 pointmap | **DEPENDENCY-GATED — not run; not wired** | C4 không pass; CLI hiện hard-fail nếu bật `pointmap`. Chưa có kết quả ablation C5. |
+| C6 derived normals | **DEPENDENCY-GATED — not run; not implemented** | Phụ thuộc C5 calibration/pass; chưa có kết quả ablation C6. |
+| H0 | **RAN — parity pass** | Exact A3f hand control. |
+| H1 canonical WiLoR fingers | **RAN — promoted** | Pass engineering12, untouched45 và full57; đây là thành phần duy nhất của frozen Final H1. |
+| H2 WiLoR TTA medoid | **RAN — rejected** | Kém H1 trên cả hai hand metrics của engineering12. |
+| H3 variance gate | **RAN — rejected** | Activation quá hẹp và kém H1. |
+| H4 HaMeR cross-expert veto | **RAN — rejected** | Không vượt H1; HaMeR ở row này là consensus/veto, chưa phải proposal generator. |
+| H5 DPoser-X veto | **DEPENDENCY-GATED — not run; not implemented** | Optional và được thiết kế chỉ chạy sau một H4 được promote; prerequisite không tồn tại. |
+| H6 tiny wrist unlock | **RAN — rejected negative control** | Làm xấu 5/6 metrics so với H1. |
+| Stage C combined UBody + hand | **NOT RUN** | Không có C1–C4 nào được promote để combine với H1. |
+
+Do đó, câu mô tả chính xác là: **đa số ladder C1–C4 và H1–H4/H6 đã được chạy ablation; các nhánh thua đã bị loại. C5, C6, H5 và combined Stage C thực sự chưa chạy. Frozen Final H1 không phải full V3; nó là subset H1 được kiểm chứng của blueprint.** Các số và lý do đầy đủ nằm trong `SignEFT-X/reports/engineering12_core_ablation.*`, `SignEFT-X/reports/engineering12_hand_ablation.*` và `SignEFT-X/reports/final_result_card.*`.
+
+Nghiên cứu sau blueprint (H7–H15) được ghi riêng trong
+`SignEFT_X_H1_Beyond_Research_Log.md`. Tính đến 2026-09-01, H15-v2/EI-AMER là
+candidate exploratory tốt nhất trên attached full57: nó giữ byte/array-exact
+mọi H1 incumbent ngoài đúng side được rescue, pass invariant audit với zero
+violation và cải thiện cả sáu aggregate. Đây **không** có nghĩa các nhánh C5,
+C6, H5 hoặc combined Stage C của V3 đã được chạy; H15-v2 là một hướng
+post-blueprint khác và cần tập xác nhận mới trước claim generalization không
+thiên lệch.
+
 ## 0. Kết luận trước khi triển khai
 
 Hướng có xác suất cải thiện cao nhất không phải thay DexAvatar/A3f bằng một whole-body regressor mới. Kết quả đã có chứng minh cách đó rất rủi ro: H4W++ full replacement làm `TR All` trên panel tăng từ `41.5498` lên `83.5794` mm. Hướng nên triển khai là:
