@@ -76,22 +76,9 @@ This factorization avoids asking one unconstrained optimization to solve body mo
 
 ### 3.2 Overview
 
-```mermaid
-flowchart LR
-    A[Monocular signing video] --> B[Whole-body baseline reconstruction]
-    B --> C[Signer-wide shape estimation]
-    C --> D[Canonical neutral SMPL-X refit]
-    A --> E[Frozen specialist hand expert]
-    D --> F[Palm frame from reconstructed hand]
-    E --> G[Palm frame from expert hand]
-    F --> H[Scale-free local hand geometry]
-    G --> H
-    H --> I[Bounded finger-only fitting]
-    I --> J[Final SMPL-X signing avatar]
-    D -. fixed wrist, arms, body, face, camera, shape .-> I
-    E -. unavailable side .-> K[Retain reconstructed hand]
-    K --> J
-```
+![Figure 2. Overview of the proposed Signer-Consistent Palm-Canonical Refinement framework](/home/haipd/DexAvatar/SignEFT-X/_archive/img/method_overview.png)
+
+**Figure 2. Overview of the proposed Signer-Consistent Palm-Canonical Refinement framework.** (1) Given a monocular signing video, we first calibrate a single signer-consistent morphology parameter \(\boldsymbol\beta^*\) across pose-diverse frames to eliminate identity drift. (2) Both the canonical avatar hand and specialist hand proposals are projected into an invariant, palm-attached coordinate system \(\mathcal C(J)\) that removes wrist translation, palm orientation, and absolute hand scale. (3) Under strict kinematic decoupling, upper body, face, camera, and wrist orientation are locked, while only the 15 local finger joints are optimized within a \(12^\circ\) geodesic trust region. (4) The resulting parameters produce a unified neutral SMPL-X signing avatar with authentic handshape fidelity and preserved signing space.
 
 The first stage establishes a coherent whole-body signing avatar with consistent morphology. The second stage is the principal handshape contribution: it uses the specialist hand expert solely as a geometric target in local palm coordinates, refining finger articulation while strictly preserving the global signing space.
 
