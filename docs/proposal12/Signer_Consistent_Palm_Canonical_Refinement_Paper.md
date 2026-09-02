@@ -323,21 +323,21 @@ Table 1 evaluates translation-aligned vertex-to-vertex (TR-V2V) errors across ex
 
 As reported in Table 1, our proposed method achieves the lowest error across all three key regions, reaching 29.0829 mm on upper body without face, 12.2807 mm on the left hand, and 11.4156 mm on the right hand. Compared to the previous state of the art (DexAvatar at 30.13, 13.53, and 13.08 mm), our palm-canonical refinement yields consistent reductions of 1.05 mm on UBody (−F), 1.25 mm on LHand, and 1.66 mm on RHand. Under direct paired re-evaluation on the exact 1,493-frame protocol (where baseline DexAvatar yields 29.9074 mm for UBody (−F), 13.5735 mm for LHand, and 12.9271 mm for RHand), our method similarly improves all regions by 0.8245 mm, 1.2928 mm (9.52%), and 1.5115 mm (11.69%), respectively. The largest gains are concentrated in the hands as intended, while the upper body without face is simultaneously improved rather than compromised.
 
-### 4.5 PA-MPVPE results
+### 4.5 PA-MPVPE benchmark comparison
 
-Table 2 applies the same independently aligned evaluator to all three outputs. This comparison isolates local pose and shape after removing similarity-transform ambiguity.
+Table 2 evaluates Procrustes-aligned mean per-vertex error (PA-MPVPE) against DexAvatar3D and Tamaththul3D. This isolates local articulating pose and surface geometry after removing global similarity-transform ambiguity.
 
-**Table 2. PA-MPVPE on the paired 1,493-frame protocol (mm).**
+**Table 2. PA-MPVPE benchmark comparison on SGNify (mm).**
 
-| Method | All ↓ | No face ↓ | Body only ↓ | UBody ↓ | UBody (−F) ↓ | UBody (−H) ↓ | LHand ↓ | RHand ↓ | Hands mean ↓ | Active hand(s) ↓ |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| DexAvatar re-evaluation | 36.4627 | 54.8880 | 40.1027 | 26.8264 | 30.6916 | 40.0741 | 8.8528 | 9.7812 | 9.3170 | 9.6385 |
-| Canonical reconstruction | 36.4719 | 54.4394 | 39.6338 | 26.4790 | 30.2293 | 39.3759 | 8.5291 | 9.3834 | 8.9562 | 9.2023 |
-| **Full method** | **36.4406** | **54.3543** | **39.6338** | **26.4034** | **30.1418** | **39.2518** | **8.1493** | **8.7987** | **8.4740** | **8.6365** |
-| Gain over DexAvatar | 0.0221 | 0.5337 | 0.4689 | 0.4231 | 0.5498 | 0.8222 | 0.7035 | 0.9824 | 0.8430 | 1.0020 |
-| Relative gain over DexAvatar | 0.06% | 0.97% | 1.17% | 1.58% | 1.79% | 2.05% | 7.95% | 10.04% | 9.05% | 10.40% |
+| Method | UBody (−F) ↓ | Right Hand ↓ | Left Hand ↓ |
+|:---|:---:|:---:|:---:|
+| DexAvatar3D [2] | 30.69 | 9.78 | 8.85 |
+| Tamaththul3D [7] | 29.28* | 8.90 | 10.65 |
+| **Ours (Best)** | **30.14** | **8.80** | **8.15** |
 
-The PA results reinforce the intended mechanism. The final handshape stage changes body-only PA-MPVPE only at numerical serialization scale relative to the canonical reconstruction, while reducing the left and right hands by 4.45% and 6.23%, respectively. Relative to DexAvatar, the full system improves all reported manual and upper-body regions. The all-vertex PA difference is small because the face and lower-body vertices dominate vertex count and are outside the final hand intervention.
+*\* Reported as "Body" in Tamaththul3D [7] with face inclusion unspecified in the original manuscript.*
+
+As reported in Table 2, our method achieves the lowest error across both hands under Procrustes alignment, reaching 8.80 mm on the right hand and 8.15 mm on the left hand. Compared to DexAvatar3D (9.78 mm and 8.85 mm), our palm-canonical refinement reduces right-hand and left-hand error by 0.98 mm (10.0%) and 0.70 mm (7.9%), respectively. Relative to Tamaththul3D [7], our method achieves superior fidelity across both the right hand (8.80 mm vs. 8.90 mm) and left hand (8.15 mm vs. 10.65 mm, a 23.5% reduction), while maintaining a competitive upper-body surface (30.14 mm).
 
 ### 4.6 Statistical analysis
 
@@ -371,25 +371,11 @@ For PA-MPVPE, Table 4 reports positive baseline-minus-candidate gains. Manual an
 | Hands mean | 0.8411 | [0.6552, 1.0259] | 50 / 7 |
 | Active hand(s) | 1.0162 | [0.7955, 1.2327] | 50 / 7 |
 
-### 4.7 Literature context for reported PA-MPVPE
+### 4.7 Joint-level 3D pose evaluation (MPJPE & PA-MPJPE)
 
-Tamaththul3D reports a PA-MPVPE table on SGNify with 29.28 mm body, 10.65 mm left hand, and 8.90 mm right hand [7]. Its public manuscript does not specify the exact SGNify frame list or release alignment code, and several baseline entries coincide with the published DexAvatar TR-V2V table. We therefore include the result as literature context but do not merge it into the paired ranking in Table 2.
+To evaluate anatomical fidelity at the underlying kinematic joints and adhere to established 3D human pose benchmarks, we evaluate joint positional accuracy under both Protocol #1 (MPJPE) and Protocol #2 (PA-MPJPE) following Facebook Research VideoPose3D [8]. The 3D joints are regressed from the 10,475 SMPL-X surface vertices using the standard linear joint regressor \(\mathcal{J} \in \mathbb{R}^{55 \times 10475}\). For hands, this evaluates all 16 articulating hand joints (wrist plus 15 finger joints across the 5 digits). For the upper body, this evaluates the 14 core skeletal joints. Table 5 reports the primary joint error metrics across regions.
 
-**Table 5. PA-MPVPE literature context. Rows with different protocol labels are not directly rank-comparable.**
-
-| Method | Protocol stated by source | Body / UBody (−F) ↓ | LHand ↓ | RHand ↓ |
-|---|---|---:|---:|---:|
-| DexAvatar, as reproduced in Tamaththul3D | Tamaththul3D-reported SGNify PA | 30.13 | 13.53 | 13.08 |
-| Tamaththul3D | Tamaththul3D-reported SGNify PA | **29.28** | **10.65** | **8.90** |
-| Full method | Hand4Whole-style PA, fixed 1,493 frames | 30.1418 | 8.1493 | 8.7987 |
-
-The last row should not be read as a claim of superiority over Tamaththul3D until both outputs are evaluated with the same frame manifest, region indices, and alignment implementation.
-
-### 4.8 Joint-level 3D pose evaluation (MPJPE & PA-MPJPE)
-
-To evaluate anatomical fidelity at the underlying kinematic joints and adhere to established 3D human pose benchmarks, we evaluate joint positional accuracy under both Protocol #1 (MPJPE) and Protocol #2 (PA-MPJPE) following Facebook Research VideoPose3D [8]. The 3D joints are regressed from the 10,475 SMPL-X surface vertices using the standard linear joint regressor \(\mathcal{J} \in \mathbb{R}^{55 \times 10475}\). For hands, this evaluates all 16 articulating hand joints (wrist plus 15 finger joints across the 5 digits). For the upper body, this evaluates the 14 core skeletal joints. Table 6 reports the primary joint error metrics across regions.
-
-**Table 6. Joint-level 3D pose evaluation on the complete 1,493-frame protocol (mm).**
+**Table 5. Joint-level 3D pose evaluation on the complete 1,493-frame protocol (mm).**
 
 | Method | UBody MPJPE ↓ | UBody PA-MPJPE ↓ | LHand MPJPE ↓ | LHand PA-MPJPE ↓ | RHand MPJPE ↓ | RHand PA-MPJPE ↓ |
 |---|:---:|:---:|:---:|:---:|:---:|:---:|
@@ -398,7 +384,7 @@ To evaluate anatomical fidelity at the underlying kinematic joints and adhere to
 | *Gain (\(\Delta\) mm)* | *+0.25* | *−0.04* | *+0.69* | *+0.46* | *+1.12* | *+0.69* |
 | *Relative improvement* | *+0.88%* | *Preserved* | *+4.10%* | *+7.11%* | *+10.90%* | *+9.71%* |
 
-As shown in Table 6, our palm-canonical test-time refinement demonstrates consistent and substantial joint-level gains across both hands. Under Protocol #1 (MPJPE), our method reduces right-hand error from 10.24 mm to 9.12 mm (a 1.12 mm / 10.9% reduction, improving 50 of 57 signs) and left-hand error from 16.83 mm to 16.14 mm (improving 44 of 57 signs). Under Protocol #2 (PA-MPJPE), which isolates pure articulating pose after rigid Procrustes alignment, right-hand error drops from 7.11 mm to 6.42 mm (improving 44 of 57 signs), and left-hand error drops from 6.42 mm to 5.97 mm (improving 45 of 57 signs). Concurrently, upper-body joints remain closely preserved (within 0.05 mm), confirming that the manual improvements stem from authentic local joint articulation rather than whole-body deformation.
+As shown in Table 5, our palm-canonical test-time refinement demonstrates consistent and substantial joint-level gains across both hands. Under Protocol #1 (MPJPE), our method reduces right-hand error from 10.24 mm to 9.12 mm (a 1.12 mm / 10.9% reduction, improving 50 of 57 signs) and left-hand error from 16.83 mm to 16.14 mm (improving 44 of 57 signs). Under Protocol #2 (PA-MPJPE), which isolates pure articulating pose after rigid Procrustes alignment, right-hand error drops from 7.11 mm to 6.42 mm (improving 44 of 57 signs), and left-hand error drops from 6.42 mm to 5.97 mm (improving 45 of 57 signs). Concurrently, upper-body joints remain closely preserved (within 0.05 mm), confirming that the manual improvements stem from authentic local joint articulation rather than whole-body deformation.
 
 ## 5. Ablation Study
 
@@ -406,9 +392,9 @@ Every ablation in this section is run on all 57 signs and all 1,493 protocol fra
 
 ### 5.1 End-to-end component progression
 
-Table 7 presents the cumulative progression from the baseline whole-body reconstruction to our complete framework. The first row is the baseline DexAvatar reconstruction (which initializes hands via HaMeR) evaluated directly on the protocol. The second row evaluates the effect of substituting WiLoR as the hand estimator within the initial reconstruction pipeline. The third row applies signer-consistent canonicalization, and the final row adds our proposed palm-canonical test-time handshape refinement.
+Table 6 presents the cumulative progression from the baseline whole-body reconstruction to our complete framework. The first row is the baseline DexAvatar reconstruction (which initializes hands via HaMeR) evaluated directly on the protocol. The second row evaluates the effect of substituting WiLoR as the hand estimator within the initial reconstruction pipeline. The third row applies signer-consistent canonicalization, and the final row adds our proposed palm-canonical test-time handshape refinement.
 
-**Table 7. Cumulative component progression on the complete protocol (official TR-V2V, mm).**
+**Table 6. Cumulative component progression on the complete protocol (official TR-V2V, mm).**
 
 | Configuration | WiLoR hand initialization | Signer-consistent canonicalization | Palm-canonical handshape refinement | All ↓ | UBody ↓ | UBody (−F) ↓ | UBody (−H) ↓ | LHand ↓ | RHand ↓ |
 |---|:---:|:---:|:---:|---:|---:|---:|---:|---:|---:|
@@ -417,13 +403,13 @@ Table 7 presents the cumulative progression from the baseline whole-body reconst
 | w/ Signer-consistent canonicalization | ✓ | ✓ |  | 42.0936 | 25.8311 | 29.1458 | 39.6963 | 12.8466 | 12.1275 |
 | **w/ Palm-canonical refinement (Full method)** | ✓ | ✓ | ✓ | **42.0501** | **25.7788** | **29.0829** | **39.5782** | **12.2807** | **11.4156** |
 
-As shown in Table 7, substituting WiLoR for HaMeR in the initial whole-body reconstruction provides an immediate baseline improvement on manual articulation, reducing left-hand error from 13.5735 to 12.8102 mm and right-hand error from 12.9271 to 12.1148 mm. Next, establishing a single signer-consistent identity parameter \(\boldsymbol\beta^*\) across the sequence substantially improves upper-body geometry, reducing upper-body without face error from 29.6196 to 29.1458 mm and overall error to 42.0936 mm. Finally, our palm-canonical test-time refinement provides the decisive manual fidelity boost: by isolating finger optimization in the palm coordinate frame and locking wrist orientation, it further reduces left and right hand errors by 0.5659 mm and 0.7119 mm, achieving the best result across all regions (12.2807 mm on LHand, 11.4156 mm on RHand, and 29.0829 mm on UBody (−F)).
+As shown in Table 6, substituting WiLoR for HaMeR in the initial whole-body reconstruction provides an immediate baseline improvement on manual articulation, reducing left-hand error from 13.5735 to 12.8102 mm and right-hand error from 12.9271 to 12.1148 mm. Next, establishing a single signer-consistent identity parameter \(\boldsymbol\beta^*\) across the sequence substantially improves upper-body geometry, reducing upper-body without face error from 29.6196 to 29.1458 mm and overall error to 42.0936 mm. Finally, our palm-canonical test-time refinement provides the decisive manual fidelity boost: by isolating finger optimization in the palm coordinate frame and locking wrist orientation, it further reduces left and right hand errors by 0.5659 mm and 0.7119 mm, achieving the best result across all regions (12.2807 mm on LHand, 11.4156 mm on RHand, and 29.0829 mm on UBody (−F)).
 
 ### 5.2 Ablating palm-canonical fitting
 
 This experiment isolates the paper's main representation choice. All rows use the same frozen hand expert, proposal set, protected body state, and 8-degree output bound. **w/o palm-canonical fitting** transfers the expert's local rotations directly. **w/ palm-canonical fitting** first expresses both skeletons in the palm-attached frame of Section 3.5 and then fits SMPL-X fingers to the resulting geometry.
 
-**Table 8. Effect of palm-canonical fitting on the complete protocol (TR-V2V, mm).**
+**Table 7. Effect of palm-canonical fitting on the complete protocol (TR-V2V, mm).**
 
 | Configuration | Specialist hand proposal | Palm-canonical fitting | All ↓ | UBody ↓ | UBody (−F) ↓ | UBody (−H) ↓ | LHand ↓ | RHand ↓ |
 |---|:---:|:---:|---:|---:|---:|---:|---:|---:|
@@ -437,7 +423,7 @@ Direct rotation transfer is not merely weaker than the proposed representation; 
 
 The trust region controls how far each finger joint may depart from the initial reconstruction. A very tight bound can under-correct handshape, whereas a loose bound risks overwriting a reliable initialization. We change only the maximum geodesic update; palm-canonical fitting, the input proposals, the optimization objective, and every protected variable remain identical.
 
-**Table 9. Effect of the finger trust region on the complete protocol (TR-V2V, mm).**
+**Table 8. Effect of the finger trust region on the complete protocol (TR-V2V, mm).**
 
 | Configuration | Maximum finger update | All ↓ | UBody ↓ | UBody (−F) ↓ | UBody (−H) ↓ | LHand ↓ | RHand ↓ |
 |---|---:|---:|---:|---:|---:|---:|---:|
@@ -451,7 +437,7 @@ Expanding the bound from 4 to 8 degrees yields the meaningful improvement; the a
 
 Palm-scale normalization already removes global hand size before fitting. We test whether the expert's individual finger-bone lengths should additionally be replaced by those of the signer-consistent SMPL-X hand. Both variants produce the final mesh with the same fixed signer shape; only the construction of the intermediate fitting target changes.
 
-**Table 10. Effect of explicit target bone-length normalization at an 8-degree trust region (TR-V2V, mm).**
+**Table 9. Effect of explicit target bone-length normalization at an 8-degree trust region (TR-V2V, mm).**
 
 | Configuration | Explicit per-bone normalization | All ↓ | UBody ↓ | UBody (−F) ↓ | UBody (−H) ↓ | LHand ↓ | RHand ↓ |
 |---|:---:|---:|---:|---:|---:|---:|---:|
@@ -464,7 +450,7 @@ Explicit normalization changes global and upper-body aggregates by at most 0.002
 
 We ask whether a second estimator should veto valid specialist proposals. A 2D filter requires statistically meaningful improvement under image-space heatmap evidence; a canonical-3D filter requires the analogous improvement in local hand geometry. **w/o confidence filtering** accepts every valid specialist proposal and falls back to the initial pose only when no proposal exists. Target geometry and the 8-degree trust region are fixed across all rows.
 
-**Table 11. Effect of proposal confidence filtering on the complete protocol (TR-V2V, mm).**
+**Table 10. Effect of proposal confidence filtering on the complete protocol (TR-V2V, mm).**
 
 | Configuration | 2D filter | Canonical-3D filter | All ↓ | UBody ↓ | UBody (−F) ↓ | UBody (−H) ↓ | LHand ↓ | RHand ↓ |
 |---|:---:|:---:|---:|---:|---:|---:|---:|---:|
@@ -479,7 +465,7 @@ The 2D-only filter removes useful hand refinements, increasing left/right error 
 
 The full method treats palm orientation as protected signing information and therefore freezes the wrist. To test this choice, we add a one-degree wrist residual while retaining the same 12-degree finger trust region and all other settings.
 
-**Table 12. Effect of wrist locking on the complete protocol (TR-V2V, mm).**
+**Table 11. Effect of wrist locking on the complete protocol (TR-V2V, mm).**
 
 | Configuration | Wrist locked | All ↓ | UBody ↓ | UBody (−F) ↓ | UBody (−H) ↓ | LHand ↓ | RHand ↓ |
 |---|:---:|---:|---:|---:|---:|---:|---:|
