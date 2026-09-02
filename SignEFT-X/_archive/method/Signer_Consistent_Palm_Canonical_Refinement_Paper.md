@@ -76,7 +76,7 @@ This factorization avoids asking one unconstrained optimization to solve body mo
 
 ### 3.2 Overview
 
-![Figure 2. Overview of the proposed Signer-Consistent Palm-Canonical Refinement framework](./method_overview.png)
+![Figure 2. Overview of the proposed Signer-Consistent Palm-Canonical Refinement framework](../img/method_overview.png)
 
 **Figure 2. Overview of the proposed Signer-Consistent Palm-Canonical Refinement framework.** (1) **Signer-consistent initialization:** Given a monocular signing video, we first calibrate a single signer-consistent morphology parameter \(\boldsymbol\beta^*\) across pose-diverse frames to eliminate identity drift while fixing global signing state. (2) **Palm-canonical factorization:** Both the canonical avatar hand and specialist hand proposals are projected into an invariant, palm-attached coordinate system \(\mathcal C(J)\) that removes wrist translation, palm orientation, and absolute hand scale. (3) **Bounded finger-only retargeting:** Under strict kinematic decoupling, upper body, face, camera, and wrist orientation are locked, while only the 15 local finger joints are optimized within a \(12^\circ\) geodesic trust region. (4) **Unified output:** The resulting parameters produce a unified neutral SMPL-X signing avatar with authentic handshape fidelity and preserved signing space (retaining the canonical hand if no specialist hand proposal is available).
 
