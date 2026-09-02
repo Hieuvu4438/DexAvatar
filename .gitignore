@@ -93,6 +93,7 @@ ScoreHMR/
 LHM-plusplus/
 checkpoints/
 sapiens/
+sapiens2/
 WiLoR/
 OSX/
 frankmocap/
@@ -154,6 +155,7 @@ body_models/
 logs/
 scratch/
 cache/
+scratch_codex_output.txt
 
 # SIGNAL-4D local runtime and licensed/generated material
 signal4d/.pytest_cache/

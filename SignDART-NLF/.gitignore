@@ -1,0 +1,8 @@
+# Reproducible source is versioned; generated experiment state is local.
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+runs/
+reports/
