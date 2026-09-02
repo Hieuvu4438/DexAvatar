@@ -214,7 +214,7 @@ The final configuration does not force expert bone lengths to match those of the
 During palm-canonical fitting, the following variables are immutable:
 
 \[
-\left{
+\left\{
 \boldsymbol\beta,
 \boldsymbol\theta^b,
 R_{\mathrm{wrist}}^\ell,
