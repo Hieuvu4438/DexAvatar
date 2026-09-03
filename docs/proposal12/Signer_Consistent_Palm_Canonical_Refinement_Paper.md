@@ -53,7 +53,7 @@ Canonicalization is widely used to remove nuisance transformations before compar
 Let a monocular signing clip be
 
 $$
-\mathcal{I} = \{I_t\}_{t=1}^{T}.
+\mathcal{I} = \lbrace I_t \rbrace_{t=1}^{T}.
 $$
 
 For each frame, the desired output is a neutral-topology SMPL-X mesh
@@ -78,7 +78,7 @@ This factorization avoids asking one unconstrained optimization to solve body mo
 
 ![Figure 2. Overview of the proposed Signer-Consistent Palm-Canonical Refinement framework](./method_overview.png)
 
-**Figure 2. Overview of the proposed Signer-Consistent Palm-Canonical Refinement framework.** (1) **Signer-consistent initialization:** Given a monocular signing video, we first calibrate a single signer-consistent morphology parameter $\boldsymbol\beta^*$ across pose-diverse frames to eliminate identity drift while fixing global signing state. (2) **Palm-canonical factorization:** Both the canonical avatar hand and specialist hand proposals are projected into an invariant, palm-attached coordinate system $\mathcal{C}(J)$ that removes wrist translation, palm orientation, and absolute hand scale. (3) **Bounded finger-only retargeting:** Under strict kinematic decoupling, upper body, face, camera, and wrist orientation are locked, while only the 15 local finger joints are optimized within a $12^\circ$ geodesic trust region. (4) **Unified output:** The resulting parameters produce a unified neutral SMPL-X signing avatar with authentic handshape fidelity and preserved signing space (retaining the canonical hand if no specialist hand proposal is available).
+**Figure 2. Overview of the proposed Signer-Consistent Palm-Canonical Refinement framework.** (1) **Signer-consistent initialization:** Given a monocular signing video, we first calibrate a single signer-consistent morphology parameter $\boldsymbol{\beta}^{\ast}$ across pose-diverse frames to eliminate identity drift while fixing global signing state. (2) **Palm-canonical factorization:** Both the canonical avatar hand and specialist hand proposals are projected into an invariant, palm-attached coordinate system $\mathcal{C}(J)$ that removes wrist translation, palm orientation, and absolute hand scale. (3) **Bounded finger-only retargeting:** Under strict kinematic decoupling, upper body, face, camera, and wrist orientation are locked, while only the 15 local finger joints are optimized within a $12^\circ$ geodesic trust region. (4) **Unified output:** The resulting parameters produce a unified neutral SMPL-X signing avatar with authentic handshape fidelity and preserved signing space (retaining the canonical hand if no specialist hand proposal is available).
 
 The first stage establishes a coherent whole-body signing avatar with consistent morphology. The second stage is the principal handshape contribution: it uses the specialist hand expert solely as a geometric target in local palm coordinates, refining finger articulation while strictly preserving the global signing space.
 
@@ -93,26 +93,26 @@ Per-frame body estimators can produce identity drift even when every frame depic
 We first select $K=200$ pose-diverse frames by farthest-point sampling in a feature space containing upper-limb and hand rotations. A robust Huber location over their initial shape coefficients gives $\boldsymbol\beta_0$. Shape is then refined jointly with small hand-pose residuals on the selected frames:
 
 $$
-\boldsymbol\beta^*
-= \arg\min_{\boldsymbol\beta,\{\delta_t^\ell,\delta_t^r\}}
+\boldsymbol{\beta}^{\ast}
+= \arg\min_{\boldsymbol{\beta},\lbrace\delta_t^\ell,\delta_t^r\rbrace}
 \mathcal{L}_{\mathrm{hand}}^{\mathrm{centered}}
 + \lambda_m\mathcal{L}_{\mathrm{mesh}}
-+ \lambda_\beta\|\boldsymbol\beta-\boldsymbol\beta_0\|_2^2
-+ \lambda_p\sum_t\left(\|\delta_t^\ell\|_2^2+\|\delta_t^r\|_2^2\right).
++ \lambda_\beta\Vert\boldsymbol{\beta}-\boldsymbol{\beta}_0\Vert_2^2
++ \lambda_p\sum_t\left(\Vert\delta_t^\ell\Vert_2^2+\Vert\delta_t^r\Vert_2^2\right).
 $$
 
 The centered hand term compares the MANO-compatible SMPL-X hand vertices after subtracting each hand centroid. It constrains morphology and articulation without using absolute hand translation. We use $\lambda_m=0.02$, no shape anchor in the final fit, and a small pose regularizer.
 
-For each frame, the source reconstruction is then retargeted through the exact neutral SMPL-X layer with $\boldsymbol\beta^*$. The free pose variables are the left and right fingers and the upper-limb chain (shoulders, elbows, and wrists); all remaining body and face parameters are fixed. With $\widetilde{V}_t$ denoting the source mesh and $V_t(\delta)$ the canonical output, the frame objective is
+For each frame, the source reconstruction is then retargeted through the exact neutral SMPL-X layer with $\boldsymbol{\beta}^{\ast}$. The free pose variables are the left and right fingers and the upper-limb chain (shoulders, elbows, and wrists); all remaining body and face parameters are fixed. With $\widetilde{V}_t$ denoting the source mesh and $V_t(\delta)$ the canonical output, the frame objective is
 
 $$
 \mathcal{L}_{\mathrm{can}}
-= \frac{1}{2}\sum_{h\in\{\ell,r\}}
-\left\|
+= \frac{1}{2}\sum_{h\in\lbrace\ell,r\rbrace}
+\left\Vert
 \big(V_{t,h}(\delta)-\mu(V_{t,h}(\delta))\big)
 -\big(\widetilde{V}_{t,h}-\mu(\widetilde{V}_{t,h})\big)
-\right\|_2^2
-+0.02\|V_t(\delta)-\widetilde{V}_t\|_2^2.
+\right\Vert_2^2
++0.02\Vert V_t(\delta)-\widetilde{V}_t\Vert_2^2.
 $$
 
 This stage is not an evaluator-space deformation. It ends with a forward pass through the same 10,475-vertex neutral SMPL-X model used for evaluation, preserving topology and vertex correspondence.
@@ -132,7 +132,7 @@ The transverse palm axis is
 $$
 \mathbf{x}
 = \frac{\bar{J}_5-\bar{J}_{17}}
-       {\|\bar{J}_5-\bar{J}_{17}\|_2}.
+       {\Vert\bar{J}_5-\bar{J}_{17}\Vert_2}.
 $$
 
 We construct a longitudinal direction from the midpoint of the two outer metacarpophalangeal joints and orthogonalize it against $\mathbf{x}$:
@@ -142,18 +142,18 @@ $$
 \qquad
 \mathbf{y}=
 \frac{\widetilde{\mathbf{y}}-(\widetilde{\mathbf{y}}^{\top}\mathbf{x})\mathbf{x}}
-     {\|\widetilde{\mathbf{y}}-(\widetilde{\mathbf{y}}^{\top}\mathbf{x})\mathbf{x}\|_2}.
+     {\Vert\widetilde{\mathbf{y}}-(\widetilde{\mathbf{y}}^{\top}\mathbf{x})\mathbf{x}\Vert_2}.
 $$
 
 The palm normal and re-orthogonalized longitudinal axis are
 
 $$
-\mathbf{z}=\frac{\mathbf{x}\times\mathbf{y}}{\|\mathbf{x}\times\mathbf{y}\|_2},
+\mathbf{z}=\frac{\mathbf{x}\times\mathbf{y}}{\Vert\mathbf{x}\times\mathbf{y}\Vert_2},
 \qquad
 \mathbf{y}\leftarrow\mathbf{z}\times\mathbf{x}.
 $$
 
-With $Q=[\mathbf{x},\mathbf{y},\mathbf{z}]\in SO(3)$ and palm scale $s=\|\bar{J}_9\|_2$, the canonical representation is
+With $Q=[\mathbf{x},\mathbf{y},\mathbf{z}]\in SO(3)$ and palm scale $s=\Vert\bar{J}_9\Vert_2$, the canonical representation is
 
 $$
 \mathcal{C}(J)=\frac{\bar{J}Q}{\max(s,\epsilon)}.
@@ -167,15 +167,15 @@ Let $R^0_k\in SO(3)$, $k=1,\ldots,15$, be the initial local SMPL-X finger rotati
 
 $$
 R_k(\delta_k)
-=\exp\!\left(\operatorname{clip}_{\rho}(\delta_k)\right)R^0_k,
+=\exp\!\left(\mathrm{clip}_{\rho}(\delta_k)\right)R^0_k,
 \qquad \rho=12^\circ.
 $$
 
 The clipping operator is radial,
 
 $$
-\operatorname{clip}_{\rho}(\delta)
-=\delta\min\left(1,\frac{\rho}{\|\delta\|_2}\right),
+\mathrm{clip}_{\rho}(\delta)
+=\delta\min\left(1,\frac{\rho}{\Vert\delta\Vert_2}\right),
 $$
 
 so the feasible update is a geodesic ball around the reconstructed pose rather than a box in Euler-angle coordinates.
@@ -185,11 +185,11 @@ Let $J_h(\delta)$ be the 21 SMPL-X hand joints obtained by a differentiable forw
 $$
 \mathcal{L}_{\mathrm{palm}}(\delta)
 = \frac{1}{20}\sum_{i=1}^{20}
-\operatorname{SmoothL1}\!\left(
+\mathrm{SmoothL1}\!\left(
 \mathcal{C}(J_h(\delta))_i-
 \mathcal{C}(J_h^E)_i
 \right)
-+\lambda_\delta\frac{1}{15}\sum_{k=1}^{15}\|\delta_k\|_2^2,
++\lambda_\delta\frac{1}{15}\sum_{k=1}^{15}\Vert\delta_k\Vert_2^2,
 $$
 
 where $\lambda_\delta=0.2$. The wrist landmark is excluded from the data term because both skeletons are root-centered. We optimize for 40 Adam steps at learning rate 0.03 with cosine decay.
@@ -201,14 +201,14 @@ The final configuration does not force expert bone lengths to match those of the
 During palm-canonical fitting, the following variables are immutable:
 
 $$
-\left\{
-\boldsymbol\beta,
-\boldsymbol\theta^b,
+\left\lbrace
+\boldsymbol{\beta},
+\boldsymbol{\theta}^b,
 R_{\mathrm{wrist}}^\ell,
 R_{\mathrm{wrist}}^r,
-\boldsymbol\psi,
+\boldsymbol{\psi},
 \mathbf{c}
-\right\}.
+\right\rbrace.
 $$
 
 Only the 15 local finger rotations of an available side may change. This has a direct linguistic interpretation:
@@ -225,7 +225,7 @@ Every available expert proposal is fitted. If no proposal is available for a fra
 For clarity, the complete inference procedure is:
 
 1. Obtain the whole-body signing estimate and specialist hand proposals from the input video.
-2. Estimate a robust signer shape parameter $\boldsymbol\beta^*$ across pose-diverse frames.
+2. Estimate a robust signer shape parameter $\boldsymbol{\beta}^{\ast}$ across pose-diverse frames.
 3. Retarget every frame through the neutral SMPL-X model using the shared signer shape.
 4. For each detected hand, construct palm-canonical coordinate frames for both the reconstructed hand and the specialist hand proposal.
 5. Optimize bounded geodesic residuals for the 15 local finger joints under kinematic isolation.
@@ -250,9 +250,9 @@ The primary protocol follows the author-provided evaluator. For a vertex subset 
 $$
 E_{\mathrm{TR}}(S)
 =\frac{1}{|S|}\sum_{i\in S}
-\left\|
-(V_i-\mu(V_S))-(V_i^*-\mu(V_S^*))
-\right\|_2.
+\left\Vert
+(V_i-\mu(V_S))-(V_i^{\ast}-\mu(V_S^{\ast}))
+\right\Vert_2.
 $$
 
 We report All, upper body, upper body without face, upper body without head, left hand, and right hand. The hand sets use the official MANO-to-SMPL-X vertex mapping. Following the author protocol, left-hand error excludes signs annotated as one-handed, while right-hand error covers all signs.
@@ -262,9 +262,9 @@ We report All, upper body, upper body without face, upper body without head, lef
 We additionally evaluate PA-MPVPE with the Hand4Whole/SMPLer-X alignment convention. For each frame and region independently, an Umeyama similarity transform $(s,R,\mathbf{t})$ is fitted:
 
 $$
-(s^*,R^*,\mathbf{t}^*)
+(s^{\ast},R^{\ast},\mathbf{t}^{\ast})
 =\arg\min_{s,R\in SO(3),\mathbf{t}}
-\sum_{i\in S}\|sRV_i+\mathbf{t}-V_i^*\|_2^2,
+\sum_{i\in S}\Vert sRV_i+\mathbf{t}-V_i^{\ast}\Vert_2^2,
 $$
 
 followed by
@@ -272,7 +272,7 @@ followed by
 $$
 E_{\mathrm{PA}}(S)
 =\frac{1}{|S|}\sum_{i\in S}
-\|s^*R^*V_i+\mathbf{t}^*-V_i^*\|_2.
+\Vert s^{\ast}R^{\ast}V_i+\mathbf{t}^{\ast}-V_i^{\ast}\Vert_2.
 $$
 
 All PA values are frame-micro averages. We report each hand independently, their mean, the active-hand convention for one-handed signs, and upper-body subsets. PA and TR measure different properties and are never mixed within a comparison.
@@ -280,12 +280,12 @@ All PA values are frame-micro averages. We report each hand independently, their
 #### Joint-level pose metrics (VideoPose3D protocol)
 
 To benchmark kinematic joint fidelity directly, we evaluate 3D joint locations regressed from the 10,475 SMPL-X surface vertices via $\mathbf{J} = \mathcal{J} V \in \mathbb{R}^{55 \times 3}$. Following the official VideoPose3D evaluation protocols [8]:
-- **Protocol #1 (MPJPE):** Mean per-joint position error evaluated with translation alignment: $E_{\mathrm{MPJPE}}(\mathbf{J}) = \frac{1}{|J|}\sum_{j \in J}\|(\mathbf{J}_j - \mu(\mathbf{J})) - (\mathbf{J}_j^* - \mu(\mathbf{J}^*))\|_2$.
-- **Protocol #2 (PA-MPJPE):** Pose error after full rigid alignment (optimal scale, rotation, and translation computed via Umeyama SVD): $E_{\mathrm{PA\text{-}MPJPE}}(\mathbf{J}) = \frac{1}{|J|}\sum_{j \in J}\|s^* R^* \mathbf{J}_j + \mathbf{t}^* - \mathbf{J}_j^*\|_2$.
+- **Protocol #1 (MPJPE):** Mean per-joint position error evaluated with translation alignment: $E_{\mathrm{MPJPE}}(\mathbf{J}) = \frac{1}{|J|}\sum_{j \in J}\Vert(\mathbf{J}_j - \mu(\mathbf{J})) - (\mathbf{J}_j^{\ast} - \mu(\mathbf{J}^{\ast}))\Vert_2$.
+- **Protocol #2 (PA-MPJPE):** Pose error after full rigid alignment (optimal scale, rotation, and translation computed via Umeyama SVD): $E_{\mathrm{PA\text{-}MPJPE}}(\mathbf{J}) = \frac{1}{|J|}\sum_{j \in J}\Vert s^{\ast} R^{\ast} \mathbf{J}_j + \mathbf{t}^{\ast} - \mathbf{J}_j^{\ast}\Vert_2$.
 
 ### 4.3 Implementation details
 
-Signer identity uses 200 pose-diverse input frames, Huber parameter 1.5, and 300 canonical refinement steps at learning rate 0.01 to estimate a single consistent identity parameter $\boldsymbol\beta^*$. Per-frame canonical retargeting uses up to 300 Adam steps with hand weight 1.0 and whole-mesh weight 0.02.
+Signer identity uses 200 pose-diverse input frames, Huber parameter 1.5, and 300 canonical refinement steps at learning rate 0.01 to estimate a single consistent identity parameter $\boldsymbol{\beta}^{\ast}$. Per-frame canonical retargeting uses up to 300 Adam steps with hand weight 1.0 and whole-mesh weight 0.02.
 
 The core handshape refinement stage uses frozen off-the-shelf WiLoR observations [5]. For each detected hand, the 15 finger joint rotation residuals $\delta_k \in \mathfrak{so}(3)$ are optimized for 40 Adam steps at learning rate 0.03 with cosine annealing, regularized by a 0.2 geodesic residual prior and bounded within a 12-degree radial trust region ($\rho = 12^\circ$). The wrist, elbow, shoulder, torso, face, camera, and signer shape parameters are strictly frozen. All final meshes use the standard neutral 10,475-vertex SMPL-X topology. Our refinement framework requires zero neural network training or fine-tuning, operating entirely as a test-time optimization procedure.
 
@@ -390,7 +390,7 @@ Table 6 presents the cumulative progression from the baseline whole-body reconst
 | w/ Signer-consistent canonicalization | ✓ | ✓ |  | 42.0936 | 25.8311 | 29.1458 | 39.6963 | 12.8466 | 12.1275 |
 | **w/ Palm-canonical refinement (Full method)** | ✓ | ✓ | ✓ | **42.0501** | **25.7788** | **29.0829** | **39.5782** | **12.2807** | **11.4156** |
 
-As shown in Table 6, substituting WiLoR for HaMeR in the initial whole-body reconstruction provides an immediate baseline improvement on manual articulation, reducing left-hand error from 13.5735 to 12.8102 mm and right-hand error from 12.9271 to 12.1148 mm. Next, establishing a single signer-consistent identity parameter $\boldsymbol\beta^*$ across the sequence substantially improves upper-body geometry, reducing upper-body without face error from 29.6196 to 29.1458 mm and overall error to 42.0936 mm. Finally, our palm-canonical test-time refinement provides the decisive manual fidelity boost: by isolating finger optimization in the palm coordinate frame and locking wrist orientation, it further reduces left and right hand errors by 0.5659 mm and 0.7119 mm, achieving the best result across all regions (12.2807 mm on LHand, 11.4156 mm on RHand, and 29.0829 mm on UBody (−F)).
+As shown in Table 6, substituting WiLoR for HaMeR in the initial whole-body reconstruction provides an immediate baseline improvement on manual articulation, reducing left-hand error from 13.5735 to 12.8102 mm and right-hand error from 12.9271 to 12.1148 mm. Next, establishing a single signer-consistent identity parameter $\boldsymbol{\beta}^{\ast}$ across the sequence substantially improves upper-body geometry, reducing upper-body without face error from 29.6196 to 29.1458 mm and overall error to 42.0936 mm. Finally, our palm-canonical test-time refinement provides the decisive manual fidelity boost: by isolating finger optimization in the palm coordinate frame and locking wrist orientation, it further reduces left and right hand errors by 0.5659 mm and 0.7119 mm, achieving the best result across all regions (12.2807 mm on LHand, 11.4156 mm on RHand, and 29.0829 mm on UBody (−F)).
 
 ### 5.2 Ablating palm-canonical fitting
 
