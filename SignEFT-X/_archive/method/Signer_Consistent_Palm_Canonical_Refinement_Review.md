@@ -511,7 +511,7 @@ Every overlapping difference is below 0.004 mm. This audit supports the simpler 
 
 ## 6. Ablation Studies
 
-All ablations use all 57 signs and 1,493 frames. They are frozen experiment records from the former full run; Table 7 quantifies their parity with the selected clean pipeline. Because the component table is cumulative rather than factorial, a row-to-row change includes interactions with preceding stages.
+All ablations use all 57 signs and 1,493 frames. Tables 8--13 use the archived pipeline and protocol, including a new isolated unrestricted-wrist rerun; Table 7 quantifies the archived endpoint's parity with the selected clean pipeline. Tables 14--15 are clean, isolated reruns on the same protocol. Because the component table is cumulative rather than factorial, a row-to-row change includes interactions with preceding stages; Table 14 therefore adds the requested factorial test of the two canonical-reconstruction optimizations.
 
 ### 6.1 Cumulative component progression
 
@@ -582,16 +582,51 @@ The 2D gate rejects useful refinements and noticeably worsens both hands. The ca
 
 ### 6.6 Should the wrist be optimized in the final stage?
 
-We added at most $1^\circ$ of wrist residual while retaining the $12^\circ$ finger bound.
+We compare the protected wrist with both a $1^\circ$ residual and an effectively unrestricted residual. The latter uses a $180^\circ$ geodesic radius, which spans the complete distance range of $SO(3)$. Both variants retain the same $12^\circ$ finger bound, RGB heatmap wrist objective, schedule, and validity checks; no ground truth enters fitting.
 
 **Table 13. Wrist-state ablation, official TR-V2V (mm).**
 
-| Final-stage wrist state | All ↓ | UBody ↓ | UBody (−F) ↓ | UBody (−H) ↓ | LHand ↓ | RHand ↓ |
-|---|---:|---:|---:|---:|---:|---:|
-| Up to $1^\circ$ residual | 42.0504 | 25.7792 | 29.0835 | 39.5799 | 12.2827 | 11.4159 |
-| **Locked** | **42.0501** | **25.7788** | **29.0829** | **39.5782** | **12.2807** | **11.4156** |
+| Final-stage wrist state | Accepted frames | All ↓ | UBody ↓ | UBody (−F) ↓ | UBody (−H) ↓ | LHand ↓ | RHand ↓ |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| Free ($180^\circ$ radius) | 2/1,493 | 42.0936 | 25.8310 | 29.1458 | 39.6963 | 12.8466 | 12.1265 |
+| Up to $1^\circ$ residual | 1,466/1,493 | 42.0504 | 25.7792 | 29.0835 | 39.5799 | 12.2827 | 11.4159 |
+| **Locked** | **1,466/1,493** | **42.0501** | **25.7788** | **29.0829** | **39.5782** | **12.2807** | **11.4156** |
 
-The geometric difference is very small, so this ablation should not be read as evidence of a universal numerical advantage for locking the wrist. It does show that wrist freedom is unnecessary for the observed gain. We choose the locked variant because it provides the stronger semantic and implementation guarantee: the hand expert cannot purchase lower finger error by moving palm orientation.
+The $1^\circ$ and locked variants remain practically tied. In contrast, unrestricted wrist fitting makes the proposal inconsistent with the protected reconstruction: only 2 frames survive the same checks, so the result nearly collapses to the no-final-refinement endpoint. Its PA hand error is 0.4815 mm worse than locked, with a paired sign-bootstrap 95% interval of $[0.3715,0.5680]$ mm; locked is better on 52 of 57 signs. This distinguishes harmless numerical slack from unconstrained wrist motion and supports locking as both a semantic and empirical safeguard.
+
+### 6.7 Which canonical-reconstruction optimizations matter?
+
+We factorially ablate (i) gradient refinement of the robust sequence-level shape estimate into $\boldsymbol{\beta}^{\ast}$ and (ii) the subsequent canonical pose refit of both hands and the shoulder--elbow--wrist chain. “w/o $\beta$ refinement” still uses one signer-shared robust Huber shape; it removes only the 300-step shape optimization. “w/o pose refit” decodes the original per-frame poses with the selected shared shape. Thus, each row changes only the named optimization and is evaluated before the final palm-canonical stage.
+
+**Table 14. Factorial ablation of signer-consistent canonical reconstruction (official TR-V2V and PA-MPVPE, mm).**
+
+| $\beta$ refinement | Post-$\beta$ pose refit | All ↓ | UBody ↓ | UBody (−F) ↓ | UBody (−H) ↓ | LHand ↓ | RHand ↓ | PA Hands ↓ |
+|:---:|:---:|---:|---:|---:|---:|---:|---:|---:|
+| w/o | w/o | 43.6176 | 28.0793 | 31.9280 | 44.7155 | 29.1054 | 26.3798 | 21.2715 |
+| w/ | w/o | 43.3952 | 27.7032 | 31.4490 | 44.0257 | 29.0071 | 26.2839 | 21.2608 |
+| w/o | w/ | 42.2664 | 26.1576 | 29.5423 | 40.1386 | 12.8552 | 12.1535 | **8.9485** |
+| **w/** | **w/** | **42.0971** | **25.8278** | **29.1421** | **39.6883** | **12.8467** | **12.1272** | 8.9568 |
+
+The post-$\beta$ pose refit is the dominant factor: with $\boldsymbol{\beta}^{\ast}$ fixed, it reduces PA hand error by 12.3039 mm, with a paired sign-bootstrap 95% interval of $[-13.0195,-11.0751]$ mm and improvements on 56 of 57 signs. Shape refinement also improves every official aggregate in both pose-refit conditions; with pose refitting enabled it lowers All/UBody/UBody(−F) by 0.1693/0.3298/0.4002 mm. Its PA-hand difference after pose refitting is only $+0.0083$ mm with a 95% interval crossing zero, so the evidence for $\boldsymbol{\beta}^{\ast}$ is global signer consistency and official TR geometry, not a claimed PA-hand gain.
+
+### 6.8 Does L-BFGS improve either optimization stage?
+
+We replace Adam by strong-Wolfe L-BFGS while preserving each contribution's inputs, objective, parameterization, and output protocol. Delta is L-BFGS minus Adam; negative values favor L-BFGS.
+
+**Table 15. Adam versus L-BFGS on both contributions (mm).**
+
+| Contribution and metric | Adam | L-BFGS | Δ | Paired sign-bootstrap 95% CI |
+|---|---:|---:|---:|---:|
+| Canonical reconstruction, official All | **42.0971** | 42.1985 | +0.1014 | -- |
+| Canonical reconstruction, official UBody (−F) | **29.1421** | 29.2416 | +0.0995 | -- |
+| Canonical reconstruction, PA All | **36.4701** | 36.7277 | +0.2577 | $[+0.1451,+0.3330]$ |
+| Canonical reconstruction, PA Hands | **8.9568** | 9.0020 | +0.0451 | $[-0.0056,+0.0780]$ |
+| Palm-canonical refinement, official All | 42.0535 | **42.0533** | −0.0002 | -- |
+| Palm-canonical refinement, official UBody (−F) | 29.0791 | **29.0789** | −0.0002 | -- |
+| Palm-canonical refinement, PA All | 36.4387 | **36.4386** | −0.0001 | $[-0.0006,+0.0002]$ |
+| Palm-canonical refinement, PA Hands | **8.4746** | 8.4748 | +0.0002 | $[-0.0022,+0.0027]$ |
+
+L-BFGS is significantly worse on canonical PA-All and worsens every official canonical metric. At the final palm stage the optimizers are practically tied: all displayed differences are below 0.001 mm and both PA intervals cross zero. We therefore retain Adam; L-BFGS provides neither an accuracy benefit nor evidence sufficient to justify its line-search overhead.
 
 ## 7. Discussion
 
