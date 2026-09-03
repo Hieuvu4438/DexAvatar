@@ -56,7 +56,7 @@ Wrist-centered and palm-attached coordinate systems predate this work. Cascaded 
 
 ### 3.1 Problem formulation and state ownership
 
-Let $\mathcal{I}=\lbrace I_t\rbrace_{t=1}^{T}$ be a monocular signing clip collection. A frozen initializer provides a per-frame SMPL-X state
+Let $\mathcal{I}=\lbrace I\_t\rbrace\_{t=1}^{T}$ be a monocular signing clip collection. A frozen initializer provides a per-frame SMPL-X state
 
 $$
 \widehat{\Theta}_t =
@@ -123,7 +123,7 @@ J^\ell=J^rF,\qquad
 R_k^\ell=FR_k^rF,
 $$
 
-which preserves $\det R_k=+1$ while changing handedness. All expert joints are then wrist-centered. RGB, checkpoint, detector, source-commit, and sidecar hashes are stored with the frozen observation cache.
+which preserves $\det R\_k=+1$ while changing handedness. All expert joints are then wrist-centered. RGB, checkpoint, detector, source-commit, and sidecar hashes are stored with the frozen observation cache.
 
 ### 3.4 Robust signer identity
 
@@ -140,7 +140,7 @@ $$
 
 Each feature dimension is standardized. Deterministic farthest-point sampling starts from the sample with largest standardized squared norm and repeatedly selects the sample farthest from the current set.
 
-On the selected shape vectors, a coordinate-wise Huber location estimate initializes identity. Starting from the median $m_j$ with robust scale $\sigma_j=1.4826\,\mathrm{median}_t|\widehat{\beta}_{tj}-m_j|+10^{-6}$, ten reweighting iterations use
+On the selected shape vectors, a coordinate-wise Huber location estimate initializes identity. Starting from the median $m\_j$ with robust scale $\sigma\_j=1.4826\,\mathrm{median}\_t|\widehat{\beta}\_{tj}-m\_j|+10^{-6}$, ten reweighting iterations use
 
 $$
 r_{tj}=\frac{\widehat{\beta}_{tj}-\beta_j}{\sigma_j},
@@ -151,7 +151,7 @@ w_{tj}=\min\!\left(1,\frac{1.5}{|r_{tj}|+\epsilon}\right),
 \frac{\sum_t w_{tj}\widehat{\beta}_{tj}}{\sum_t w_{tj}}.
 $$
 
-Denote the result by $\boldsymbol{\beta}_0$. The configured run then refines one shared $\boldsymbol{\beta}$ together with small left/right hand-pose offsets for the calibration frames. Let $\widetilde V_t$ be the frozen initializer mesh and $H_\ell,H_r$ be the official 778-vertex MANO-to-SMPL-X correspondences. Define centered hand MSE
+Denote the result by $\boldsymbol{\beta}\_0$. The configured run then refines one shared $\boldsymbol{\beta}$ together with small left/right hand-pose offsets for the calibration frames. Let $\widetilde V\_t$ be the frozen initializer mesh and $H\_\ell, H\_r$ be the official 778-vertex MANO-to-SMPL-X correspondences. Define centered hand MSE
 
 $$
 D_H(V,\widetilde V)=
@@ -174,16 +174,16 @@ D_H(V,\widetilde V)
 \right].
 $$
 
-The released configuration places no additional anchor on $\boldsymbol{\beta}-\boldsymbol{\beta}_0$. Optimization uses Adam [19] for 300 steps at learning rate 0.01. Because $\widetilde V_t$ is an RGB-derived initializer output rather than motion-capture ground truth, this stage standardizes identity without target leakage.
+The released configuration places no additional anchor on $\boldsymbol{\beta}-\boldsymbol{\beta}\_0$. Optimization uses Adam [19] for 300 steps at learning rate 0.01. Because $\widetilde V\_t$ is an RGB-derived initializer output rather than motion-capture ground truth, this stage standardizes identity without target leakage.
 
 ### 3.5 Signer-consistent canonical refit
 
-Replacing every $\widehat{\boldsymbol{\beta}}_t$ with $\boldsymbol{\beta}^{\ast}$ changes joint locations and surface geometry. We therefore re-fit each sign in chunks of at most 32 frames through the exact neutral-SMPL-X layer. The free pose variables are:
+Replacing every $\widehat{\boldsymbol{\beta}}\_t$ with $\boldsymbol{\beta}^{\ast}$ changes joint locations and surface geometry. We therefore re-fit each sign in chunks of at most 32 frames through the exact neutral-SMPL-X layer. The free pose variables are:
 
 - body-pose entries 15:21, corresponding to shoulders, elbows, and wrists; and
 - all 15 finger rotations of both hands.
 
-Global orientation, translation, all remaining body joints, jaw, eyes, and expression remain fixed. With $V_t(\Delta)$ denoting the shared-shape output, the configured objective is
+Global orientation, translation, all remaining body joints, jaw, eyes, and expression remain fixed. With $V\_t(\Delta)$ denoting the shared-shape output, the configured objective is
 
 $$
 \mathcal{L}_{\mathrm{can}}=
@@ -195,7 +195,7 @@ No temporal term or pose anchor is active. We run at most 300 Adam steps at lear
 
 ### 3.6 Palm-canonical hand representation
 
-For either side, let $J\in\mathbb{R}^{21\times 3}$ contain the wrist, 15 articulated joints, and five fingertips in WiLoR-compatible order. We use the wrist $J_0$, index MCP $J_5$, middle MCP $J_9$, and little-finger MCP $J_{17}$.
+For either side, let $J\in\mathbb{R}^{21\times 3}$ contain the wrist, 15 articulated joints, and five fingertips in WiLoR-compatible order. We use the wrist $J\_0$, index MCP $J\_5$, middle MCP $J\_9$, and little-finger MCP $J\_{17}$.
 
 First remove wrist translation:
 
@@ -239,7 +239,7 @@ $$
 \mathbf{y}\leftarrow\mathbf{z}\times\mathbf{x}.
 $$
 
-With $Q=[\mathbf{x},\mathbf{y},\mathbf{z}]$ and palm scale $s=\Vert\overline J_9\Vert_2$, the canonical hand is
+With $Q=[\mathbf{x},\mathbf{y},\mathbf{z}]$ and palm scale $s=\Vert\overline J\_9\Vert\_2$, the canonical hand is
 
 $$
 \mathcal{C}(J)=
@@ -250,7 +250,7 @@ The implementation requires $\det Q>0.999$ for expert, reference, and optimized 
 
 ### 3.7 Bounded finger-only retargeting
 
-Let $R_k^0\in SO(3)$ be the canonical SMPL-X local rotation of finger joint $k$, $k=1,\ldots,15$. We optimize a tangent vector $\boldsymbol{\delta}_k\in\mathbb{R}^3$ and left-compose its exponential:
+Let $R\_k^0\in SO(3)$ be the canonical SMPL-X local rotation of finger joint $k$, $k=1,\ldots,15$. We optimize a tangent vector $\boldsymbol{\delta}\_k\in\mathbb{R}^3$ and left-compose its exponential:
 
 $$
 R_k(\boldsymbol{\delta}_k)=
@@ -273,16 +273,14 @@ $$
 
 Thus, every joint has an independent fixed geodesic update bound. This is a constrained parameterization, not an adaptive trust-region optimization algorithm.
 
-Let $J_h(\boldsymbol{\delta})$ be the 21 SMPL-X hand joints from a differentiable forward pass and $J_h^E$ the frozen WiLoR proposal. The wrist is excluded because both hands are root-centered. With componentwise Smooth-L1 loss $\ell_{\mathrm{SL1}}$, the per-frame, per-side objective is
+Let $J\_h(\boldsymbol{\delta})$ be the 21 SMPL-X hand joints from a differentiable forward pass and $J\_h^E$ the frozen WiLoR proposal. The wrist is excluded because both hands are root-centered. With componentwise Smooth-L1 loss $\ell\_{\mathrm{SL1}}$, the per-frame, per-side objective is
 
 $$
 \mathcal{L}_{\mathrm{hand}}=
 \frac{1}{20}
 \sum_{i=1}^{20}\sum_{d=1}^{3}
 \ell_{\mathrm{SL1}}\!\left(
-\mathcal{C}(J_h(\boldsymbol{\delta}))_{i,d}
--
-\mathcal{C}(J_h^E)_{i,d}
+\mathcal{C}(J_h(\boldsymbol{\delta}))_{i,d} - \mathcal{C}(J_h^E)_{i,d}
 \right)
 +0.2\,
 \frac{1}{15}\sum_{k=1}^{15}
@@ -343,9 +341,7 @@ E_{\mathrm{TR}}(S)=
 \frac{1}{|S|}
 \sum_{i\in S}
 \left\Vert
-\left(V_i-\mu(V_S)\right)
--
-\left(V_i^\ast-\mu(V_S^\ast)\right)
+\left(V_i-\mu(V_S)\right) - \left(V_i^\ast-\mu(V_S^\ast)\right)
 \right\Vert_2.
 $$
 
