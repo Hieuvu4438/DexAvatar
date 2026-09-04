@@ -582,17 +582,17 @@ The 2D gate rejects useful refinements and noticeably worsens both hands. The ca
 
 ### 6.6 Should the wrist be optimized in the final stage?
 
-We compare the protected wrist with both a $1^\circ$ residual and an effectively unrestricted residual. The latter uses a $180^\circ$ geodesic radius, which spans the complete distance range of $SO(3)$. Both variants retain the same $12^\circ$ finger bound, RGB heatmap wrist objective, schedule, and validity checks; no ground truth enters fitting.
+We compare the protected wrist with both a $1^\circ$ residual and an effectively unrestricted residual. The latter uses a $180^\circ$ geodesic radius, which spans the complete distance range of $SO(3)$. To isolate wrist freedom itself rather than its interaction with rollback, Table 13 evaluates raw candidates: every available-side candidate is materialized before evaluation. The locked and $1^\circ$ runs already pass all protected-drift checks, while the free-wrist runner disables only those three materialization checks in an isolated runtime copy. The $12^\circ$ finger bound, RGB heatmap wrist objective, optimizer, schedule, inputs, and expert-unavailable fallback remain identical; no ground truth enters fitting.
 
 **Table 13. Wrist-state ablation, official TR-V2V (mm).**
 
-| Final-stage wrist state | Accepted frames | All ↓ | UBody ↓ | UBody (−F) ↓ | UBody (−H) ↓ | LHand ↓ | RHand ↓ |
+| Final-stage wrist state | Expert frames materialized | All ↓ | UBody ↓ | UBody (−F) ↓ | UBody (−H) ↓ | LHand ↓ | RHand ↓ |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| Free ($180^\circ$ radius) | 2/1,493 | 42.0936 | 25.8310 | 29.1458 | 39.6963 | 12.8466 | 12.1265 |
+| Free ($180^\circ$ radius, raw) | 1,466/1,493 | 42.1911 | 25.9813 | 29.3358 | 40.1039 | 13.3357 | 12.4593 |
 | Up to $1^\circ$ residual | 1,466/1,493 | 42.0504 | 25.7792 | 29.0835 | 39.5799 | 12.2827 | 11.4159 |
 | **Locked** | **1,466/1,493** | **42.0501** | **25.7788** | **29.0829** | **39.5782** | **12.2807** | **11.4156** |
 
-The $1^\circ$ and locked variants remain practically tied. In contrast, unrestricted wrist fitting makes the proposal inconsistent with the protected reconstruction: only 2 frames survive the same checks, so the result nearly collapses to the no-final-refinement endpoint. Its PA hand error is 0.4815 mm worse than locked, with a paired sign-bootstrap 95% interval of $[0.3715,0.5680]$ mm; locked is better on 52 of 57 signs. This distinguishes harmless numerical slack from unconstrained wrist motion and supports locking as both a semantic and empirical safeguard.
+The $1^\circ$ and locked variants remain practically tied. Without rollback, unrestricted wrist fitting directly worsens every official aggregate: relative to locked, All/UBody errors rise by 0.1410/0.2025 mm and left/right hand errors rise by 1.0550/1.0437 mm. PA alignment removes most rigid wrist error, yet free wrist still raises PA-All by 0.1642 mm (95% paired sign-bootstrap interval $[0.0677,0.2977]$; locked wins 47/57 signs) and PA-Hands by 0.0057 mm ($[0.0015,0.0105]$; locked wins 41/57). As a separate safety diagnostic rather than the accuracy row, retaining the production protected-drift rollback accepts only 2/1,493 free-wrist frames. Thus the degradation in Table 13 is measured on raw candidates and cannot be attributed to fallback.
 
 ### 6.7 Which canonical-reconstruction optimizations matter?
 

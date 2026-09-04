@@ -450,17 +450,17 @@ The 2D-only filter removes useful hand refinements, increasing left/right error 
 
 ### 5.6 Ablating wrist locking
 
-The full method treats palm orientation as protected signing information and therefore freezes the wrist. We compare it with both a one-degree wrist residual and an effectively unrestricted residual. The free variant uses a 180-degree geodesic radius, spanning the complete distance range of $SO(3)$, while retaining the same 12-degree finger trust region, RGB heatmap wrist objective, schedule, and validity checks. No ground truth enters fitting.
+The full method treats palm orientation as protected signing information and therefore freezes the wrist. We compare it with both a one-degree wrist residual and an effectively unrestricted residual using a 180-degree geodesic radius, which spans the complete distance range of $SO(3)$. To isolate wrist freedom rather than its interaction with rollback, Table 11 evaluates raw candidates: every available-side candidate is materialized. Locked and one-degree candidates already pass every protected-drift check; the free-wrist runner disables only those three materialization checks in an isolated runtime copy. The 12-degree finger bound, RGB heatmap wrist objective, optimizer, schedule, inputs, and expert-unavailable fallback remain identical, and no ground truth enters fitting.
 
 **Table 11. Effect of wrist locking on the complete protocol (TR-V2V, mm).**
 
-| Configuration | Wrist locked | Accepted frames | All ↓ | UBody ↓ | UBody (−F) ↓ | UBody (−H) ↓ | LHand ↓ | RHand ↓ |
+| Configuration | Wrist locked | Expert frames materialized | All ↓ | UBody ↓ | UBody (−F) ↓ | UBody (−H) ↓ | LHand ↓ | RHand ↓ |
 |---|:---:|---:|---:|---:|---:|---:|---:|---:|
-| w/o wrist locking (free, 180° radius) |  | 2/1,493 | 42.0936 | 25.8310 | 29.1458 | 39.6963 | 12.8466 | 12.1265 |
+| w/o wrist locking (free, 180° radius; raw) |  | 1,466/1,493 | 42.1911 | 25.9813 | 29.3358 | 40.1039 | 13.3357 | 12.4593 |
 | w/o wrist locking (1° residual) |  | 1,466/1,493 | 42.0504 | 25.7792 | 29.0835 | 39.5799 | 12.2827 | 11.4159 |
 | **w/ wrist locking (ours)** | ✓ | **1,466/1,493** | **42.0501** | **25.7788** | **29.0829** | **39.5782** | **12.2807** | **11.4156** |
 
-One degree of wrist freedom is practically tied with locking. Free wrist optimization is decisively weaker: only 2 frames survive the same consistency checks, so the result nearly reverts to the no-final-refinement endpoint. Its PA hand error is 0.4815 mm worse than locked, with a paired sign-bootstrap 95% interval of $[0.3715,0.5680]$ mm; locked wins on 52 of 57 signs. The result supports the intended factorization: finger articulation should be refined without allowing an unconstrained change in palm orientation.
+One degree of wrist freedom is practically tied with locking. Without rollback, unrestricted wrist fitting directly worsens every official aggregate. Relative to locked, All/UBody errors rise by 0.1410/0.2025 mm and left/right hand errors rise by 1.0550/1.0437 mm. Although PA alignment removes most rigid wrist error, free wrist still raises PA-All by 0.1642 mm (95% paired sign-bootstrap interval $[0.0677,0.2977]$; locked wins 47/57 signs) and PA-Hands by 0.0057 mm ($[0.0015,0.0105]$; locked wins 41/57). Separately, the production protected-drift rollback accepts only 2/1,493 free-wrist frames; this is a safety diagnostic and is not used as the accuracy row. The raw-candidate degradation therefore cannot be attributed to fallback.
 
 ### 5.7 Ablating the two canonical-reconstruction optimizations
 
